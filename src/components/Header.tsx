@@ -275,6 +275,7 @@ export default function Header() {
           -webkit-backdrop-filter: blur(clamp(2px, 0.25em, 8px));
         }
         .glass-btn-wrap--header .glass-btn span {
+          font-family: 'Selecta', system-ui, -apple-system, sans-serif;
           font-size: 14px;
           font-weight: 400;
           letter-spacing: -0.16px;

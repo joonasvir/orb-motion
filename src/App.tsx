@@ -1081,130 +1081,158 @@ function App() {
       {/* Header (fixed top) */}
       {!showcaseMode && <Header />}
 
-      {/* Headline + Subheadline (right-aligned column) */}
+      {/* Left-side visual (matches Figma 869:41650) */}
       {!showcaseMode && (
         <div style={{
           position: 'absolute',
-          top: 'clamp(110px, 16vh, 170px)',
-          right: 'clamp(20px, 5vw, 80px)',
-          width: 'min(540px, 60vw)',
-          color: renderStyle === 'shaders' ? '#ffffff' : '#222',
-          fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif',
-          textAlign: 'center',
+          top: '50%',
+          left: 0,
+          right: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '0 clamp(20px, 4vw, 64px)',
           pointerEvents: 'none',
           userSelect: 'none',
-          zIndex: 5,
+          zIndex: 4,
         }}>
-          <h1 style={{
-            fontSize: 'clamp(25px, 3.85vw, 63px)',
-            lineHeight: 1.05,
-            letterSpacing: '-0.02em',
-            fontWeight: 400,
-            margin: 0,
-            marginBottom: 'clamp(12px, 1.6vh, 20px)',
-          }}>Big beautiful headline here</h1>
-          <p style={{
-            fontSize: 'clamp(12px, 1.7vw, 31px)',
-            lineHeight: 1.2,
-            letterSpacing: '-0.01em',
-            opacity: 0.8,
-            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
-            margin: 0,
-            maxWidth: 467,
-            marginLeft: 'auto',
-            marginRight: 'auto',
-            fontWeight: 400,
-          }}>Fun subheadline here that rotates things</p>
-        </div>
-      )}
-
-      {/* Glassy QR code (right column, between subhead and CTA) */}
-      {!showcaseMode && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '50%',
-            right: 'clamp(20px, 5vw, 80px)',
-            transform: 'translate(0, -50%)',
-            width: 'clamp(160px, 18vw, 250px)',
-            aspectRatio: '1 / 1',
-            padding: 'clamp(8px, 0.85vw, 12px)',
-            borderRadius: 'clamp(20px, 2.4vw, 34px)',
-            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            border: renderStyle === 'shaders'
-              ? '1.5px solid rgba(255,255,255,0.85)'
-              : '1.5px solid rgba(0,0,0,0.05)',
-            boxShadow:
-              '0 21px 20px rgba(0,0,0,0.05), inset -2px -2px 2px rgba(0,0,0,0.05), inset 2px 2px 2px rgba(0,0,0,0.03), inset 0 0 14px rgba(0,0,0,0.03)',
-            pointerEvents: 'none',
-            userSelect: 'none',
-            zIndex: 5,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            mixBlendMode: renderStyle === 'shaders' ? 'normal' : 'normal',
-          }}
-        >
           <img
-            src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=${encodeURIComponent('https://wabi.ai')}`}
-            alt="QR code"
+            src="/left-visual.png"
+            alt=""
             style={{
               width: '100%',
-              height: '100%',
-              objectFit: 'contain',
+              maxWidth: 'min(640px, 80%)',
+              height: 'auto',
               display: 'block',
-              borderRadius: 'clamp(14px, 1.8vw, 24px)',
+              objectFit: 'contain',
             }}
           />
         </div>
       )}
 
-      {/* Download CTA (right column, lower) */}
+      {/* Right column: headline > subhead > QR > CTA (matches Figma 869:41270) */}
       {!showcaseMode && (
-        <a
-          href="#"
-          onClick={(e) => e.preventDefault()}
-          style={{
-            position: 'absolute',
-            bottom: 'clamp(110px, 16vh, 180px)',
-            right: 'clamp(20px, 5vw, 80px)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-            padding: '16px 28px',
-            minWidth: 240,
-            borderRadius: 9999,
-            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.7)',
-            border: renderStyle === 'shaders'
-              ? '1.5px solid rgba(255,255,255,0.85)'
-              : '1.5px solid rgba(0,0,0,0.06)',
-            boxShadow: '0 3px 16px rgba(0,0,0,0.07), 0 14px 36px rgba(0,0,0,0.06), 0 28px 80px rgba(0,0,0,0.04)',
-            backdropFilter: 'blur(24px)',
-            WebkitBackdropFilter: 'blur(24px)',
-            color: '#363636',
-            fontSize: 18,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            textDecoration: 'none',
-            fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif',
-            zIndex: 5,
-            cursor: 'pointer',
-          }}
-        >
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
-            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-          </svg>
-          Download for iOS
-        </a>
+        <div style={{
+          position: 'absolute',
+          top: 'clamp(110px, 16vh, 160px)',
+          bottom: 'clamp(80px, 12vh, 130px)',
+          left: '50%',
+          right: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 'clamp(16px, 2vh, 28px)',
+          padding: '0 clamp(20px, 4vw, 64px)',
+          color: renderStyle === 'shaders' ? '#ffffff' : '#222',
+          fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+          textAlign: 'center',
+          userSelect: 'none',
+          zIndex: 5,
+          pointerEvents: 'none',
+        }}>
+          {/* Headline + subheadline */}
+          <div style={{ width: '100%' }}>
+            <h1 style={{
+              fontFamily: 'inherit',
+              fontSize: 'clamp(36px, 5.2vw, 74px)',
+              lineHeight: 1.05,
+              letterSpacing: '-0.02em',
+              fontWeight: 400,
+              margin: 0,
+              marginBottom: 'clamp(16px, 2vh, 28px)',
+              fontFeatureSettings: '"dlig" 1',
+            }}>Big beautiful headline here</h1>
+            <p style={{
+              fontFamily: 'inherit',
+              fontSize: 'clamp(16px, 2.1vw, 36px)',
+              lineHeight: 1.2,
+              letterSpacing: '-0.01em',
+              opacity: 0.8,
+              color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
+              margin: 0,
+              maxWidth: 384,
+              marginLeft: 'auto',
+              marginRight: 'auto',
+              fontWeight: 400,
+              fontFeatureSettings: '"dlig" 1',
+            }}>Fun subheadline here that rotates things</p>
+          </div>
+
+          {/* QR */}
+          <div
+            style={{
+              width: 'clamp(160px, 16vw, 274px)',
+              aspectRatio: '1 / 1',
+              padding: 'clamp(8px, 0.85vw, 12px)',
+              borderRadius: 'clamp(20px, 2.4vw, 34px)',
+              background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              border: renderStyle === 'shaders'
+                ? '1.5px solid rgba(255,255,255,0.85)'
+                : '1.5px solid rgba(0,0,0,0.05)',
+              boxShadow:
+                '0 21px 20px rgba(0,0,0,0.05), inset -2px -2px 2px rgba(0,0,0,0.05), inset 2px 2px 2px rgba(0,0,0,0.03), inset 0 0 14px rgba(0,0,0,0.03)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <img
+              src="/qr-wabi.png"
+              alt="QR code"
+              style={{
+                width: '100%',
+                height: '100%',
+                objectFit: 'contain',
+                display: 'block',
+              }}
+            />
+          </div>
+
+          {/* Download CTA pill */}
+          <a
+            href="#"
+            onClick={(e) => e.preventDefault()}
+            style={{
+              pointerEvents: 'auto',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              padding: '0 28px',
+              height: 'clamp(56px, 6vw, 88px)',
+              width: 'clamp(240px, 24vw, 350px)',
+              borderRadius: 9999,
+              background: 'rgba(255,255,255,0.5)',
+              border: '1.5px solid rgba(255,255,255,0.95)',
+              boxShadow:
+                '3px 16px 48px rgba(0,0,0,0.07), 5px 36px 49px rgba(0,0,0,0.05), 9px 64px 27px rgba(0,0,0,0.01)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              color: '#363636',
+              fontFamily: 'inherit',
+              fontSize: 'clamp(15px, 1.9vw, 27px)',
+              fontWeight: 400,
+              letterSpacing: '-0.01em',
+              textDecoration: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+            </svg>
+            Download for iOS
+          </a>
+        </div>
       )}
 
       {/* Controls Panel */}
       {showControls && !showcaseMode && (
         <div style={{
-          position: 'absolute', bottom: 60, left: 20,
+          position: 'absolute', top: 96, left: 20,
           background: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 8,
           color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
           backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
@@ -1286,7 +1314,7 @@ function App() {
       {/* Motion sidebar (right) */}
       {showControls && !showcaseMode && (() => {
         const panelStyle: React.CSSProperties = {
-          position: 'absolute', bottom: 60, right: 20,
+          position: 'absolute', top: 96, left: 260,
           background: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 8,
           color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
           backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
@@ -1389,7 +1417,7 @@ function App() {
       {/* Instructions */}
       {!showcaseMode && (
         <div style={{
-          position: 'absolute', bottom: 20, left: '50%', transform: 'translateX(-50%)',
+          position: 'absolute', top: 96, left: '50%', transform: 'translateX(-50%)',
           color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)',
           fontFamily: 'system-ui, sans-serif', fontSize: 12,
           pointerEvents: 'none', userSelect: 'none',
