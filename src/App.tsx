@@ -809,7 +809,7 @@ function App() {
               // Starting position on the orbit
               a.orbitPhase = Math.random() * Math.PI * 2;
               // Angular speed — Kepler-like: outer orbits a bit slower
-              a.orbitSpeed = (0.10 + Math.random() * 0.10) * Math.sqrt(200 / a.orbitRadius);
+              a.orbitSpeed = (0.35 + Math.random() * 0.25) * Math.sqrt(200 / a.orbitRadius);
             }
             const a = animData as any;
 
