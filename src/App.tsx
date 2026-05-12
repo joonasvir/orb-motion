@@ -1166,15 +1166,15 @@ function App() {
       {!showcaseMode && (
         <div style={{
           position: 'absolute',
-          top: 'clamp(110px, 16vh, 160px)',
-          bottom: 'clamp(80px, 12vh, 130px)',
+          top: 0,
+          bottom: 0,
           left: '50%',
           right: 0,
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 'clamp(16px, 2vh, 28px)',
+          justifyContent: 'center',
+          gap: 'clamp(14px, 1.6vh, 22px)',
           padding: '0 clamp(20px, 4vw, 64px)',
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
           fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
@@ -1192,7 +1192,7 @@ function App() {
               letterSpacing: '-0.02em',
               fontWeight: 400,
               margin: 0,
-              marginBottom: 'clamp(16px, 2vh, 28px)',
+              marginBottom: 'clamp(10px, 1.2vh, 18px)',
               fontFeatureSettings: '"dlig" 1',
             }}>Big beautiful headline here</h1>
             <p style={{
