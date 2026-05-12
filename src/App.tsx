@@ -410,12 +410,14 @@ function App() {
       engine.velocityIterations = 4;
       engineRef.current = engine;
 
-      // Play area is constrained to the LEFT HALF of the viewport
+      // Play area: left half of viewport, with header + footer clearance
       const wallThickness = 50;
+      const FOOTER_CLEARANCE = 72; // keep orbs from overlapping the footer
       const playRight = window.innerWidth * 0.5;
+      const floorY = window.innerHeight - FOOTER_CLEARANCE;
       walls = [
-        // Floor
-        Matter.Bodies.rectangle(playRight / 2, window.innerHeight + wallThickness / 2, playRight * 2, wallThickness, { isStatic: true, label: 'wall' }),
+        // Floor — just above the footer
+        Matter.Bodies.rectangle(playRight / 2, floorY + wallThickness / 2, playRight * 2, wallThickness, { isStatic: true, label: 'wall' }),
         // Left wall
         Matter.Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
         // Right wall — at mid-screen instead of viewport edge
@@ -625,9 +627,12 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
+        // and stay clear of the header (top) and footer (bottom)
+        const HEADER_CLEARANCE = 96;
+        const FOOTER_CLEARANCE_R2 = 72;
         const playWidth = window.innerWidth * 0.5;
         const centerX = playWidth * 0.5;
-        const centerY = window.innerHeight / 2;
+        const centerY = HEADER_CLEARANCE + (window.innerHeight - HEADER_CLEARANCE - FOOTER_CLEARANCE_R2) / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -793,8 +798,10 @@ function App() {
             // Initialize per-orb orbital parameters once
             if ((animData as any).orbitRadius === undefined) {
               const a = animData as any;
-              // World radius — distributed across a range, biased outward
-              a.orbitRadius = 180 + Math.pow(Math.random(), 0.6) * 280;
+              // Scale orbits to the available play area (left half)
+              const orbitMax = Math.min(playWidth, window.innerHeight - HEADER_CLEARANCE - FOOTER_CLEARANCE_R2) * 0.42;
+              const orbitMin = orbitMax * 0.45;
+              a.orbitRadius = orbitMin + Math.pow(Math.random(), 0.6) * (orbitMax - orbitMin);
               // Tilt of orbital plane around x-axis (-π/2 to π/2)
               a.inclination = (Math.random() - 0.5) * Math.PI;
               // Rotation of orbital plane around y-axis (0 to 2π)
@@ -802,7 +809,7 @@ function App() {
               // Starting position on the orbit
               a.orbitPhase = Math.random() * Math.PI * 2;
               // Angular speed — Kepler-like: outer orbits a bit slower
-              a.orbitSpeed = (0.10 + Math.random() * 0.10) * Math.sqrt(300 / a.orbitRadius);
+              a.orbitSpeed = (0.10 + Math.random() * 0.10) * Math.sqrt(200 / a.orbitRadius);
             }
             const a = animData as any;
 
@@ -825,14 +832,15 @@ function App() {
             const worldY = tiltedY;
             const worldZ = -tiltedX * sinA + tiltedZ * cosA;
 
-            // Perspective projection — positive worldZ = toward camera
-            const cameraDist = 700;
+            // Perspective projection — positive worldZ = toward camera.
+            // Camera is far so positions don't fly off-screen; only sizes vary.
+            const cameraDist = 1200;
             const depth = cameraDist - worldZ;
-            const persp = cameraDist / Math.max(depth, 100);
+            const persp = cameraDist / Math.max(depth, 400);
 
             drawX = centerX + worldX * persp;
             drawY = centerY + worldY * persp;
-            radius = baseRadius * persp * 1.1;
+            radius = baseRadius * persp * 1.15;
 
             // Sort: closer (larger worldZ) renders on top
             zDepth = worldZ;
@@ -962,9 +970,11 @@ function App() {
         canvas.style.height = `${window.innerHeight}px`;
         ctx.scale(dpr, dpr);
 
-        // Update wall positions immediately (play area = left half)
+        // Update wall positions immediately (play area = left half, with footer clearance)
+        const FOOTER_CLEARANCE_R = 72;
         const playRightR = window.innerWidth * 0.5;
-        Matter.Body.setPosition(walls[0], { x: playRightR / 2, y: window.innerHeight + wallThickness / 2 });
+        const floorYR = window.innerHeight - FOOTER_CLEARANCE_R;
+        Matter.Body.setPosition(walls[0], { x: playRightR / 2, y: floorYR + wallThickness / 2 });
         Matter.Body.setPosition(walls[1], { x: -wallThickness / 2, y: window.innerHeight / 2 });
         Matter.Body.setPosition(walls[2], { x: playRightR + wallThickness / 2, y: window.innerHeight / 2 });
 
@@ -973,7 +983,7 @@ function App() {
         resizeTimeout = window.setTimeout(() => {
           if (displayModeRef.current === 'physics') {
             const orbs = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'orb');
-            const floorY = window.innerHeight - 5;
+            const floorY = window.innerHeight - 72;
 
             orbs.forEach(orb => {
               const radius = (orb as any).circleRadius || BASE_RADIUS;
