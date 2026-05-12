@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Orb Drop</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #131313;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    #container {
+      position: fixed;
+      inset: 0;
+      background: #131313;
+    }
+    #orbCanvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #controlPanel {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      padding: 20px 28px;
+      display: none;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 100;
+      min-width: 240px;
+    }
+    #controlPanel.visible {
+      display: flex;
+    }
+    .control-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .control-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .control-value {
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      min-width: 32px;
+      text-align: right;
+    }
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      outline: none;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+    }
+    .hint {
+      color: rgba(255, 255, 255, 0.4);
+      font-size: 11px;
+      text-align: center;
+      margin-top: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <canvas id="orbCanvas"></canvas>
+  </div>
+
+  <div id="controlPanel">
+    <div class="control-row">
+      <span class="control-label">Orb Count</span>
+      <input type="range" id="orbCountSlider" min="10" max="100" value="50">
+      <span class="control-value" id="orbCountValue">50</span>
+    </div>
+    <div class="hint">Press F to restart | Click to add orbs</div>
+  </div>
+
+  <script type="module">
+    import Matter from 'https://esm.sh/matter-js@0.20.0';
+
+    const WABI_API_URL = window.location.hostname === 'localhost'
+      ? '/api/wabi/app/random-covers?count=60'
+      : '/api/covers?count=60';
+    const FALLBACK_ORBS = [
+      'https://i.imgur.com/4Aq1p5V.png',
+      'https://i.imgur.com/qx8f4iH.png',
+      'https://i.imgur.com/AWPO3TG.png',
+      'https://i.imgur.com/p9lsZOd.png',
+      'https://i.imgur.com/vwH7fhY.png',
+      'https://i.imgur.com/LMjFvVQ.png',
+      'https://i.imgur.com/SfPZogI.png',
+      'https://i.imgur.com/4MhFEwN.png',
+      'https://i.imgur.com/cv5FCFY.png',
+      'https://i.imgur.com/D5A4UUJ.png',
+      'https://i.imgur.com/PFsPgBN.png',
+      'https://i.imgur.com/B70veGi.png',
+      'https://i.imgur.com/AehAw57.png',
+      'https://i.imgur.com/rwgRwAj.png',
+      'https://i.imgur.com/ojY9Fs3.png',
+      'https://i.imgur.com/SU1ihwl.png',
+      'https://i.imgur.com/ct0AeRD.png',
+      'https://i.imgur.com/0uZCyTe.png',
+      'https://i.imgur.com/8dKpawM.png',
+      'https://i.imgur.com/EBMFd7A.png',
+      'https://i.imgur.com/34OFX6f.png',
+      'https://i.imgur.com/nh6p2J0.png',
+      'https://i.imgur.com/9GEdegS.png',
+      'https://i.imgur.com/IUMWj6Y.png',
+      'https://i.imgur.com/etdgUOx.png',
+      'https://i.imgur.com/6LgF0YR.png',
+      'https://i.imgur.com/7MqgR3i.png',
+      'https://i.imgur.com/txHoBrO.png',
+      'https://i.imgur.com/iV88FY2.png',
+      'https://i.imgur.com/FAoVMHq.png',
+    ];
+
+    const BASE_RADIUS = window.innerWidth > 768 ? 60 : 40;
+    const MIN_SCALE = 0.9;
+    const MAX_SCALE = 1.1;
+    const DAMPING = 0.005;
+    const MOUSE_FORCE = 0.025;
+    const MOUSE_RADIUS = 180;
+
+    let dropCount = 50;
+    let coverUrls = [];
+
+    const container = document.getElementById('container');
+    const canvas = document.getElementById('orbCanvas');
+    const ctx = canvas.getContext('2d');
+    const controlPanel = document.getElementById('controlPanel');
+    const orbCountSlider = document.getElementById('orbCountSlider');
+    const orbCountValue = document.getElementById('orbCountValue');
+
+    let engine;
+    let walls = [];
+    const orbDataMap = new Map();
+    const preloadedImages = new Map();
+    let overlayImage = null;
+    const mousePos = { x: -9999, y: -9999 };
+
+    function getRect() {
+      return container.getBoundingClientRect();
+    }
+
+    function getRandomCover() {
+      const urls = coverUrls.length > 0 ? coverUrls : FALLBACK_ORBS;
+      return urls[Math.floor(Math.random() * urls.length)];
+    }
+
+    async function fetchCovers() {
+      try {
+        console.log('Fetching covers from API...');
+        const res = await fetch(WABI_API_URL);
+        if (res.ok) {
+          const json = await res.json();
+          console.log('API response:', json);
+          const urls = json.data?.covers || [];
+          if (urls.length > 0) {
+            coverUrls = urls;
+            console.log('Loaded ' + coverUrls.length + ' covers from API');
+          }
+        }
+      } catch (e) {
+        console.log('API fetch failed, using fallback orbs:', e);
+      }
+    }
+
+    async function preloadImages() {
+      await fetchCovers();
+
+      const allUrls = coverUrls.length > 0 ? coverUrls : FALLBACK_ORBS;
+      console.log('Preloading', allUrls.length, 'images');
+      await Promise.all(
+        allUrls.map(url => new Promise(resolve => {
+          const img = new Image();
+          img.onload = () => {
+            preloadedImages.set(url, img);
+            resolve();
+          };
+          img.onerror = () => { console.log('Failed to load:', url); resolve(); };
+          img.src = url;
+        }))
+      );
+      console.log('Preloaded', preloadedImages.size, 'images');
+
+      await new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          overlayImage = img;
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = '/orb-overlay.png';
+      });
+    }
+
+    function addOrb() {
+      const rect = getRect();
+      const scale = MIN_SCALE + Math.random() * (MAX_SCALE - MIN_SCALE);
+      const radius = BASE_RADIUS * scale;
+      const posX = Math.random() * (rect.width - radius * 2) + radius;
+      const posY = -radius * 2 - Math.random() * 400;
+      const imageUrl = getRandomCover();
+      const orb = Matter.Bodies.circle(posX, posY, radius, {
+        restitution: 0.6,
+        friction: 0.05,
+        frictionAir: DAMPING,
+        density: 0.001,
+        label: 'orb',
+        slop: 0.01,
+      });
+      const data = {
+        imageUrl,
+        image: preloadedImages.get(imageUrl) || null,
+      };
+      if (!data.image) {
+        const img = new Image();
+                img.onload = () => {
+          data.image = img;
+          preloadedImages.set(imageUrl, img);
+        };
+        img.src = imageUrl;
+      }
+      orbDataMap.set(orb.id, data);
+      Matter.Composite.add(engine.world, orb);
+    }
+
+    function setupCanvas() {
+      const rect = getRect();
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.resetTransform();
+      ctx.scale(dpr, dpr);
+    }
+
+    function createWalls() {
+      const rect = getRect();
+      const wallT = 50;
+      const w = rect.width;
+      const h = rect.height;
+      return [
+        Matter.Bodies.rectangle(w / 2, h + wallT / 2, w * 2, wallT, { isStatic: true, label: 'wall' }),
+        Matter.Bodies.rectangle(-wallT / 2, h / 2, wallT, h * 2, { isStatic: true, label: 'wall' }),
+        Matter.Bodies.rectangle(w + wallT / 2, h / 2, wallT, h * 2, { isStatic: true, label: 'wall' }),
+      ];
+    }
+
+    function dropOrbs() {
+      for (let i = 0; i < dropCount; i++) {
+        setTimeout(() => addOrb(), i * 30);
+      }
+    }
+
+    function clearOrbs() {
+      const orbs = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'orb');
+      orbs.forEach(body => {
+        orbDataMap.delete(body.id);
+        Matter.Composite.remove(engine.world, body);
+      });
+    }
+
+    function restartAnimation() {
+      Matter.Composite.remove(engine.world, walls[0]);
+
+      const orbs = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'orb');
+      orbs.forEach(body => {
+        Matter.Body.setVelocity(body, { x: (Math.random() - 0.5) * 3, y: 2 + Math.random() * 4 });
+      });
+
+      setTimeout(() => {
+        clearOrbs();
+        Matter.Composite.add(engine.world, walls[0]);
+        dropOrbs();
+      }, 800);
+    }
+
+    function render() {
+      const rect = getRect();
+      const w = rect.width;
+      const h = rect.height;
+      ctx.clearRect(0, 0, w, h);
+
+      const orbs = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'orb');
+
+      if (mousePos.x > 0 && mousePos.y > 0) {
+        orbs.forEach(body => {
+          const dx = body.position.x - mousePos.x;
+          const dy = body.position.y - mousePos.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < MOUSE_RADIUS && dist > 1) {
+            const force = MOUSE_FORCE * (1 - dist / MOUSE_RADIUS);
+            Matter.Body.applyForce(body, body.position, {
+              x: (dx / dist) * force,
+              y: (dy / dist) * force,
+            });
+          }
+        });
+      }
+
+      orbs.forEach(body => {
+        const data = orbDataMap.get(body.id);
+        const radius = body.circleRadius || BASE_RADIUS;
+        ctx.save();
+        ctx.translate(body.position.x, body.position.y);
+        ctx.rotate(body.angle);
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        if (data?.image) {
+          ctx.drawImage(data.image, -radius, -radius, radius * 2, radius * 2);
+        } else {
+          ctx.fillStyle = '#333';
+          ctx.fill();
+        }
+        ctx.restore();
+        if (overlayImage) {
+          ctx.save();
+          ctx.translate(body.position.x, body.position.y);
+          ctx.rotate(body.angle);
+          ctx.drawImage(overlayImage, -radius, -radius, radius * 2, radius * 2);
+          ctx.restore();
+        }
+      });
+
+      Matter.Engine.update(engine, 1000 / 60);
+      requestAnimationFrame(render);
+    }
+
+    async function init() {
+      await preloadImages();
+
+      setupCanvas();
+
+      engine = Matter.Engine.create({ gravity: { x: 0, y: 0.8 }, enableSleeping: false });
+      engine.positionIterations = 6;
+      engine.velocityIterations = 4;
+
+      walls = createWalls();
+      Matter.Composite.add(engine.world, walls);
+
+      dropOrbs();
+
+      container.addEventListener('mousemove', e => {
+        const r = getRect();
+        mousePos.x = e.clientX - r.left;
+        mousePos.y = e.clientY - r.top;
+      });
+      container.addEventListener('mouseleave', () => {
+        mousePos.x = -9999;
+        mousePos.y = -9999;
+      });
+
+      container.addEventListener('click', e => {
+        if (e.target.closest('#controlPanel')) return;
+        const r = getRect();
+        const clickX = e.clientX - r.left;
+        const clickY = e.clientY - r.top;
+        const count = 3 + Math.floor(Math.random() * 4);
+        for (let i = 0; i < count; i++) {
+          const scale = MIN_SCALE + Math.random() * (MAX_SCALE - MIN_SCALE);
+          const radius = BASE_RADIUS * scale;
+          const posX = clickX + (Math.random() - 0.5) * 60;
+          const posY = clickY + (Math.random() - 0.5) * 40;
+          const imageUrl = getRandomCover();
+          const orb = Matter.Bodies.circle(posX, posY, radius, {
+            restitution: 0.6,
+            friction: 0.05,
+            frictionAir: DAMPING,
+            density: 0.001,
+            label: 'orb',
+            slop: 0.01,
+          });
+          Matter.Body.setVelocity(orb, { x: (Math.random() - 0.5) * 4, y: -(2 + Math.random() * 4) });
+          const data = {
+            imageUrl,
+            image: preloadedImages.get(imageUrl) || null,
+          };
+          if (!data.image) {
+            const img = new Image();
+                        img.onload = () => {
+              data.image = img;
+              preloadedImages.set(imageUrl, img);
+            };
+            img.src = imageUrl;
+          }
+          orbDataMap.set(orb.id, data);
+          Matter.Composite.add(engine.world, orb);
+        }
+      });
+
+      window.addEventListener('resize', () => {
+        setupCanvas();
+        const rect = getRect();
+        const wallT = 50;
+        Matter.Body.setPosition(walls[0], { x: rect.width / 2, y: rect.height + wallT / 2 });
+        Matter.Body.setPosition(walls[1], { x: -wallT / 2, y: rect.height / 2 });
+        Matter.Body.setPosition(walls[2], { x: rect.width + wallT / 2, y: rect.height / 2 });
+      });
+
+      window.addEventListener('keydown', e => {
+        if (e.key === 'f' || e.key === 'F') {
+          restartAnimation();
+        }
+        if (e.key === 'd' || e.key === 'D') {
+          controlPanel.classList.toggle('visible');
+        }
+      });
+
+      orbCountSlider.addEventListener('input', e => {
+        dropCount = parseInt(e.target.value, 10);
+        orbCountValue.textContent = dropCount;
+      });
+
+      render();
+    }
+
+    init();
+  </script>
+</body>
+</html>
