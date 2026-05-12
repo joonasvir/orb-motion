@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
+import Header from './components/Header';
+import Footer from './components/Footer';
 
 interface OrbData {
   id: string;
@@ -1076,11 +1078,14 @@ function App() {
         style={{ display: 'block', cursor: 'pointer', touchAction: 'none' }}
       />
 
+      {/* Header (fixed top) */}
+      {!showcaseMode && <Header />}
+
       {/* Headline + Subheadline (right-aligned column) */}
       {!showcaseMode && (
         <div style={{
           position: 'absolute',
-          top: 'clamp(40px, 8vh, 96px)',
+          top: 'clamp(110px, 16vh, 170px)',
           right: 'clamp(20px, 5vw, 80px)',
           width: 'min(540px, 60vw)',
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
@@ -1163,7 +1168,7 @@ function App() {
           onClick={(e) => e.preventDefault()}
           style={{
             position: 'absolute',
-            bottom: 'clamp(40px, 8vh, 110px)',
+            bottom: 'clamp(110px, 16vh, 180px)',
             right: 'clamp(20px, 5vw, 80px)',
             display: 'inline-flex',
             alignItems: 'center',
@@ -1536,6 +1541,9 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* Footer (fixed bottom) */}
+      {!showcaseMode && <Footer />}
     </div>
   );
 }
