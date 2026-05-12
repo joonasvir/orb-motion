@@ -72,6 +72,7 @@ function App() {
   const [lightMode, setLightMode] = useState(false);
   const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'shapes'>('physics');
   const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
+  const [enableOrbTap, setEnableOrbTap] = useState(false);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount, setShowcaseOrbCount] = useState(60);
@@ -85,6 +86,7 @@ function App() {
   const lightModeRef = useRef(lightMode);
   const displayModeRef = useRef(displayMode);
   const renderStyleRef = useRef(renderStyle);
+  const enableOrbTapRef = useRef(enableOrbTap);
   const currentShapeRef = useRef(currentShape);
   const cycloneTimeRef = useRef(0);
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
@@ -112,6 +114,7 @@ function App() {
   useEffect(() => { lightModeRef.current = lightMode; }, [lightMode]);
   useEffect(() => { displayModeRef.current = displayMode; }, [displayMode]);
   useEffect(() => { renderStyleRef.current = renderStyle; }, [renderStyle]);
+  useEffect(() => { enableOrbTapRef.current = enableOrbTap; }, [enableOrbTap]);
   useEffect(() => { currentShapeRef.current = currentShape; }, [currentShape]);
 
   const showcaseOrbCountRef = useRef(showcaseOrbCount);
@@ -451,8 +454,8 @@ function App() {
         const dy = mouse.position.y - mouseDownPos.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
 
-        // Quick tap without much movement = click
-        if (elapsed < 200 && dist < 10 && mouseDownBody && mouseDownBody.label === 'orb') {
+        // Quick tap without much movement = click (only when orb-tap is enabled)
+        if (enableOrbTapRef.current && elapsed < 200 && dist < 10 && mouseDownBody && mouseDownBody.label === 'orb') {
           handleOrbClick(mouseDownBody.id, mouseDownBody.position.x, mouseDownBody.position.y);
         }
         mouseDownBody = null;
@@ -1088,15 +1091,15 @@ function App() {
           zIndex: 5,
         }}>
           <h1 style={{
-            fontSize: 'clamp(36px, 5.5vw, 90px)',
+            fontSize: 'clamp(25px, 3.85vw, 63px)',
             lineHeight: 1.05,
             letterSpacing: '-0.02em',
             fontWeight: 400,
             margin: 0,
-            marginBottom: 'clamp(16px, 2vh, 28px)',
+            marginBottom: 'clamp(12px, 1.6vh, 20px)',
           }}>Big beautiful headline here</h1>
           <p style={{
-            fontSize: 'clamp(16px, 2.4vw, 44px)',
+            fontSize: 'clamp(12px, 1.7vw, 31px)',
             lineHeight: 1.2,
             letterSpacing: '-0.01em',
             opacity: 0.8,
@@ -1107,6 +1110,49 @@ function App() {
             marginRight: 'auto',
             fontWeight: 400,
           }}>Fun subheadline here that rotates things</p>
+        </div>
+      )}
+
+      {/* Glassy QR code (right column, between subhead and CTA) */}
+      {!showcaseMode && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            right: 'clamp(20px, 5vw, 80px)',
+            transform: 'translate(0, -50%)',
+            width: 'clamp(160px, 18vw, 250px)',
+            aspectRatio: '1 / 1',
+            padding: 'clamp(8px, 0.85vw, 12px)',
+            borderRadius: 'clamp(20px, 2.4vw, 34px)',
+            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: renderStyle === 'shaders'
+              ? '1.5px solid rgba(255,255,255,0.85)'
+              : '1.5px solid rgba(0,0,0,0.05)',
+            boxShadow:
+              '0 21px 20px rgba(0,0,0,0.05), inset -2px -2px 2px rgba(0,0,0,0.05), inset 2px 2px 2px rgba(0,0,0,0.03), inset 0 0 14px rgba(0,0,0,0.03)',
+            pointerEvents: 'none',
+            userSelect: 'none',
+            zIndex: 5,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            mixBlendMode: renderStyle === 'shaders' ? 'normal' : 'normal',
+          }}
+        >
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code/?size=320x320&margin=0&data=${encodeURIComponent('https://wabi.ai')}`}
+            alt="QR code"
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              display: 'block',
+              borderRadius: 'clamp(14px, 1.8vw, 24px)',
+            }}
+          />
         </div>
       )}
 
@@ -1315,10 +1361,22 @@ function App() {
             </div>
 
             <div style={sectionLabel}>Actions</div>
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
               <button onClick={clearOrbs} style={actionBtn}>Clear</button>
               <button onClick={triggerShowcase} style={actionBtn}>Showcase</button>
             </div>
+            <button
+              onClick={() => setEnableOrbTap(v => !v)}
+              style={{
+                ...actionBtn,
+                width: '100%',
+                background: enableOrbTap ? 'rgba(96,165,250,0.22)' : 'rgba(255,255,255,0.06)',
+                borderColor: enableOrbTap ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.12)',
+                color: enableOrbTap ? '#93c5fd' : 'rgba(255,255,255,0.7)',
+              }}
+            >
+              Tap orbs to open card: {enableOrbTap ? 'on' : 'off'}
+            </button>
           </div>
         );
       })()}
