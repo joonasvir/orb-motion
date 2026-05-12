@@ -420,8 +420,8 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial cascade drop of 40 orbs
-      const INITIAL_DROP_COUNT = 40;
+      // Initial cascade drop of 15 orbs
+      const INITIAL_DROP_COUNT = 15;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
         const baseDelay = (i / INITIAL_DROP_COUNT) * 1500;
         const jitter = (Math.random() - 0.5) * 400;

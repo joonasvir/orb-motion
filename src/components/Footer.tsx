@@ -11,11 +11,18 @@ const socialIcon = (href: string, label: string, d: string) => (
     rel="noopener noreferrer"
     aria-label={label}
     title={label}
-    className="orb-footer-social"
+    style={{ textDecoration: 'none' }}
   >
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-      <path d={d} />
-    </svg>
+    <div className="glass-btn-wrap glass-btn-wrap--social">
+      <button className="glass-btn" type="button" aria-hidden="true">
+        <span style={{ padding: 0 }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#737373" aria-hidden="true">
+            <path d={d} />
+          </svg>
+        </span>
+      </button>
+      <div className="glass-btn-shadow" />
+    </div>
   </a>
 );
 
@@ -61,26 +68,27 @@ export default function Footer() {
           gap: 8px;
           justify-content: flex-end;
         }
-        .orb-footer-social {
+
+        /* Social variant of glass-btn: 32x32 circle */
+        .glass-btn-wrap--social { width: 32px; }
+        .glass-btn-wrap--social .glass-btn {
           width: 32px;
           height: 32px;
-          border-radius: 999vw;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #737373;
-          text-decoration: none;
-          background: linear-gradient(-75deg, rgba(255,255,255,0.05), rgba(255,255,255,0.2), rgba(255,255,255,0.05)), rgba(240,240,240,0.7);
-          box-shadow:
-            inset 0 0.125em 0.125em rgba(0,0,0,0.05),
-            inset 0 -0.125em 0.125em rgba(255,255,255,0.5),
-            0 0.25em 0.125em -0.125em rgba(0,0,0,0.15),
-            0 0 0.1em 0.25em inset rgba(255,255,255,0.2);
-          backdrop-filter: blur(clamp(1px, 0.125em, 4px));
-          -webkit-backdrop-filter: blur(clamp(1px, 0.125em, 4px));
-          transition: opacity 0.2s, transform 0.2s;
+          padding: 0;
+          background:
+            linear-gradient(
+              -75deg,
+              rgba(255, 255, 255, 0.05),
+              rgba(255, 255, 255, 0.2),
+              rgba(255, 255, 255, 0.05)
+            ),
+            rgba(240, 240, 240, 0.7);
+          backdrop-filter: blur(clamp(2px, 0.25em, 8px));
+          -webkit-backdrop-filter: blur(clamp(2px, 0.25em, 8px));
         }
-        .orb-footer-social:hover { opacity: 0.85; transform: scale(0.97); }
+        .glass-btn-wrap--social .glass-btn span {
+          padding-inline: 0;
+        }
       `}</style>
       <footer className="orb-footer">
         <div style={{ display: 'flex', alignItems: 'center' }}>
