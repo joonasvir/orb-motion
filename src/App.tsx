@@ -62,8 +62,8 @@ function App() {
   const mouseConstraintRef = useRef<Matter.MouseConstraint | null>(null);
   const overlayImageRef = useRef<HTMLImageElement | null>(null);
 
-  const [orbCount, setOrbCount] = useState(0);
-  const [latestUser, setLatestUser] = useState<string | null>(null);
+  const [, setOrbCount] = useState(0);
+  const [, setLatestUser] = useState<string | null>(null);
   const [damping, setDamping] = useState(0.005);
   const [moonMode, setMoonMode] = useState(false);
   const [showControls, setShowControls] = useState(false);
@@ -414,6 +414,16 @@ function App() {
 
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
+
+      // Initial cascade drop of 40 orbs
+      const INITIAL_DROP_COUNT = 40;
+      for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
+        const baseDelay = (i / INITIAL_DROP_COUNT) * 1500;
+        const jitter = (Math.random() - 0.5) * 400;
+        const delay = Math.max(0, baseDelay + jitter);
+        const x = Math.random() * (window.innerWidth - 100) + 50;
+        setTimeout(() => addOrb(x), delay);
+      }
 
       const mouse = Matter.Mouse.create(canvas);
       const mouseConstraint = Matter.MouseConstraint.create(engine, {
@@ -1063,37 +1073,81 @@ function App() {
         style={{ display: 'block', cursor: 'pointer', touchAction: 'none' }}
       />
 
-      {/* Left UI */}
+      {/* Headline + Subheadline (right-aligned column) */}
       {!showcaseMode && (
         <div style={{
-          position: 'absolute', top: 20, left: 20,
-          color: renderStyle === 'shaders' ? 'white' : '#1a1a1a',
-          fontFamily: 'system-ui, sans-serif', fontSize: 14,
-          pointerEvents: 'none', userSelect: 'none',
+          position: 'absolute',
+          top: 'clamp(40px, 8vh, 96px)',
+          right: 'clamp(20px, 5vw, 80px)',
+          width: 'min(540px, 60vw)',
+          color: renderStyle === 'shaders' ? '#ffffff' : '#222',
+          fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif',
+          textAlign: 'center',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          zIndex: 5,
         }}>
-          <div style={{ opacity: 0.5, marginBottom: 4 }}>Apps created today</div>
-          <div style={{ fontSize: 48, fontWeight: 'bold' }}>{orbCount}</div>
+          <h1 style={{
+            fontSize: 'clamp(36px, 5.5vw, 90px)',
+            lineHeight: 1.05,
+            letterSpacing: '-0.02em',
+            fontWeight: 400,
+            margin: 0,
+            marginBottom: 'clamp(16px, 2vh, 28px)',
+          }}>Big beautiful headline here</h1>
+          <p style={{
+            fontSize: 'clamp(16px, 2.4vw, 44px)',
+            lineHeight: 1.2,
+            letterSpacing: '-0.01em',
+            opacity: 0.8,
+            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
+            margin: 0,
+            maxWidth: 467,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            fontWeight: 400,
+          }}>Fun subheadline here that rotates things</p>
         </div>
       )}
 
-      {/* Right UI */}
+      {/* Download CTA (right column, lower) */}
       {!showcaseMode && (
-        <div style={{
-          position: 'absolute', top: 20, right: 20,
-          color: renderStyle === 'shaders' ? 'white' : '#1a1a1a',
-          fontFamily: 'system-ui, sans-serif', fontSize: 14,
-          pointerEvents: 'none', userSelect: 'none', textAlign: 'right',
-        }}>
-          {latestUser && (
-            <>
-              <div style={{ opacity: 0.5, marginBottom: 4 }}>Latest app by</div>
-              <div style={{ fontSize: 24, fontWeight: 'bold', marginBottom: 12 }}>{latestUser}</div>
-            </>
-          )}
-          {moonMode && <div style={{ fontSize: 12, color: '#a78bfa', fontWeight: 'bold', marginBottom: 4 }}>MOON MODE</div>}
-          {displayMode === 'cyclone' && <div style={{ fontSize: 12, color: '#60a5fa', fontWeight: 'bold', marginBottom: 4 }}>CYCLONE</div>}
-          {displayMode === 'shapes' && <div style={{ fontSize: 12, color: '#34d399', fontWeight: 'bold' }}>{SHAPES[currentShape].toUpperCase()}</div>}
-        </div>
+        <a
+          href="#"
+          onClick={(e) => e.preventDefault()}
+          style={{
+            position: 'absolute',
+            bottom: 'clamp(40px, 8vh, 110px)',
+            right: 'clamp(20px, 5vw, 80px)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+            padding: '16px 28px',
+            minWidth: 240,
+            borderRadius: 9999,
+            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.5)' : 'rgba(255,255,255,0.7)',
+            border: renderStyle === 'shaders'
+              ? '1.5px solid rgba(255,255,255,0.85)'
+              : '1.5px solid rgba(0,0,0,0.06)',
+            boxShadow: '0 3px 16px rgba(0,0,0,0.07), 0 14px 36px rgba(0,0,0,0.06), 0 28px 80px rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            color: '#363636',
+            fontSize: 18,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            textDecoration: 'none',
+            fontFamily: 'system-ui, -apple-system, "SF Pro Display", sans-serif',
+            zIndex: 5,
+            cursor: 'pointer',
+          }}
+        >
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+          </svg>
+          Download for iOS
+        </a>
       )}
 
       {/* Controls Panel */}
