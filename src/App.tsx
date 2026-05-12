@@ -72,7 +72,7 @@ function App() {
   const [selectedOrb, setSelectedOrb] = useState<SelectedOrb | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [lightMode, setLightMode] = useState(false);
-  const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'shapes'>('physics');
+  const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('physics');
   const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
   const [enableOrbTap, setEnableOrbTap] = useState(false);
   const [currentShape, setCurrentShape] = useState(0);
@@ -214,12 +214,12 @@ function App() {
   const addOrb = useCallback((x?: number, savedOrb?: any, username?: string) => {
     if (!engineRef.current || !canvasRef.current) return;
 
-    const canvas = canvasRef.current;
     const scale = MIN_SCALE + Math.random() * (MAX_SCALE - MIN_SCALE);
     const radius = savedOrb?.radius ?? BASE_RADIUS * scale * orbSizeRef.current;
+    const playRight = window.innerWidth * 0.5;
     const posX = savedOrb?.x
-      ? Math.min(Math.max(savedOrb.x, radius), window.innerWidth - radius)
-      : x ?? Math.random() * (canvas.width - radius * 2) + radius;
+      ? Math.min(Math.max(savedOrb.x, radius), playRight - radius)
+      : x ?? Math.random() * (playRight - radius * 2) + radius;
     // Clamp Y to be within screen bounds (above the floor)
     const maxY = window.innerHeight - radius - 60;
     const posY = savedOrb?.y
@@ -283,9 +283,10 @@ function App() {
       const delay = Math.max(0, baseDelay + randomOffset);
 
       setTimeout(() => {
-        // Random X position across the screen width
-        const margin = window.innerWidth * 0.05;
-        const x = margin + Math.random() * (window.innerWidth - margin * 2);
+        // Random X position across the play area (left half only)
+        const playRight = window.innerWidth * 0.5;
+        const margin = playRight * 0.05;
+        const x = margin + Math.random() * (playRight - margin * 2);
         addOrb(x);
       }, delay);
     }
@@ -340,7 +341,7 @@ function App() {
   }, []);
 
   // Set displayMode (also resets gravity/moon)
-  const setMode = useCallback((mode: 'physics' | 'cyclone' | 'shapes') => {
+  const setMode = useCallback((mode: 'physics' | 'cyclone' | 'orbit' | 'shapes') => {
     if (engineRef.current) engineRef.current.gravity.y = 1;
     setMoonMode(false);
     setDisplayMode(mode);
@@ -409,24 +410,29 @@ function App() {
       engine.velocityIterations = 4;
       engineRef.current = engine;
 
+      // Play area is constrained to the LEFT HALF of the viewport
       const wallThickness = 50;
+      const playRight = window.innerWidth * 0.5;
       walls = [
-        Matter.Bodies.rectangle(window.innerWidth / 2, window.innerHeight + wallThickness / 2, window.innerWidth * 2, wallThickness, { isStatic: true, label: 'wall' }),
+        // Floor
+        Matter.Bodies.rectangle(playRight / 2, window.innerHeight + wallThickness / 2, playRight * 2, wallThickness, { isStatic: true, label: 'wall' }),
+        // Left wall
         Matter.Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
-        Matter.Bodies.rectangle(window.innerWidth + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
+        // Right wall — at mid-screen instead of viewport edge
+        Matter.Bodies.rectangle(playRight + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
       ];
       Matter.Composite.add(engine.world, walls);
 
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial cascade drop of 15 orbs
+      // Initial cascade drop of 15 orbs (in left half only)
       const INITIAL_DROP_COUNT = 15;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
         const baseDelay = (i / INITIAL_DROP_COUNT) * 1500;
         const jitter = (Math.random() - 0.5) * 400;
         const delay = Math.max(0, baseDelay + jitter);
-        const x = Math.random() * (window.innerWidth - 100) + 50;
+        const x = Math.random() * (window.innerWidth * 0.5 - 100) + 50;
         setTimeout(() => addOrb(x), delay);
       }
 
@@ -618,7 +624,9 @@ function App() {
 
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
-        const centerX = window.innerWidth / 2;
+        // Orb play area is constrained to the left half — motion modes center on that
+        const playWidth = window.innerWidth * 0.5;
+        const centerX = playWidth * 0.5;
         const centerY = window.innerHeight / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
@@ -638,6 +646,11 @@ function App() {
         if (mode === 'cyclone') {
           cycloneTimeRef.current += 0.016;
           cycloneFocalAngleRef.current += 0.003; // Slowly rotate the "big zone"
+        }
+
+        // Orbit mode uses the same time accumulator (smooth, no wobble)
+        if (mode === 'orbit') {
+          cycloneTimeRef.current += 0.016;
         }
 
         // Generate shape targets if in shapes mode
@@ -773,6 +786,63 @@ function App() {
             // Update physics body position (for click detection)
             Matter.Body.setPosition(body, { x: drawX, y: drawY });
             Matter.Body.setStatic(body, true);
+          } else if (mode === 'orbit') {
+            // 3D orbital motion: smooth, no wobble, perspective-scaled
+            const time = cycloneTimeRef.current;
+
+            // Initialize per-orb orbital parameters once
+            if ((animData as any).orbitRadius === undefined) {
+              const a = animData as any;
+              // World radius — distributed across a range, biased outward
+              a.orbitRadius = 180 + Math.pow(Math.random(), 0.6) * 280;
+              // Tilt of orbital plane around x-axis (-π/2 to π/2)
+              a.inclination = (Math.random() - 0.5) * Math.PI;
+              // Rotation of orbital plane around y-axis (0 to 2π)
+              a.ascendingNode = Math.random() * Math.PI * 2;
+              // Starting position on the orbit
+              a.orbitPhase = Math.random() * Math.PI * 2;
+              // Angular speed — Kepler-like: outer orbits a bit slower
+              a.orbitSpeed = (0.10 + Math.random() * 0.10) * Math.sqrt(300 / a.orbitRadius);
+            }
+            const a = animData as any;
+
+            const t = time * a.orbitSpeed + a.orbitPhase;
+            // Position on the orbit's own plane (z=0)
+            const localX = Math.cos(t) * a.orbitRadius;
+            const localY = Math.sin(t) * a.orbitRadius;
+
+            // Tilt around x-axis (inclination)
+            const cosI = Math.cos(a.inclination);
+            const sinI = Math.sin(a.inclination);
+            const tiltedX = localX;
+            const tiltedY = localY * cosI;
+            const tiltedZ = localY * sinI;
+
+            // Rotate around y-axis (ascending node)
+            const cosA = Math.cos(a.ascendingNode);
+            const sinA = Math.sin(a.ascendingNode);
+            const worldX = tiltedX * cosA + tiltedZ * sinA;
+            const worldY = tiltedY;
+            const worldZ = -tiltedX * sinA + tiltedZ * cosA;
+
+            // Perspective projection — positive worldZ = toward camera
+            const cameraDist = 700;
+            const depth = cameraDist - worldZ;
+            const persp = cameraDist / Math.max(depth, 100);
+
+            drawX = centerX + worldX * persp;
+            drawY = centerY + worldY * persp;
+            radius = baseRadius * persp * 1.1;
+
+            // Sort: closer (larger worldZ) renders on top
+            zDepth = worldZ;
+
+            // No body rotation in orbit mode (clean look)
+            drawAngle = 0;
+
+            // Update physics body position (for click detection)
+            Matter.Body.setPosition(body, { x: drawX, y: drawY });
+            Matter.Body.setStatic(body, true);
           } else if (mode === 'shapes') {
             // Shapes mode: smoothly move to target
             if (animData.targetX !== undefined && animData.targetY !== undefined) {
@@ -793,8 +863,8 @@ function App() {
           orbRenderData.push({ body, orbData, drawX, drawY, drawAngle, radius, zDepth });
         });
 
-        // Sort by z-depth in cyclone mode (far/small first, close/large last)
-        if (mode === 'cyclone') {
+        // Sort by z-depth in cyclone + orbit modes (far/small first, close/large last)
+        if (mode === 'cyclone' || mode === 'orbit') {
           orbRenderData.sort((a, b) => a.zDepth - b.zDepth);
         }
 
@@ -892,10 +962,11 @@ function App() {
         canvas.style.height = `${window.innerHeight}px`;
         ctx.scale(dpr, dpr);
 
-        // Update wall positions immediately
-        Matter.Body.setPosition(walls[0], { x: window.innerWidth / 2, y: window.innerHeight + wallThickness / 2 });
+        // Update wall positions immediately (play area = left half)
+        const playRightR = window.innerWidth * 0.5;
+        Matter.Body.setPosition(walls[0], { x: playRightR / 2, y: window.innerHeight + wallThickness / 2 });
         Matter.Body.setPosition(walls[1], { x: -wallThickness / 2, y: window.innerHeight / 2 });
-        Matter.Body.setPosition(walls[2], { x: window.innerWidth + wallThickness / 2, y: window.innerHeight / 2 });
+        Matter.Body.setPosition(walls[2], { x: playRightR + wallThickness / 2, y: window.innerHeight / 2 });
 
         // DEBOUNCED: Reposition orbs after resize settles (prevents glitchy physics)
         if (resizeTimeout) clearTimeout(resizeTimeout);
@@ -907,7 +978,7 @@ function App() {
             orbs.forEach(orb => {
               const radius = (orb as any).circleRadius || BASE_RADIUS;
               const minX = radius + 5;
-              const maxX = window.innerWidth - radius - 5;
+              const maxX = window.innerWidth * 0.5 - radius - 5;
               const maxY = floorY - radius;
 
               const isOutside =
@@ -1080,36 +1151,6 @@ function App() {
 
       {/* Header (fixed top) */}
       {!showcaseMode && <Header />}
-
-      {/* Left-side visual (matches Figma 869:41650) */}
-      {!showcaseMode && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: 0,
-          right: '50%',
-          transform: 'translateY(-50%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '0 clamp(20px, 4vw, 64px)',
-          pointerEvents: 'none',
-          userSelect: 'none',
-          zIndex: 4,
-        }}>
-          <img
-            src="/left-visual.png"
-            alt=""
-            style={{
-              width: '100%',
-              maxWidth: 'min(640px, 80%)',
-              height: 'auto',
-              display: 'block',
-              objectFit: 'contain',
-            }}
-          />
-        </div>
-      )}
 
       {/* Right column: headline > subhead > QR > CTA (matches Figma 869:41270) */}
       {!showcaseMode && (
@@ -1318,7 +1359,7 @@ function App() {
           background: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 8,
           color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
           backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
-          minWidth: 220,
+          minWidth: 260,
         };
         const sectionLabel: React.CSSProperties = {
           marginBottom: 6, fontWeight: 'bold', opacity: 0.5,
@@ -1352,8 +1393,8 @@ function App() {
         return (
           <div style={panelStyle}>
             <div style={sectionLabel}>Motion</div>
-            <div style={{ ...segGroup, marginBottom: 16 }}>
-              {(['physics', 'cyclone', 'shapes'] as const).map(m => (
+            <div style={{ ...segGroup, marginBottom: 16, flexWrap: 'wrap' }}>
+              {(['physics', 'cyclone', 'orbit', 'shapes'] as const).map(m => (
                 <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>
                   {m}
                 </button>
