@@ -114,6 +114,9 @@ function App() {
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
   const spinBoostRef = useRef(0); // Drag-driven extra spin (decays over time)
   const cursorPushRef = useRef<{ x: number; y: number; active: boolean }>({ x: 0, y: 0, active: false });
+  // Smoothed cursor offset from viewport center (-1..1) used to tilt the orbit
+  const mouseTiltRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const mouseTiltTargetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const orbAnimDataRef = useRef<Map<number, {
     angle: number;
     radius: number;
@@ -492,6 +495,11 @@ function App() {
           y: clientY - rect.top,
           active: true,
         };
+        // Also record a normalized cursor offset for orbit-tilt
+        const nx = (clientX - rect.left) / Math.max(1, rect.width) * 2 - 1;
+        const ny = (clientY - rect.top) / Math.max(1, rect.height) * 2 - 1;
+        mouseTiltTargetRef.current.x = Math.max(-1, Math.min(1, nx));
+        mouseTiltTargetRef.current.y = Math.max(-1, Math.min(1, ny));
       };
 
       const handleDragStart = (e: MouseEvent | TouchEvent) => {
@@ -745,15 +753,23 @@ function App() {
         spinBoostRef.current *= 0.96;
         const spinMult = 1 + spinBoostRef.current;
 
-        // Update cyclone time and focal angle
-        if (mode === 'cyclone') {
-          cycloneTimeRef.current += 0.016 * spinMult;
-          cycloneFocalAngleRef.current += 0.003 * Math.abs(spinMult);
+        // Smooth mouse-tilt toward its target (low-pass filter)
+        {
+          const t = mouseTiltTargetRef.current;
+          const c = mouseTiltRef.current;
+          c.x += (t.x - c.x) * 0.06;
+          c.y += (t.y - c.y) * 0.06;
         }
 
-        // Orbit mode uses the same time accumulator (smooth, no wobble)
+        // Update cyclone time and focal angle (slower base speed)
+        if (mode === 'cyclone') {
+          cycloneTimeRef.current += 0.009 * spinMult;
+          cycloneFocalAngleRef.current += 0.0018 * Math.abs(spinMult);
+        }
+
+        // Orbit mode uses the same time accumulator (slower base speed)
         if (mode === 'orbit') {
-          cycloneTimeRef.current += 0.016 * spinMult;
+          cycloneTimeRef.current += 0.009 * spinMult;
         }
 
         // Generate shape targets if in shapes mode
@@ -832,16 +848,26 @@ function App() {
             const radiusY = radiusX * animData.ellipseRatioY!;
 
             // 3D orbital position in a near-horizontal plane, tilted slightly so we
-            // see it as an ellipse on screen with depth.
+            // see it as an ellipse on screen with depth. The tilt and yaw are
+            // gently influenced by the cursor for a parallax feel.
             const angle = animData.angle + time * angularSpeed;
-            const TILT = 1.25; // ~72° tilt
+            const mtX = mouseTiltRef.current.x; // -1..1
+            const mtY = mouseTiltRef.current.y;
+            const TILT = 1.25 + mtY * 0.18;     // mouse-Y nudges tilt
+            const YAW = mtX * 0.35;             // mouse-X rotates orbit around Y axis
             const cosT = Math.cos(TILT);
             const sinT = Math.sin(TILT);
+            const cosY = Math.cos(YAW);
+            const sinY = Math.sin(YAW);
             const planeX = Math.cos(angle) * radiusX;
             const planeV = Math.sin(angle) * radiusY;
-            const worldX = planeX;
-            const worldY = planeV * cosT;
-            const worldZ = planeV * sinT;
+            // First tilt around the X axis
+            const tiltedY = planeV * cosT;
+            const tiltedZ = planeV * sinT;
+            // Then yaw around the Y axis
+            const worldX = planeX * cosY + tiltedZ * sinY;
+            const worldY = tiltedY;
+            const worldZ = -planeX * sinY + tiltedZ * cosY;
 
             // Perspective projection — camera is some distance in front of z=0
             const camDist = 1800;
