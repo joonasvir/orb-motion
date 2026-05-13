@@ -507,10 +507,11 @@ function App() {
         if (!p) return;
         if (isOrbitalMode()) updateCursorPush(p.clientX, p.clientY);
         if (!isDragging) return;
-        // Compute tangential drag velocity around the phone-centered motion
+        // Compute tangential drag velocity around the phone-centered motion (phone at bottom)
         const rect = canvas.getBoundingClientRect();
+        const _phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
         const cx = window.innerWidth / 2;
-        const cy = window.innerHeight * 0.5 - window.innerHeight * 0.04;
+        const cy = window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2;
         const mx = p.clientX - rect.left;
         const my = p.clientY - rect.top;
         const tx = mx - cx;
@@ -720,11 +721,12 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
-        // Orbital motion centers on the phone in the middle of the page.
-        // Phone uses transform: translate(-50%, -42%) at top: 50%, so its center
-        // sits a touch above viewport center — match it.
+        // Orbital motion centers on the phone, which is now anchored to the bottom
+        // (bottom: -6%, height: clamp(380, 62vh, 680)). Phone center sits a bit
+        // below mid-viewport.
+        const _phoneHcalc = Math.max(380, Math.min(680, window.innerHeight * 0.62));
         const centerX = window.innerWidth / 2;
-        const centerY = window.innerHeight * 0.5 - window.innerHeight * 0.04;
+        const centerY = window.innerHeight + window.innerHeight * 0.06 - _phoneHcalc / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -821,7 +823,7 @@ function App() {
             const angularSpeed = 0.6 + zLayer * 0.4;
 
             // Ellipse sized to wrap the centered phone, capped to viewport
-            const phoneH = Math.max(380, Math.min(620, window.innerHeight * 0.56));
+            const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
             const phoneW = phoneH * (470 / 668);
             const minR = Math.max(phoneW / 2, phoneH / 2.8) + 50;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.42;
@@ -876,7 +878,7 @@ function App() {
             if ((animData as any).orbitRadius === undefined) {
               const a = animData as any;
               // Orbit radius wraps around the phone in the center, capped to viewport
-              const phoneH = Math.max(380, Math.min(620, window.innerHeight * 0.56));
+              const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
               const phoneW = phoneH * (470 / 668);
               const orbitMin = Math.min(
                 Math.max(phoneW / 2, phoneH / 2.8) + 40,
@@ -1345,10 +1347,10 @@ function App() {
           alt=""
           style={{
             position: 'absolute',
-            top: '50%',
             left: '50%',
-            transform: 'translate(-50%, -42%)',
-            height: 'clamp(380px, 56vh, 620px)',
+            bottom: '-6%',
+            transform: 'translateX(-50%)',
+            height: 'clamp(380px, 62vh, 680px)',
             width: 'auto',
             zIndex: 5,
             pointerEvents: 'none',
