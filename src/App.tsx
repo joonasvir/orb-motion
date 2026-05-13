@@ -761,15 +761,15 @@ function App() {
           c.y += (t.y - c.y) * 0.06;
         }
 
-        // Update cyclone time and focal angle (slower base speed)
+        // Update cyclone time and focal angle (very slow base speed)
         if (mode === 'cyclone') {
-          cycloneTimeRef.current += 0.009 * spinMult;
-          cycloneFocalAngleRef.current += 0.0018 * Math.abs(spinMult);
+          cycloneTimeRef.current += 0.0035 * spinMult;
+          cycloneFocalAngleRef.current += 0.0008 * Math.abs(spinMult);
         }
 
-        // Orbit mode uses the same time accumulator (slower base speed)
+        // Orbit mode uses the same time accumulator
         if (mode === 'orbit') {
-          cycloneTimeRef.current += 0.009 * spinMult;
+          cycloneTimeRef.current += 0.0035 * spinMult;
         }
 
         // Generate shape targets if in shapes mode
