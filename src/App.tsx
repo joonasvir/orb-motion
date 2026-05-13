@@ -19,6 +19,25 @@ interface SelectedOrb {
   startY: number;
 }
 
+// Inline avatar stack used inside the headline ("for you and your [avatars] friends")
+const AVATAR_GRADIENTS = [
+  'linear-gradient(135deg, #ffd29a, #d9665a)',
+  'linear-gradient(135deg, #ffe4a0, #c2543f)',
+  'linear-gradient(135deg, #ffbe8a, #b8543a)',
+];
+const avatarStackStyle = (i: number): React.CSSProperties => ({
+  display: 'inline-block',
+  width: '0.92em',
+  height: '0.92em',
+  borderRadius: '50%',
+  background: AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length],
+  border: '0.06em solid #fff',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+  marginLeft: i === 0 ? 0 : '-0.4em',
+  position: 'relative',
+  zIndex: 3 - i,
+});
+
 const DAILY_STORAGE_KEY = 'orb-drop-date';
 const ORBS_STORAGE_KEY = 'orb-drop-orbs';
 const COVERS_STORAGE_KEY = 'orb-drop-covers';
@@ -72,7 +91,7 @@ function App() {
   const [selectedOrb, setSelectedOrb] = useState<SelectedOrb | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [lightMode, setLightMode] = useState(false);
-  const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('physics');
+  const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('cyclone');
   const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
   const [enableOrbTap, setEnableOrbTap] = useState(false);
   const [currentShape, setCurrentShape] = useState(0);
@@ -92,6 +111,8 @@ function App() {
   const currentShapeRef = useRef(currentShape);
   const cycloneTimeRef = useRef(0);
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
+  const spinBoostRef = useRef(0); // Drag-driven extra spin (decays over time)
+  const cursorPushRef = useRef<{ x: number; y: number; active: boolean }>({ x: 0, y: 0, active: false });
   const orbAnimDataRef = useRef<Map<number, {
     angle: number;
     radius: number;
@@ -428,13 +449,13 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial cascade drop of 15 orbs (in left half only)
+      // Initial cascade drop of 15 orbs across full width
       const INITIAL_DROP_COUNT = 15;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
         const baseDelay = (i / INITIAL_DROP_COUNT) * 1500;
         const jitter = (Math.random() - 0.5) * 400;
         const delay = Math.max(0, baseDelay + jitter);
-        const x = Math.random() * (window.innerWidth * 0.5 - 100) + 50;
+        const x = Math.random() * (window.innerWidth - 100) + 50;
         setTimeout(() => addOrb(x), delay);
       }
 
@@ -446,6 +467,68 @@ function App() {
       mouse.pixelRatio = dpr;
       Matter.Composite.add(engine.world, mouseConstraint);
       mouseConstraintRef.current = mouseConstraint;
+
+      // Drag-to-spin + cursor-push for cyclone/orbit modes
+      let isDragging = false;
+      let lastDragX = 0;
+      let lastDragY = 0;
+      const isOrbitalMode = () =>
+        displayModeRef.current === 'cyclone' || displayModeRef.current === 'orbit';
+
+      const updateCursorPush = (clientX: number, clientY: number) => {
+        const rect = canvas.getBoundingClientRect();
+        cursorPushRef.current = {
+          x: clientX - rect.left,
+          y: clientY - rect.top,
+          active: true,
+        };
+      };
+
+      const handleDragStart = (e: MouseEvent | TouchEvent) => {
+        if (!isOrbitalMode()) return;
+        const p = 'touches' in e ? e.touches[0] : e;
+        isDragging = true;
+        lastDragX = p.clientX;
+        lastDragY = p.clientY;
+        updateCursorPush(p.clientX, p.clientY);
+      };
+      const handleDragMove = (e: MouseEvent | TouchEvent) => {
+        const p = 'touches' in e ? e.touches[0] : e;
+        if (!p) return;
+        if (isOrbitalMode()) updateCursorPush(p.clientX, p.clientY);
+        if (!isDragging) return;
+        // Compute tangential drag velocity around the phone-centered motion
+        const rect = canvas.getBoundingClientRect();
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight * 0.5 - window.innerHeight * 0.04;
+        const mx = p.clientX - rect.left;
+        const my = p.clientY - rect.top;
+        const tx = mx - cx;
+        const ty = my - cy;
+        const len = Math.sqrt(tx * tx + ty * ty) || 1;
+        // Tangent direction (CCW perpendicular to radial)
+        const tdx = -ty / len;
+        const tdy = tx / len;
+        const dx = p.clientX - lastDragX;
+        const dy = p.clientY - lastDragY;
+        const tangentialVel = dx * tdx + dy * tdy;
+        spinBoostRef.current = Math.max(-6, Math.min(6, spinBoostRef.current + tangentialVel * 0.02));
+        lastDragX = p.clientX;
+        lastDragY = p.clientY;
+      };
+      const handleDragEnd = () => { isDragging = false; };
+      const handleCursorLeave = () => {
+        isDragging = false;
+        cursorPushRef.current.active = false;
+      };
+
+      canvas.addEventListener('mousedown', handleDragStart);
+      canvas.addEventListener('mousemove', handleDragMove);
+      canvas.addEventListener('mouseup', handleDragEnd);
+      canvas.addEventListener('mouseleave', handleCursorLeave);
+      canvas.addEventListener('touchstart', handleDragStart, { passive: true });
+      canvas.addEventListener('touchmove', handleDragMove, { passive: true });
+      canvas.addEventListener('touchend', handleDragEnd);
 
       // Detect click on orb (not drag)
       let mouseDownTime = 0;
@@ -627,12 +710,11 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
-        // and stay clear of the header (top) and footer (bottom)
-        const HEADER_CLEARANCE = 96;
-        const FOOTER_CLEARANCE_R2 = 72;
-        const playWidth = window.innerWidth * 0.5;
-        const centerX = playWidth * 0.5;
-        const centerY = HEADER_CLEARANCE + (window.innerHeight - HEADER_CLEARANCE - FOOTER_CLEARANCE_R2) / 2;
+        // Orbital motion centers on the phone in the middle of the page.
+        // Phone uses transform: translate(-50%, -42%) at top: 50%, so its center
+        // sits a touch above viewport center — match it.
+        const centerX = window.innerWidth / 2;
+        const centerY = window.innerHeight * 0.5 - window.innerHeight * 0.04;
 
         // Background: white for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -647,15 +729,19 @@ function App() {
 
         const orbs = Matter.Composite.allBodies(engineRef.current.world).filter(b => b.label === 'orb');
 
+        // Drag-driven spin boost decays toward 0
+        spinBoostRef.current *= 0.96;
+        const spinMult = 1 + spinBoostRef.current;
+
         // Update cyclone time and focal angle
         if (mode === 'cyclone') {
-          cycloneTimeRef.current += 0.016;
-          cycloneFocalAngleRef.current += 0.003; // Slowly rotate the "big zone"
+          cycloneTimeRef.current += 0.016 * spinMult;
+          cycloneFocalAngleRef.current += 0.003 * Math.abs(spinMult);
         }
 
         // Orbit mode uses the same time accumulator (smooth, no wobble)
         if (mode === 'orbit') {
-          cycloneTimeRef.current += 0.016;
+          cycloneTimeRef.current += 0.016 * spinMult;
         }
 
         // Generate shape targets if in shapes mode
@@ -686,7 +772,7 @@ function App() {
           zDepth: number;
         }> = [];
 
-        orbs.forEach((body, index) => {
+        orbs.forEach((body) => {
           const orbData = orbDataRef.current.get(body.id);
           const baseRadius = (body as any).circleRadius || BASE_RADIUS;
           let radius = baseRadius;
@@ -707,23 +793,18 @@ function App() {
           }
 
           if (mode === 'cyclone') {
-            // Cyclone mode: elliptical orbit with z-depth and organic movement
+            // Cyclone mode: clean elliptical orbit with z-depth (no wobble/shake)
             const time = cycloneTimeRef.current;
             const focalAngle = cycloneFocalAngleRef.current;
 
-            // Initialize extra cyclone properties if not present
+            // Initialize cyclone properties if not present
             if (animData.ellipseRatioX === undefined) {
-              // Assign a FIXED depth layer (0 = far/back/small, 1 = close/front/large)
               animData.zLayer = Math.random();
-              animData.joinTime = time; // Track when orb joined for catch-up animation
+              animData.joinTime = time;
               animData.ellipseRatioX = 1.0;
-              animData.ellipseRatioY = 0.4 + Math.random() * 0.15;
+              // Tall ellipse so orbs wrap around the vertical phone
+              animData.ellipseRatioY = 1.15 + Math.random() * 0.25;
               animData.phaseOffset = Math.random() * Math.PI * 2;
-              animData.wobbleSpeed = 0.2 + Math.random() * 0.5;
-              animData.wobbleAmount = 20 + Math.random() * 30;
-              animData.driftX = (Math.random() - 0.5) * 0.1;
-              animData.driftY = (Math.random() - 0.5) * 0.08;
-              animData.tiltPhase = Math.random() * Math.PI * 2;
             }
 
             const zLayer = animData.zLayer ?? 0.5;
@@ -731,64 +812,55 @@ function App() {
 
             // Catch-up animation: new orbs ease into their cyclone position from top
             const timeSinceJoin = time - joinTime;
-            const catchUpProgress = Math.min(1, timeSinceJoin / 3); // 3 seconds to fully catch up
-            const catchUpEase = 1 - Math.pow(1 - catchUpProgress, 3); // Cubic ease out
+            const catchUpProgress = Math.min(1, timeSinceJoin / 3);
+            const catchUpEase = 1 - Math.pow(1 - catchUpProgress, 3);
 
             // Speed based on depth: close (zLayer=1) = faster, far (zLayer=0) = slower
-            const depthSpeed = 0.15 + zLayer * 0.35; // 0.15 to 0.5
+            const depthSpeed = 0.15 + zLayer * 0.35;
 
-            // Ellipse size takes more of screen, scaled by depth
-            const screenSize = Math.min(window.innerWidth, window.innerHeight);
-            const baseRadiusX = (screenSize * 0.38) * (0.7 + zLayer * 0.5);
-            const baseRadiusY = baseRadiusX * animData.ellipseRatioY!;
+            // Ellipse sized to wrap the centered phone, capped to viewport
+            const phoneH = Math.max(380, Math.min(620, window.innerHeight * 0.56));
+            const phoneW = phoneH * (470 / 668);
+            const minR = Math.max(phoneW / 2, phoneH / 2.8) + 50;
+            const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+            const baseR = Math.min(minR, maxR);
+            const radiusX = baseR * (0.85 + zLayer * 0.35);
+            const radiusY = radiusX * animData.ellipseRatioY!;
 
-            // Organic movement with depth-based intensity
+            // Clean orbital position
             const angle = animData.angle + time * depthSpeed;
-            const wobbleIntensity = 0.6 + zLayer * 0.6; // Far = subtle, close = more movement
-            const wobble1 = Math.sin(time * animData.wobbleSpeed! + animData.phaseOffset!) * animData.wobbleAmount! * wobbleIntensity;
-            const wobble2 = Math.sin(time * 0.3 + index * 0.5) * 15 * wobbleIntensity;
-            const wobble3 = Math.cos(time * 0.15 + animData.phaseOffset! * 2) * 12 * wobbleIntensity;
-            const wobble4 = Math.sin(time * 0.1 + index) * 10 * wobbleIntensity;
+            const targetX = centerX + Math.cos(angle) * radiusX;
+            const targetY = centerY + Math.sin(angle) * radiusY;
 
-            // Slow breathing radius effect
-            const breathe = Math.sin(time * 0.12 + index * 0.15) * 30 * wobbleIntensity;
-
-            // Calculate target position on ellipse with organic offsets
-            const radiusX = baseRadiusX + wobble1 + breathe;
-            const radiusY = baseRadiusY + wobble2 * 0.4 + breathe * 0.3;
-
-            // Gentle drift for organic feel
-            const driftOffsetX = Math.sin(time * animData.driftX! + animData.tiltPhase!) * 30 * wobbleIntensity;
-            const driftOffsetY = Math.cos(time * animData.driftY! + animData.tiltPhase!) * 20 * wobbleIntensity;
-
-            // Target cyclone position
-            const targetX = centerX + Math.cos(angle) * radiusX + driftOffsetX + wobble3;
-            const targetY = centerY + Math.sin(angle) * radiusY + driftOffsetY + wobble4;
-
-            // Entry position (from top of screen)
+            // Entry from above for catch-up
             const entryX = centerX + (Math.random() - 0.5) * 100;
             const entryY = -100;
 
-            // Interpolate between entry and target based on catch-up progress
             drawX = entryX + (targetX - entryX) * catchUpEase;
             drawY = entryY + (targetY - entryY) * catchUpEase;
 
-            // Size based on depth AND position relative to focal point
-            // The "big zone" slowly rotates around the ellipse
+            // Size based on depth + slowly-rotating focal zone
             const angleFromFocal = Math.abs(Math.sin(angle - focalAngle));
-            const focalBoost = 1 + angleFromFocal * 0.5 * zLayer; // Closer orbs get bigger boost near focal
-
-            // Much larger orbs in cyclone mode: 0.4 to 2.0 scale
+            const focalBoost = 1 + angleFromFocal * 0.5 * zLayer;
             const depthScale = (0.4 + zLayer * 1.6) * focalBoost;
-            radius = baseRadius * depthScale * catchUpEase; // Scale up as catching up
+            radius = baseRadius * depthScale * catchUpEase;
 
-            // Use fixed z-layer for sorting (never changes)
             zDepth = zLayer;
+            drawAngle = 0;
 
-            // Subtle rotation
-            drawAngle = Math.sin(time * 0.2 + animData.phaseOffset!) * 0.15;
+            // Cursor push: orbs deflect away from the cursor
+            if (cursorPushRef.current.active) {
+              const cdx = drawX - cursorPushRef.current.x;
+              const cdy = drawY - cursorPushRef.current.y;
+              const cd = Math.sqrt(cdx * cdx + cdy * cdy);
+              const pushR = 180;
+              if (cd < pushR && cd > 1) {
+                const f = Math.pow(1 - cd / pushR, 2) * 90;
+                drawX += (cdx / cd) * f;
+                drawY += (cdy / cd) * f;
+              }
+            }
 
-            // Update physics body position (for click detection)
             Matter.Body.setPosition(body, { x: drawX, y: drawY });
             Matter.Body.setStatic(body, true);
           } else if (mode === 'orbit') {
@@ -798,9 +870,14 @@ function App() {
             // Initialize per-orb orbital parameters once
             if ((animData as any).orbitRadius === undefined) {
               const a = animData as any;
-              // Scale orbits to the available play area (left half)
-              const orbitMax = Math.min(playWidth, window.innerHeight - HEADER_CLEARANCE - FOOTER_CLEARANCE_R2) * 0.42;
-              const orbitMin = orbitMax * 0.45;
+              // Orbit radius wraps around the phone in the center, capped to viewport
+              const phoneH = Math.max(380, Math.min(620, window.innerHeight * 0.56));
+              const phoneW = phoneH * (470 / 668);
+              const orbitMin = Math.min(
+                Math.max(phoneW / 2, phoneH / 2.8) + 40,
+                Math.min(window.innerWidth, window.innerHeight) * 0.32,
+              );
+              const orbitMax = orbitMin + Math.min(160, Math.min(window.innerWidth, window.innerHeight) * 0.1);
               a.orbitRadius = orbitMin + Math.pow(Math.random(), 0.6) * (orbitMax - orbitMin);
               // Tilt of orbital plane around x-axis (-π/2 to π/2)
               a.inclination = (Math.random() - 0.5) * Math.PI;
@@ -847,6 +924,19 @@ function App() {
 
             // No body rotation in orbit mode (clean look)
             drawAngle = 0;
+
+            // Cursor push: orbs deflect away from the cursor
+            if (cursorPushRef.current.active) {
+              const cdx = drawX - cursorPushRef.current.x;
+              const cdy = drawY - cursorPushRef.current.y;
+              const cd = Math.sqrt(cdx * cdx + cdy * cdy);
+              const pushR = 180;
+              if (cd < pushR && cd > 1) {
+                const f = Math.pow(1 - cd / pushR, 2) * 90;
+                drawX += (cdx / cd) * f;
+                drawY += (cdy / cd) * f;
+              }
+            }
 
             // Update physics body position (for click detection)
             Matter.Body.setPosition(body, { x: drawX, y: drawY });
@@ -1076,6 +1166,13 @@ function App() {
         window.removeEventListener('orientationchange', handleResize);
         window.removeEventListener('keydown', handleKeyDown);
         window.removeEventListener('addOrb', handleAddOrbEvent as EventListener);
+        canvas.removeEventListener('mousedown', handleDragStart);
+        canvas.removeEventListener('mousemove', handleDragMove);
+        canvas.removeEventListener('mouseup', handleDragEnd);
+        canvas.removeEventListener('mouseleave', handleCursorLeave);
+        canvas.removeEventListener('touchstart', handleDragStart);
+        canvas.removeEventListener('touchmove', handleDragMove);
+        canvas.removeEventListener('touchend', handleDragEnd);
         Matter.Engine.clear(engine);
       };
     };
@@ -1162,20 +1259,14 @@ function App() {
       {/* Header (fixed top) */}
       {!showcaseMode && <Header />}
 
-      {/* Right column: headline > subhead > QR > CTA (matches Figma 869:41270) */}
+      {/* Centered headline + subhead (top) */}
       {!showcaseMode && (
         <div style={{
           position: 'absolute',
-          top: 0,
-          bottom: 0,
+          top: 'clamp(80px, 9vh, 110px)',
           left: '50%',
-          right: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 'clamp(14px, 1.6vh, 22px)',
-          padding: '0 clamp(20px, 4vw, 64px)',
+          transform: 'translateX(-50%)',
+          width: 'min(720px, 80vw)',
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
           fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
           textAlign: 'center',
@@ -1183,100 +1274,92 @@ function App() {
           zIndex: 5,
           pointerEvents: 'none',
         }}>
-          {/* Headline + subheadline */}
-          <div style={{ width: '100%' }}>
-            <h1 style={{
-              fontFamily: 'inherit',
-              fontSize: 'clamp(36px, 5.2vw, 74px)',
-              lineHeight: 1.05,
-              letterSpacing: '-0.02em',
-              fontWeight: 400,
-              margin: 0,
-              marginBottom: 'clamp(10px, 1.2vh, 18px)',
-              fontFeatureSettings: '"dlig" 1',
-            }}>Big beautiful headline here</h1>
-            <p style={{
-              fontFamily: 'inherit',
-              fontSize: 'clamp(16px, 2.1vw, 36px)',
-              lineHeight: 1.2,
-              letterSpacing: '-0.01em',
-              opacity: 0.8,
-              color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
-              margin: 0,
-              maxWidth: 384,
-              marginLeft: 'auto',
-              marginRight: 'auto',
-              fontWeight: 400,
-              fontFeatureSettings: '"dlig" 1',
-            }}>Fun subheadline here that rotates things</p>
-          </div>
+          <h1 style={{
+            fontFamily: 'inherit',
+            fontSize: 'clamp(30px, 4vw, 57px)',
+            lineHeight: 1.11,
+            letterSpacing: '-0.02em',
+            fontWeight: 400,
+            margin: 0,
+            marginBottom: 'clamp(10px, 1.4vh, 22px)',
+            fontFeatureSettings: '"dlig" 1',
+            whiteSpace: 'pre-wrap',
+          }}>
+            Personal software<br />for you and your{' '}
+            <span style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginRight: 6 }}>
+              <span style={avatarStackStyle(0)} />
+              <span style={avatarStackStyle(1)} />
+              <span style={avatarStackStyle(2)} />
+            </span>
+            friends
+          </h1>
+          <p style={{
+            fontFamily: 'inherit',
+            fontSize: 'clamp(15px, 1.6vw, 28px)',
+            lineHeight: 1.2,
+            letterSpacing: '-0.01em',
+            opacity: 0.8,
+            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
+            margin: 0,
+            maxWidth: 454,
+            marginLeft: 'auto',
+            marginRight: 'auto',
+            fontWeight: 400,
+            fontFeatureSettings: '"dlig" 1',
+          }}>
+            Describe what you want. Customize the vibe. Share instantly. Wabis are ephemeral.
+          </p>
+        </div>
+      )}
 
-          {/* QR */}
-          <div
-            style={{
-              width: 'clamp(160px, 16vw, 274px)',
-              aspectRatio: '1 / 1',
-              padding: 'clamp(8px, 0.85vw, 12px)',
-              borderRadius: 'clamp(20px, 2.4vw, 34px)',
-              background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(24px)',
-              WebkitBackdropFilter: 'blur(24px)',
-              border: renderStyle === 'shaders'
-                ? '1.5px solid rgba(255,255,255,0.85)'
-                : '1.5px solid rgba(0,0,0,0.05)',
-              boxShadow:
-                '0 21px 20px rgba(0,0,0,0.05), inset -2px -2px 2px rgba(0,0,0,0.05), inset 2px 2px 2px rgba(0,0,0,0.03), inset 0 0 14px rgba(0,0,0,0.03)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <img
-              src="/qr-wabi.png"
-              alt="QR code"
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'contain',
-                display: 'block',
-              }}
-            />
-          </div>
+      {/* Centered phone mockup */}
+      {!showcaseMode && (
+        <img
+          src="/phone-mock.png"
+          alt=""
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -42%)',
+            height: 'clamp(380px, 56vh, 620px)',
+            width: 'auto',
+            zIndex: 6,
+            pointerEvents: 'none',
+            userSelect: 'none',
+            filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
+          }}
+        />
+      )}
 
-          {/* Download CTA pill */}
-          <a
-            href="#"
-            onClick={(e) => e.preventDefault()}
-            style={{
-              pointerEvents: 'auto',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 12,
-              padding: '0 28px',
-              height: 'clamp(56px, 6vw, 88px)',
-              width: 'clamp(240px, 24vw, 350px)',
-              borderRadius: 9999,
-              background: 'rgba(255,255,255,0.5)',
-              border: '1.5px solid rgba(255,255,255,0.95)',
-              boxShadow:
-                '3px 16px 48px rgba(0,0,0,0.07), 5px 36px 49px rgba(0,0,0,0.05), 9px 64px 27px rgba(0,0,0,0.01)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-              color: '#363636',
-              fontFamily: 'inherit',
-              fontSize: 'clamp(15px, 1.9vw, 27px)',
-              fontWeight: 400,
-              letterSpacing: '-0.01em',
-              textDecoration: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
-              <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.08zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
-            </svg>
-            Download for iOS
-          </a>
+      {/* Bottom-right QR */}
+      {!showcaseMode && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'clamp(72px, 10vh, 110px)',
+            right: 'clamp(20px, 3vw, 48px)',
+            width: 'clamp(140px, 14vw, 220px)',
+            aspectRatio: '1 / 1',
+            padding: 'clamp(7px, 0.7vw, 10px)',
+            borderRadius: 'clamp(18px, 2vw, 28px)',
+            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+            backdropFilter: 'blur(24px)',
+            WebkitBackdropFilter: 'blur(24px)',
+            border: renderStyle === 'shaders'
+              ? '1.5px solid rgba(255,255,255,0.85)'
+              : '1.5px solid rgba(0,0,0,0.05)',
+            boxShadow:
+              '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
+            zIndex: 5,
+            pointerEvents: 'none',
+          }}
+        >
+          <img
+            src="/qr-wabi.png"
+            alt="QR code"
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+          />
         </div>
       )}
 
