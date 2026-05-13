@@ -76,6 +76,7 @@ const extractAppId = (url: string): string => {
 
 function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasFrontRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<Matter.Engine | null>(null);
   const orbDataRef = useRef<Map<number, OrbData>>(new Map());
   const preloadedImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
@@ -423,6 +424,18 @@ function App() {
       if (!ctx) return;
       ctx.scale(dpr, dpr);
 
+      // Front canvas — orbs that should appear in front of the phone
+      const canvasFront = canvasFrontRef.current;
+      let ctxFront: CanvasRenderingContext2D | null = null;
+      if (canvasFront) {
+        canvasFront.width = window.innerWidth * dpr;
+        canvasFront.height = window.innerHeight * dpr;
+        canvasFront.style.width = `${window.innerWidth}px`;
+        canvasFront.style.height = `${window.innerHeight}px`;
+        ctxFront = canvasFront.getContext('2d');
+        if (ctxFront) ctxFront.scale(dpr, dpr);
+      }
+
       const engine = Matter.Engine.create({
         gravity: { x: 0, y: 1 },
         enableSleeping: true,
@@ -431,17 +444,14 @@ function App() {
       engine.velocityIterations = 4;
       engineRef.current = engine;
 
-      // Play area: left half of viewport, with header + footer clearance
+      // Play area: full viewport width, with footer clearance
       const wallThickness = 50;
-      const FOOTER_CLEARANCE = 72; // keep orbs from overlapping the footer
-      const playRight = window.innerWidth * 0.5;
+      const FOOTER_CLEARANCE = 72;
+      const playRight = window.innerWidth;
       const floorY = window.innerHeight - FOOTER_CLEARANCE;
       walls = [
-        // Floor — just above the footer
         Matter.Bodies.rectangle(playRight / 2, floorY + wallThickness / 2, playRight * 2, wallThickness, { isStatic: true, label: 'wall' }),
-        // Left wall
         Matter.Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
-        // Right wall — at mid-screen instead of viewport edge
         Matter.Bodies.rectangle(playRight + wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
       ];
       Matter.Composite.add(engine.world, walls);
@@ -761,7 +771,7 @@ function App() {
           });
         }
 
-        // Prepare orb render data (for z-sorting in cyclone mode)
+        // Prepare orb render data (front/back split for cyclone & orbit modes)
         const orbRenderData: Array<{
           body: Matter.Body;
           orbData: OrbData | undefined;
@@ -770,6 +780,7 @@ function App() {
           drawAngle: number;
           radius: number;
           zDepth: number;
+          isFront: boolean;
         }> = [];
 
         orbs.forEach((body) => {
@@ -793,59 +804,53 @@ function App() {
           }
 
           if (mode === 'cyclone') {
-            // Cyclone mode: clean elliptical orbit with z-depth (no wobble/shake)
+            // Cyclone: tilted 3D ring around the phone.
+            // Orbs traveling LEFT pass in front (worldZ > 0), RIGHT pass behind (worldZ < 0).
             const time = cycloneTimeRef.current;
-            const focalAngle = cycloneFocalAngleRef.current;
 
-            // Initialize cyclone properties if not present
             if (animData.ellipseRatioX === undefined) {
               animData.zLayer = Math.random();
-              animData.joinTime = time;
               animData.ellipseRatioX = 1.0;
-              // Tall ellipse so orbs wrap around the vertical phone
-              animData.ellipseRatioY = 1.15 + Math.random() * 0.25;
+              // Vertical stretch of the orbit so it wraps the tall phone
+              animData.ellipseRatioY = 1.05 + Math.random() * 0.25;
               animData.phaseOffset = Math.random() * Math.PI * 2;
             }
-
             const zLayer = animData.zLayer ?? 0.5;
-            const joinTime = animData.joinTime ?? 0;
 
-            // Catch-up animation: new orbs ease into their cyclone position from top
-            const timeSinceJoin = time - joinTime;
-            const catchUpProgress = Math.min(1, timeSinceJoin / 3);
-            const catchUpEase = 1 - Math.pow(1 - catchUpProgress, 3);
-
-            // Speed based on depth: close (zLayer=1) = faster, far (zLayer=0) = slower
-            const depthSpeed = 0.15 + zLayer * 0.35;
+            // Angular velocity (close orbits a touch faster)
+            const angularSpeed = 0.6 + zLayer * 0.4;
 
             // Ellipse sized to wrap the centered phone, capped to viewport
             const phoneH = Math.max(380, Math.min(620, window.innerHeight * 0.56));
             const phoneW = phoneH * (470 / 668);
             const minR = Math.max(phoneW / 2, phoneH / 2.8) + 50;
-            const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.4;
+            const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.42;
             const baseR = Math.min(minR, maxR);
-            const radiusX = baseR * (0.85 + zLayer * 0.35);
+            const radiusX = baseR * (0.92 + zLayer * 0.3);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
-            // Clean orbital position
-            const angle = animData.angle + time * depthSpeed;
-            const targetX = centerX + Math.cos(angle) * radiusX;
-            const targetY = centerY + Math.sin(angle) * radiusY;
+            // 3D orbital position in a near-horizontal plane, tilted slightly so we
+            // see it as an ellipse on screen with depth.
+            const angle = animData.angle + time * angularSpeed;
+            const TILT = 1.25; // ~72° tilt
+            const cosT = Math.cos(TILT);
+            const sinT = Math.sin(TILT);
+            const planeX = Math.cos(angle) * radiusX;
+            const planeV = Math.sin(angle) * radiusY;
+            const worldX = planeX;
+            const worldY = planeV * cosT;
+            const worldZ = planeV * sinT;
 
-            // Entry from above for catch-up
-            const entryX = centerX + (Math.random() - 0.5) * 100;
-            const entryY = -100;
+            // Perspective projection — camera is some distance in front of z=0
+            const camDist = 1800;
+            const persp = camDist / Math.max(120, camDist - worldZ);
 
-            drawX = entryX + (targetX - entryX) * catchUpEase;
-            drawY = entryY + (targetY - entryY) * catchUpEase;
+            drawX = centerX + worldX * persp;
+            drawY = centerY + worldY * persp;
+            radius = baseRadius * persp * (0.55 + zLayer * 0.45);
 
-            // Size based on depth + slowly-rotating focal zone
-            const angleFromFocal = Math.abs(Math.sin(angle - focalAngle));
-            const focalBoost = 1 + angleFromFocal * 0.5 * zLayer;
-            const depthScale = (0.4 + zLayer * 1.6) * focalBoost;
-            radius = baseRadius * depthScale * catchUpEase;
-
-            zDepth = zLayer;
+            // Sort key: closer (larger worldZ) renders later within its canvas
+            zDepth = worldZ;
             drawAngle = 0;
 
             // Cursor push: orbs deflect away from the cursor
@@ -958,7 +963,11 @@ function App() {
             Matter.Body.setStatic(body, false);
           }
 
-          orbRenderData.push({ body, orbData, drawX, drawY, drawAngle, radius, zDepth });
+          // Orbs go on the front canvas (above phone) when their worldZ is positive
+          // (they're closer to the camera than the phone). cyclone uses worldZ, orbit
+          // uses zDepth as worldZ, others stay on the back canvas.
+          const isFront = (mode === 'cyclone' || mode === 'orbit') && zDepth > 0;
+          orbRenderData.push({ body, orbData, drawX, drawY, drawAngle, radius, zDepth, isFront });
         });
 
         // Sort by z-depth in cyclone + orbit modes (far/small first, close/large last)
@@ -966,76 +975,77 @@ function App() {
           orbRenderData.sort((a, b) => a.zDepth - b.zDepth);
         }
 
-        // Render orbs (branches on render style)
-        orbRenderData.forEach(({ orbData, drawX, drawY, drawAngle, radius }) => {
-          ctx.save();
-          ctx.translate(drawX, drawY);
-          ctx.rotate(drawAngle);
+        // Clear front canvas each frame (transparent — phone shows through)
+        if (ctxFront && canvasFront) {
+          ctxFront.clearRect(0, 0, window.innerWidth, window.innerHeight);
+        }
+
+        // Render orbs (branches on render style); route to front/back canvas
+        orbRenderData.forEach(({ orbData, drawX, drawY, drawAngle, radius, isFront }) => {
+          const tctx = (isFront && ctxFront) ? ctxFront : ctx;
+          tctx.save();
+          tctx.translate(drawX, drawY);
+          tctx.rotate(drawAngle);
 
           if (style === 'simple') {
             // Solid black circle on white bg
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.fillStyle = '#0a0a0a';
-            ctx.fill();
+            tctx.beginPath();
+            tctx.arc(0, 0, radius, 0, Math.PI * 2);
+            tctx.closePath();
+            tctx.fillStyle = '#0a0a0a';
+            tctx.fill();
           } else if (style === 'shaders') {
-            // Iridescent shader-style blob: chromatic outer halo + bright core
             const halo = radius * 1.6;
-
-            // Soft outer halo (additive-feeling glow)
-            const haloGrad = ctx.createRadialGradient(0, 0, radius * 0.4, 0, 0, halo);
+            const haloGrad = tctx.createRadialGradient(0, 0, radius * 0.4, 0, 0, halo);
             haloGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
             haloGrad.addColorStop(0.55, 'rgba(200,235,255,0.45)');
             haloGrad.addColorStop(0.85, 'rgba(255,200,235,0.18)');
             haloGrad.addColorStop(1, 'rgba(255,255,255,0)');
-            ctx.fillStyle = haloGrad;
-            ctx.beginPath();
-            ctx.arc(0, 0, halo, 0, Math.PI * 2);
-            ctx.fill();
+            tctx.fillStyle = haloGrad;
+            tctx.beginPath();
+            tctx.arc(0, 0, halo, 0, Math.PI * 2);
+            tctx.fill();
 
-            // Bright luminous core with subtle blue tint at edge
-            const coreGrad = ctx.createRadialGradient(-radius * 0.15, -radius * 0.2, 0, 0, 0, radius);
+            const coreGrad = tctx.createRadialGradient(-radius * 0.15, -radius * 0.2, 0, 0, 0, radius);
             coreGrad.addColorStop(0, 'rgba(255,255,255,1)');
             coreGrad.addColorStop(0.55, 'rgba(245,252,255,0.95)');
             coreGrad.addColorStop(0.85, 'rgba(180,220,255,0.55)');
             coreGrad.addColorStop(1, 'rgba(140,180,255,0)');
-            ctx.fillStyle = coreGrad;
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, Math.PI * 2);
-            ctx.fill();
+            tctx.fillStyle = coreGrad;
+            tctx.beginPath();
+            tctx.arc(0, 0, radius, 0, Math.PI * 2);
+            tctx.fill();
 
-            // Thin chromatic rim (pink/cyan split)
-            ctx.lineWidth = Math.max(1, radius * 0.04);
-            ctx.strokeStyle = 'rgba(255,200,230,0.35)';
-            ctx.beginPath();
-            ctx.arc(0, 0, radius * 0.97, 0, Math.PI * 2);
-            ctx.stroke();
-            ctx.strokeStyle = 'rgba(170,230,255,0.35)';
-            ctx.beginPath();
-            ctx.arc(0, 0, radius * 1.02, 0, Math.PI * 2);
-            ctx.stroke();
+            tctx.lineWidth = Math.max(1, radius * 0.04);
+            tctx.strokeStyle = 'rgba(255,200,230,0.35)';
+            tctx.beginPath();
+            tctx.arc(0, 0, radius * 0.97, 0, Math.PI * 2);
+            tctx.stroke();
+            tctx.strokeStyle = 'rgba(170,230,255,0.35)';
+            tctx.beginPath();
+            tctx.arc(0, 0, radius * 1.02, 0, Math.PI * 2);
+            tctx.stroke();
           } else {
             // 'glass' (default): image clipped to circle + overlay
-            ctx.save();
-            ctx.beginPath();
-            ctx.arc(0, 0, radius, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
+            tctx.save();
+            tctx.beginPath();
+            tctx.arc(0, 0, radius, 0, Math.PI * 2);
+            tctx.closePath();
+            tctx.clip();
             if (orbData?.image) {
-              ctx.drawImage(orbData.image, -radius, -radius, radius * 2, radius * 2);
+              tctx.drawImage(orbData.image, -radius, -radius, radius * 2, radius * 2);
             } else {
-              ctx.fillStyle = '#3b82f6';
-              ctx.fill();
+              tctx.fillStyle = '#3b82f6';
+              tctx.fill();
             }
-            ctx.restore();
+            tctx.restore();
 
             if (overlayImageRef.current) {
-              ctx.drawImage(overlayImageRef.current, -radius, -radius, radius * 2, radius * 2);
+              tctx.drawImage(overlayImageRef.current, -radius, -radius, radius * 2, radius * 2);
             }
           }
 
-          ctx.restore();
+          tctx.restore();
         });
 
         // Only update physics in physics mode
@@ -1060,9 +1070,18 @@ function App() {
         canvas.style.height = `${window.innerHeight}px`;
         ctx.scale(dpr, dpr);
 
-        // Update wall positions immediately (play area = left half, with footer clearance)
+        // Resize front canvas too
+        if (canvasFront && ctxFront) {
+          canvasFront.width = window.innerWidth * dpr;
+          canvasFront.height = window.innerHeight * dpr;
+          canvasFront.style.width = `${window.innerWidth}px`;
+          canvasFront.style.height = `${window.innerHeight}px`;
+          ctxFront.scale(dpr, dpr);
+        }
+
+        // Update wall positions immediately (play area = full width, with footer clearance)
         const FOOTER_CLEARANCE_R = 72;
-        const playRightR = window.innerWidth * 0.5;
+        const playRightR = window.innerWidth;
         const floorYR = window.innerHeight - FOOTER_CLEARANCE_R;
         Matter.Body.setPosition(walls[0], { x: playRightR / 2, y: floorYR + wallThickness / 2 });
         Matter.Body.setPosition(walls[1], { x: -wallThickness / 2, y: window.innerHeight / 2 });
@@ -1249,11 +1268,18 @@ function App() {
         }
       `}</style>
 
+      {/* Back canvas: orbs behind the phone */}
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
         onTouchStart={handleCanvasTouch}
-        style={{ display: 'block', cursor: 'pointer', touchAction: 'none' }}
+        style={{ display: 'block', cursor: 'pointer', touchAction: 'none', position: 'absolute', inset: 0, zIndex: 1 }}
+      />
+
+      {/* Front canvas: orbs in front of the phone (passthrough pointer events) */}
+      <canvas
+        ref={canvasFrontRef}
+        style={{ display: 'block', position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}
       />
 
       {/* Header (fixed top) */}
@@ -1271,7 +1297,7 @@ function App() {
           fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
           textAlign: 'center',
           userSelect: 'none',
-          zIndex: 5,
+          zIndex: 20,
           pointerEvents: 'none',
         }}>
           <h1 style={{
@@ -1324,7 +1350,7 @@ function App() {
             transform: 'translate(-50%, -42%)',
             height: 'clamp(380px, 56vh, 620px)',
             width: 'auto',
-            zIndex: 6,
+            zIndex: 5,
             pointerEvents: 'none',
             userSelect: 'none',
             filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
@@ -1351,7 +1377,7 @@ function App() {
               : '1.5px solid rgba(0,0,0,0.05)',
             boxShadow:
               '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
-            zIndex: 5,
+            zIndex: 20,
             pointerEvents: 'none',
           }}
         >
