@@ -88,7 +88,8 @@ function App() {
   const [, setLatestUser] = useState<string | null>(null);
   const [damping, setDamping] = useState(0.005);
   const [moonMode, setMoonMode] = useState(false);
-  const [showControls, setShowControls] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [layout, setLayout] = useState<'left' | 'center' | 'right'>('center');
   const [selectedOrb, setSelectedOrb] = useState<SelectedOrb | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [lightMode, setLightMode] = useState(false);
@@ -109,6 +110,7 @@ function App() {
   const displayModeRef = useRef(displayMode);
   const renderStyleRef = useRef(renderStyle);
   const enableOrbTapRef = useRef(enableOrbTap);
+  const layoutRef = useRef(layout);
   const currentShapeRef = useRef(currentShape);
   const cycloneTimeRef = useRef(0);
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
@@ -142,6 +144,7 @@ function App() {
   useEffect(() => { displayModeRef.current = displayMode; }, [displayMode]);
   useEffect(() => { renderStyleRef.current = renderStyle; }, [renderStyle]);
   useEffect(() => { enableOrbTapRef.current = enableOrbTap; }, [enableOrbTap]);
+  useEffect(() => { layoutRef.current = layout; }, [layout]);
   useEffect(() => { currentShapeRef.current = currentShape; }, [currentShape]);
 
   const showcaseOrbCountRef = useRef(showcaseOrbCount);
@@ -518,7 +521,9 @@ function App() {
         // Compute tangential drag velocity around the phone-centered motion (phone at bottom)
         const rect = canvas.getBoundingClientRect();
         const _phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-        const cx = window.innerWidth / 2;
+        const _layout = layoutRef.current;
+        const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
+        const cx = window.innerWidth * _phoneXFrac;
         const cy = window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2;
         const mx = p.clientX - rect.left;
         const my = p.clientY - rect.top;
@@ -729,11 +734,12 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
-        // Orbital motion centers on the phone, which is now anchored to the bottom
-        // (bottom: -6%, height: clamp(380, 62vh, 680)). Phone center sits a bit
-        // below mid-viewport.
+        // Orbital motion centers on the phone, which is anchored at the bottom
+        // and positioned by the current layout (left/center/right).
         const _phoneHcalc = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-        const centerX = window.innerWidth / 2;
+        const _layout = layoutRef.current;
+        const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
+        const centerX = window.innerWidth * _phoneXFrac;
         const centerY = window.innerHeight + window.innerHeight * 0.06 - _phoneHcalc / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
@@ -1313,17 +1319,27 @@ function App() {
       {/* Header (fixed top) */}
       {!showcaseMode && <Header />}
 
-      {/* Centered headline + subhead (top) */}
+      {/* Headline + subhead (positioned per layout) */}
       {!showcaseMode && (
         <div style={{
           position: 'absolute',
-          top: 'clamp(80px, 9vh, 110px)',
-          left: '50%',
-          transform: 'translateX(-50%)',
-          width: 'min(720px, 80vw)',
+          ...(layout === 'center'
+            ? {
+                top: 'clamp(80px, 9vh, 110px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 'min(720px, 80vw)',
+                textAlign: 'center' as const,
+              }
+            : {
+                top: '50%',
+                transform: 'translateY(-50%)',
+                [layout === 'left' ? 'right' : 'left']: 'clamp(32px, 5vw, 80px)',
+                width: 'min(440px, 38vw)',
+                textAlign: 'center' as const,
+              }),
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
           fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
-          textAlign: 'center',
           userSelect: 'none',
           zIndex: 20,
           pointerEvents: 'none',
@@ -1373,7 +1389,7 @@ function App() {
           alt=""
           style={{
             position: 'absolute',
-            left: '50%',
+            left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
             bottom: '-6%',
             transform: 'translateX(-50%)',
             height: 'clamp(380px, 62vh, 680px)',
@@ -1382,17 +1398,20 @@ function App() {
             pointerEvents: 'none',
             userSelect: 'none',
             filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
+            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       )}
 
-      {/* Bottom-right QR */}
+      {/* QR (positioned per layout — same side as text column) */}
       {!showcaseMode && (
         <div
           style={{
             position: 'absolute',
             bottom: 'clamp(72px, 10vh, 110px)',
-            right: 'clamp(20px, 3vw, 48px)',
+            ...(layout === 'right'
+              ? { left: 'clamp(20px, 3vw, 48px)' }
+              : { right: 'clamp(20px, 3vw, 48px)' }),
             width: 'clamp(140px, 14vw, 220px)',
             aspectRatio: '1 / 1',
             padding: 'clamp(7px, 0.7vw, 10px)',
@@ -1461,6 +1480,43 @@ function App() {
               );
             })}
           </div>
+
+          {/* Layout tabs */}
+          <div style={{ marginBottom: 6, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Layout</div>
+          <div style={{
+            display: 'flex',
+            background: 'rgba(255,255,255,0.06)',
+            borderRadius: 8,
+            padding: 3,
+            marginBottom: 16,
+            gap: 2,
+          }}>
+            {(['left', 'center', 'right'] as const).map((l) => {
+              const active = layout === l;
+              return (
+                <button
+                  key={l}
+                  onClick={() => setLayout(l)}
+                  style={{
+                    flex: 1,
+                    padding: '6px 8px',
+                    border: 0,
+                    borderRadius: 6,
+                    background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
+                    color: active ? 'white' : 'rgba(255,255,255,0.55)',
+                    fontSize: 11,
+                    fontWeight: active ? 600 : 500,
+                    textTransform: 'capitalize',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s, color 0.15s',
+                  }}
+                >
+                  {l}
+                </button>
+              );
+            })}
+          </div>
+
           <div style={{ marginBottom: 12, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Controls</div>
           <div style={{ marginBottom: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
