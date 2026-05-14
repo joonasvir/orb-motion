@@ -1363,20 +1363,49 @@ function App() {
             <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
             <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
               for you and your{' '}
-              <img
-                src="/facepile.png"
-                alt=""
+              <span
+                className="orb-facepile"
                 style={{
-                  display: 'inline-block',
-                  verticalAlign: '-0.18em',
-                  height: '0.9em',
-                  width: 'auto',
-                  marginRight: '0.18em',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  verticalAlign: '-0.22em',
+                  marginRight: '0.22em',
                   marginLeft: '0.05em',
-                  userSelect: 'none',
-                  pointerEvents: 'none',
                 }}
-              />
+              >
+                {[1, 2, 3, 4].map((i) => (
+                  <span
+                    key={i}
+                    className="orb-facepile-avatar"
+                    style={{
+                      width: '0.92em',
+                      height: '0.92em',
+                      borderRadius: '50%',
+                      overflow: 'hidden',
+                      display: 'inline-block',
+                      marginLeft: i === 1 ? 0 : '-0.45em',
+                      boxShadow:
+                        '0 0 0 0.06em #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                      position: 'relative',
+                      zIndex: 10 - i,
+                      transition: 'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+                    }}
+                  >
+                    <img
+                      src={`/facepile/avatar-${i}.png`}
+                      alt=""
+                      style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        display: 'block',
+                        userSelect: 'none',
+                        pointerEvents: 'none',
+                      }}
+                    />
+                  </span>
+                ))}
+              </span>
               friends
             </span>
           </h1>
@@ -1465,6 +1494,7 @@ function App() {
           color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
           backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
           minWidth: 220,
+          zIndex: 90,
         }}>
           {/* Render style tabs */}
           <div style={{ marginBottom: 6, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Style</div>
@@ -1584,6 +1614,7 @@ function App() {
           color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
           backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
           minWidth: 260,
+          zIndex: 90,
         };
         const sectionLabel: React.CSSProperties = {
           marginBottom: 6, fontWeight: 'bold', opacity: 0.5,
