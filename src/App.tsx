@@ -779,14 +779,14 @@ function App() {
           // Side layouts: phone is vertically centered.
           : window.innerHeight / 2;
 
-        // Background: white for simple/glass, deep blue gradient for shaders
+        // Background: light gray (#f0f0f0) for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
           const bg = ctx.createLinearGradient(0, 0, 0, window.innerHeight);
           bg.addColorStop(0, '#1d4ed8');
           bg.addColorStop(1, '#0b1f6a');
           ctx.fillStyle = bg;
         } else {
-          ctx.fillStyle = '#ffffff';
+          ctx.fillStyle = '#f0f0f0';
         }
         ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
