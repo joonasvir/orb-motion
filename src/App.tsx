@@ -1563,8 +1563,8 @@ function App() {
                     // away from "ur".
                     marginLeft: '0.16em',
                     pointerEvents: 'auto',
-                    // Soft drop shadow below the pile (y=32, blur=60)
-                    filter: 'drop-shadow(0 32px 60px rgba(0,0,0,0.1))',
+                    // Soft drop shadow below the pile (y=40, blur=80)
+                    filter: 'drop-shadow(0 40px 80px rgba(0,0,0,0.1))',
                   }}
                 >
                   {ids.map((i) => {
@@ -1587,8 +1587,8 @@ function App() {
                           height: '0.88em',
                           borderRadius: '50%',
                           overflow: 'hidden',
-                          // Thin CSS-only stroke (avatars themselves are clean)
-                          boxShadow: '0 0 0 1px #fff',
+                          // 2px CSS-only white stroke around each clean avatar.
+                          boxShadow: '0 0 0 2px #fff',
                           zIndex: 10 - slot,
                           transformOrigin: 'center',
                           transform: 'translateY(var(--shift, 0px)) scale(var(--scale-active, 1))',
@@ -1692,7 +1692,7 @@ function App() {
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}
       {!showcaseMode && (() => {
-        const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-2.png'];
+        const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-3.png'];
         // Slot 0 = front, 1 = back-right, 2 = back-left
         const slotForIdentity = (id: number) => (id - activePhone + 3) % 3;
         const slotTransform = (slot: number): React.CSSProperties => {
@@ -1769,9 +1769,10 @@ function App() {
               );
             })}
 
-            {/* Persona avatar overlay — sits in the dashboard's top-right
-                "profile" slot. Tracks the currently-hovered facepile avatar,
-                falling back to whichever phone is in front. */}
+            {/* Persona avatar overlay — sits in the empty top-right area of
+                each new dashboard (mirrors the Wabi logo's top-left position).
+                Tracks the currently-hovered facepile avatar, falling back to
+                whichever phone is in front. */}
             {(() => {
               const fallbackId = (activePhone % 4) + 1;
               const personaId = hoveredFaceId ?? fallbackId;
@@ -1783,18 +1784,17 @@ function App() {
                   draggable={false}
                   style={{
                     position: 'absolute',
-                    // Matches the profile glyph baked into the dashboard PNGs.
-                    top: '4.2%',
-                    right: '6.4%',
-                    width: '6.6%',
+                    // Mirrors the Wabi logo's position on the dashboard PNGs.
+                    top: '3.1%',
+                    right: '5.6%',
+                    width: '7.2%',
                     aspectRatio: '1',
                     borderRadius: '50%',
                     objectFit: 'cover',
                     pointerEvents: 'none',
                     zIndex: 4,
-                    boxShadow: '0 0 0 2px #fff, 0 4px 10px rgba(0,0,0,0.10)',
+                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.12)',
                     transition: 'opacity 0.3s ease',
-                    // Fade in once the front phone is settled
                     opacity: 1,
                   }}
                 />
