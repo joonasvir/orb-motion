@@ -1344,6 +1344,9 @@ function App() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @media (prefers-reduced-motion: reduce) {
+          .t-avatar { transition: none !important; transform: none !important; }
+        }
         @keyframes card-exit {
           0% {
             opacity: 1;
@@ -1422,9 +1425,38 @@ function App() {
             fontFeatureSettings: '"dlig" 1',
           }}>
             {(() => {
+              const ids = [1, 2, 3, 4];
+              const selectedId = (activePhone % 4) + 1;
+              const ordered = [selectedId, ...ids.filter((id) => id !== selectedId)];
+              const LIFT = -4;
+              const FALLOFF = 0.45;
+              const SCALE = 1.05;
+              const EASE_IN = 'cubic-bezier(0.22, 1, 0.36, 1)';
+              const EASE_OUT = 'cubic-bezier(0.34, 3.85, 0.64, 1)';
+              const updateSpring = (root: HTMLElement | null, hoveredId: number | null) => {
+                if (!root) return;
+                root.querySelectorAll<HTMLElement>('.t-avatar').forEach((el) => {
+                  const id = Number(el.dataset.avatarId);
+                  if (!Number.isFinite(id)) return;
+                  if (hoveredId === null) {
+                    el.style.setProperty('--avatar-tf', EASE_OUT);
+                    el.style.setProperty('--shift', '0px');
+                    el.style.setProperty('--scale-active', '1');
+                  } else {
+                    const hSlot = ordered.indexOf(hoveredId);
+                    const tSlot = ordered.indexOf(id);
+                    const distance = Math.abs(hSlot - tSlot);
+                    const shift = (LIFT * Math.pow(FALLOFF, distance)).toFixed(3);
+                    el.style.setProperty('--avatar-tf', EASE_IN);
+                    el.style.setProperty('--shift', `${shift}px`);
+                    el.style.setProperty('--scale-active', distance === 0 ? String(SCALE) : '1');
+                  }
+                });
+              };
               const facepile = (
                 <span
-                  className="orb-facepile"
+                  className="orb-facepile t-avatar-group"
+                  onMouseLeave={(e) => updateSpring(e.currentTarget, null)}
                   style={{
                     // Fixed-width inline-block — reordering avatars inside
                     // never affects the surrounding text layout.
@@ -1435,19 +1467,20 @@ function App() {
                     verticalAlign: '-0.22em',
                     marginRight: '0.22em',
                     marginLeft: '0.05em',
+                    pointerEvents: 'auto',
                   }}
                 >
-                  {(() => {
-                  const ids = [1, 2, 3, 4];
-                  const selectedId = (activePhone % 4) + 1;
-                  const ordered = [selectedId, ...ids.filter((id) => id !== selectedId)];
-                  // Stable DOM order; only the absolute `left` value animates.
-                  return ids.map((i) => {
+                  {ids.map((i) => {
                     const slot = ordered.indexOf(i);
                     return (
                       <span
                         key={i}
-                        className="orb-facepile-avatar"
+                        data-avatar-id={i}
+                        className="orb-facepile-avatar t-avatar"
+                        onMouseEnter={(e) => {
+                          const root = e.currentTarget.parentElement as HTMLElement | null;
+                          updateSpring(root, i);
+                        }}
                         style={{
                           position: 'absolute',
                           left: `${slot * 0.48}em`,
@@ -1459,7 +1492,13 @@ function App() {
                           boxShadow:
                             '0 0 0 1px #fff, 0 3px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
                           zIndex: 10 - slot,
-                          transition: 'left 0.5s cubic-bezier(0.22, 1, 0.36, 1), z-index 0s linear 0.25s',
+                          transformOrigin: 'center',
+                          transform: 'translateY(var(--shift, 0px)) scale(var(--scale-active, 1))',
+                          willChange: 'transform',
+                          transition:
+                            'left 0.5s cubic-bezier(0.22, 1, 0.36, 1), z-index 0s linear 0.25s, transform 320ms var(--avatar-tf, cubic-bezier(0.22, 1, 0.36, 1))',
+                          pointerEvents: 'auto',
+                          cursor: 'pointer',
                         }}
                       >
                         <img
@@ -1476,8 +1515,7 @@ function App() {
                         />
                       </span>
                     );
-                  });
-                })()}
+                  })}
                 </span>
               );
               if (layout === 'center') {
