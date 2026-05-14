@@ -78,6 +78,14 @@ function App() {
   const orbDataRef = useRef<Map<number, OrbData>>(new Map());
   const preloadedImagesRef = useRef<Map<string, HTMLImageElement>>(new Map());
   const coverUrlsRef = useRef<string[]>([]);
+  // Tracks which cover URLs have already been handed out so we don't repeat
+  // until the pool is exhausted (dedup-aware random picker below).
+  const usedCoversRef = useRef<Set<string>>(new Set());
+  // Holds AI-generated orb URLs (data: URLs from /api/generate-orb).
+  // These are prioritized by the picker so freshly-made orbs show up next.
+  const aiCoversRef = useRef<string[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [genError, setGenError] = useState<string | null>(null);
   const mouseConstraintRef = useRef<Matter.MouseConstraint | null>(null);
   const overlayImageRef = useRef<HTMLImageElement | null>(null);
 
@@ -266,9 +274,22 @@ function App() {
   };
 
   const getRandomCover = (): string => {
+    // AI-generated covers jump the queue — drained FIFO so freshly-made orbs
+    // appear on the very next spawn after generation.
+    if (aiCoversRef.current.length > 0) {
+      return aiCoversRef.current.shift() as string;
+    }
     const urls = coverUrlsRef.current.length > 0 ? coverUrlsRef.current : FALLBACK_ORBS;
-    console.log('getRandomCover using', coverUrlsRef.current.length > 0 ? 'API covers' : 'FALLBACK', '- total:', urls.length);
-    return urls[Math.floor(Math.random() * urls.length)];
+    // Dedup-aware random: prefer URLs we haven't used yet, only repeat once
+    // the entire pool has been consumed. Reset the seen-set when exhausted.
+    const unused = urls.filter(u => !usedCoversRef.current.has(u));
+    if (unused.length === 0) {
+      usedCoversRef.current.clear();
+    }
+    const pool = unused.length > 0 ? unused : urls;
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    usedCoversRef.current.add(pick);
+    return pick;
   };
 
   const saveOrbs = useCallback(() => {
@@ -341,6 +362,48 @@ function App() {
     if (orbUsername) setLatestUser(orbUsername);
     saveOrbs();
   }, [damping, saveOrbs]);
+
+  // Ref to the prompt input + handler that hits /api/generate-orb. The endpoint
+  // returns a data URL we push onto aiCoversRef so the next addOrb() picks it.
+  const genPromptRef = useRef<HTMLInputElement>(null);
+  const generateOrb = useCallback(async () => {
+    if (isGenerating) return;
+    setGenError(null);
+    setIsGenerating(true);
+    try {
+      const prompt = (genPromptRef.current?.value || '').trim();
+      const response = await fetch('/api/generate-orb', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(prompt ? { prompt } : {}),
+      });
+      const json = await response.json();
+      if (!response.ok) {
+        throw new Error(json.error || `HTTP ${response.status}`);
+      }
+      const images: string[] = json.images || [];
+      if (images.length === 0) throw new Error('No image returned');
+
+      // Pre-decode the image so the orb renders immediately on add.
+      await new Promise<void>((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          preloadedImagesRef.current.set(images[0], img);
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = images[0];
+      });
+
+      // Queue the URL for the next addOrb call, then spawn.
+      aiCoversRef.current.push(images[0]);
+      addOrb();
+    } catch (err: any) {
+      setGenError(err?.message || 'Generation failed');
+    } finally {
+      setIsGenerating(false);
+    }
+  }, [addOrb, isGenerating]);
 
   // Drop all orbs at once for showcase mode
   const dropAllOrbs = useCallback((count: number) => {
@@ -496,9 +559,10 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial 18 orbs — spawn synchronously so every orb gets its cyclone
+      // Initial orbs — spawn synchronously so every orb gets its cyclone
       // slot on the same frame. The fade-in handles the smooth reveal.
-      const INITIAL_DROP_COUNT = 18;
+      // The cyclone reads denser at 36+ orbs without sacrificing legibility.
+      const INITIAL_DROP_COUNT = 36;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
         const x = Math.random() * (window.innerWidth - 100) + 50;
         addOrb(x);
@@ -2012,6 +2076,51 @@ function App() {
                 style={pillBtn(showBento)}
               >On</button>
             </div>
+
+            {/* Generate — call OpenAI image API to spawn brand-new orb covers */}
+            <div style={sectionLabel}>Generate orb</div>
+            <input
+              ref={genPromptRef}
+              type="text"
+              placeholder="Prompt (optional)"
+              style={{
+                width: '100%',
+                padding: '10px 12px',
+                marginBottom: 8,
+                border: '1px solid rgba(0,0,0,0.08)',
+                borderRadius: 10,
+                background: 'rgba(255,255,255,0.7)',
+                fontSize: 12,
+                fontFamily: 'inherit',
+                color: '#1e1e1e',
+                outline: 'none',
+                boxSizing: 'border-box',
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') generateOrb();
+              }}
+            />
+            <button
+              onClick={generateOrb}
+              disabled={isGenerating}
+              style={{
+                ...pillBtn(true),
+                width: '100%',
+                opacity: isGenerating ? 0.7 : 1,
+                cursor: isGenerating ? 'progress' : 'pointer',
+                marginBottom: genError ? 6 : 18,
+              }}
+            >
+              {isGenerating ? 'Generating…' : 'Generate'}
+            </button>
+            {genError && (
+              <div style={{
+                marginBottom: 18,
+                fontSize: 11,
+                color: '#b91c1c',
+                lineHeight: 1.4,
+              }}>{genError}</div>
+            )}
 
             {/* Damping */}
             <div style={sectionLabel}>
