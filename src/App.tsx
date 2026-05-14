@@ -1430,32 +1430,75 @@ function App() {
         </div>
       )}
 
-      {/* Centered phone mockup */}
+      {/* Phone visual — three dashboards fanning out from a common base */}
       {!showcaseMode && (
-        <img
-          src="/phone-mock.png"
-          alt=""
+        <div
           style={{
             position: 'absolute',
             left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
-            // Center stays anchored at the bottom (rising-up effect).
-            // Side layouts are fully visible AND vertically centered.
             ...(layout === 'center'
               ? { bottom: '-6%', transform: 'translateX(-50%)' }
               : { top: '50%', transform: 'translate(-50%, -50%)' }),
             height: layout === 'center'
               ? 'clamp(460px, 74vh, 820px)'
               : 'clamp(420px, 72vh, 720px)',
-            width: 'auto',
+            aspectRatio: '402 / 834',
             zIndex: 5,
             pointerEvents: 'none',
             userSelect: 'none',
-            // Clip any non-transparent corner pixels on the PNG
-            borderRadius: '13%',
-            filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
             transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
-        />
+        >
+          {/* Back-left phone */}
+          <img
+            src="/dash-2.png"
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              borderRadius: '13%',
+              transformOrigin: '50% 88%',
+              transform: 'translateX(-26%) rotate(-9deg) scale(0.93)',
+              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.10))',
+              zIndex: 1,
+            }}
+          />
+          {/* Back-right phone */}
+          <img
+            src="/dash-2.png"
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              borderRadius: '13%',
+              transformOrigin: '50% 88%',
+              transform: 'translateX(26%) rotate(9deg) scale(0.93)',
+              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.10))',
+              zIndex: 2,
+            }}
+          />
+          {/* Front phone */}
+          <img
+            src="/dash-1.png"
+            alt=""
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'contain',
+              borderRadius: '13%',
+              zIndex: 3,
+              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.14)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
+            }}
+          />
+        </div>
       )}
 
       {/* QR (positioned per layout — same side as text column) */}
