@@ -113,6 +113,7 @@ function App() {
   const currentShapeRef = useRef(currentShape);
   const cycloneTimeRef = useRef(0);
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
+  const cycloneSlotCounterRef = useRef(0); // Monotonically-assigned slot per orb
   const spinBoostRef = useRef(0); // Drag-driven extra spin (decays over time)
   // Smoothed cursor offset from viewport center (-1..1) used to tilt the orbit
   const mouseTiltRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -514,7 +515,7 @@ function App() {
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         const cy = _layout === 'center'
-          ? window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2
+          ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneH / 2
           : window.innerHeight / 2;
         const mx = p.clientX - rect.left;
         const my = p.clientY - rect.top;
@@ -736,7 +737,7 @@ function App() {
         const centerY = _layout === 'center'
           // Phone bottom is at viewport-bottom + 6% (overflows), so its center
           // is (windowH + windowH*0.06) - phoneH/2 from the top.
-          ? window.innerHeight + window.innerHeight * 0.16 - _phoneHcalc / 2
+          ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneHcalc / 2
           // Side layouts: phone is vertically centered.
           : window.innerHeight / 2;
 
@@ -808,7 +809,7 @@ function App() {
 
         const nowMs = performance.now();
 
-        orbs.forEach((body, orbIdx) => {
+        orbs.forEach((body) => {
           const orbData = orbDataRef.current.get(body.id);
           const baseRadius = (body as any).circleRadius || BASE_RADIUS;
           let radius = baseRadius;
@@ -842,6 +843,11 @@ function App() {
               // Wall-clock timestamp when this orb first entered cyclone — used
               // for the smooth fade-in reveal.
               (animData as any).cycloneFadeStartMs = performance.now();
+              // Permanent slot — once assigned, never changes. New orbs get the
+              // next slot via the counter ref; golden-angle distribution keeps
+              // spacing well-distributed without N-dependent recomputation.
+              (animData as any).cycloneSlot = cycloneSlotCounterRef.current;
+              cycloneSlotCounterRef.current += 1;
             }
             const zLayer = animData.zLayer ?? 0.5;
 
@@ -857,10 +863,13 @@ function App() {
             const radiusX = baseR * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
-            // Even-spacing: each orb's base angle is its index in the current
-            // orbs list, mapped to [0, 2π). Single shared angular speed means
-            // spacing stays uniform around the ring even as orbs are added.
-            const baseAngle = orbs.length > 0 ? (orbIdx / orbs.length) * Math.PI * 2 : 0;
+            // Each orb's base angle is determined by its PERMANENT slot, not
+            // its current index. Slots are distributed via the golden angle so
+            // adding a new orb fills the largest gap automatically without
+            // shifting existing orbs.
+            const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+            const slot = (animData as any).cycloneSlot ?? 0;
+            const baseAngle = slot * GOLDEN_ANGLE;
             const angle = baseAngle + time * angularSpeed;
             const mtX = mouseTiltRef.current.x; // -1..1
             const mtY = mouseTiltRef.current.y;
@@ -988,11 +997,14 @@ function App() {
           if (mode === 'cyclone') {
             const startMs = (animData as any).cycloneFadeStartMs as number | undefined;
             if (startMs !== undefined) {
-              const stagger = orbIdx * 22; // ms per orb
+              // Stagger by slot for the opening reveal, but cap so newly-added
+              // orbs don't have to wait a long time before fading in.
+              const slot = (animData as any).cycloneSlot ?? 0;
+              const stagger = Math.min(slot, 14) * 22;
               const FADE_MS = 700;
               const elapsed = nowMs - startMs - stagger;
               const p = Math.max(0, Math.min(1, elapsed / FADE_MS));
-              alpha = 1 - Math.pow(1 - p, 3); // ease-out cubic
+              alpha = 1 - Math.pow(1 - p, 3);
             } else {
               alpha = 0;
             }
@@ -1330,7 +1342,7 @@ function App() {
           position: 'absolute',
           ...(layout === 'center'
             ? {
-                top: 'clamp(80px, 9vh, 110px)',
+                top: 'clamp(110px, 12vh, 140px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: 'min(900px, 94vw)',
@@ -1500,10 +1512,10 @@ function App() {
             return { transform: 'translateX(0%) rotate(0deg) scale(0.97)', zIndex: slot === 1 ? 2 : 1, opacity: 0 };
           }
           if (slot === 1) {
-            return { transform: 'translateX(16%) rotate(6deg) scale(0.94)', zIndex: 2, opacity: 1 };
+            return { transform: 'translateX(11%) rotate(4deg) scale(0.95)', zIndex: 2, opacity: 1 };
           }
           // slot 2
-          return { transform: 'translateX(-16%) rotate(-6deg) scale(0.94)', zIndex: 1, opacity: 1 };
+          return { transform: 'translateX(-11%) rotate(-4deg) scale(0.95)', zIndex: 1, opacity: 1 };
         };
 
         return (
@@ -1513,8 +1525,11 @@ function App() {
               position: 'absolute',
               left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
               ...(layout === 'center'
-                ? { bottom: '-16%', transform: 'translateX(-50%)' }
-                : { top: '50%', transform: 'translate(-50%, -50%)' }),
+                ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+                : {
+                    top: '50%',
+                    transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+                  }),
               height: layout === 'center'
                 ? 'clamp(390px, 63vh, 700px)'
                 : 'clamp(420px, 72vh, 720px)',
