@@ -1318,14 +1318,14 @@ function App() {
                 top: 'clamp(80px, 9vh, 110px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
-                width: 'min(720px, 80vw)',
+                width: 'min(900px, 94vw)',
                 textAlign: 'center' as const,
               }
             : {
                 top: '50%',
                 transform: 'translateY(-50%)',
                 [layout === 'left' ? 'right' : 'left']: 'clamp(32px, 5vw, 80px)',
-                width: 'min(440px, 38vw)',
+                width: 'min(520px, 42vw)',
                 textAlign: 'center' as const,
               }),
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
@@ -1336,31 +1336,35 @@ function App() {
         }}>
           <h1 style={{
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
-            fontSize: 'clamp(30px, 4.2vw, 60px)',
+            fontSize: layout === 'center'
+              ? 'clamp(28px, 4.2vw, 60px)'
+              : 'clamp(26px, 3.4vw, 48px)',
             lineHeight: 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
             marginBottom: 'clamp(10px, 1.4vh, 22px)',
             fontFeatureSettings: '"dlig" 1',
-            whiteSpace: 'pre-wrap',
           }}>
-            Personal software<br />for you and your{' '}
-            <img
-              src="/facepile.png"
-              alt=""
-              style={{
-                display: 'inline-block',
-                verticalAlign: '-0.18em',
-                height: '0.9em',
-                width: 'auto',
-                marginRight: '0.18em',
-                marginLeft: '0.05em',
-                userSelect: 'none',
-                pointerEvents: 'none',
-              }}
-            />
-            friends
+            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
+            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
+              for you and your{' '}
+              <img
+                src="/facepile.png"
+                alt=""
+                style={{
+                  display: 'inline-block',
+                  verticalAlign: '-0.18em',
+                  height: '0.9em',
+                  width: 'auto',
+                  marginRight: '0.18em',
+                  marginLeft: '0.05em',
+                  userSelect: 'none',
+                  pointerEvents: 'none',
+                }}
+              />
+              friends
+            </span>
           </h1>
           <p style={{
             fontFamily: 'inherit',
