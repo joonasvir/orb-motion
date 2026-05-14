@@ -516,12 +516,11 @@ function App() {
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const cx = window.innerWidth * _phoneXFrac;
         const _phoneH = _layout === 'center'
-          ? Math.max(380, Math.min(680, window.innerHeight * 0.62))
-          : Math.max(340, Math.min(560, window.innerHeight * 0.60));
-        const _phoneBottom = _layout === 'center'
-          ? -window.innerHeight * 0.06
-          : Math.max(80, Math.min(120, window.innerHeight * 0.11));
-        const cy = window.innerHeight - _phoneBottom - _phoneH / 2;
+          ? Math.max(460, Math.min(820, window.innerHeight * 0.74))
+          : Math.max(420, Math.min(720, window.innerHeight * 0.72));
+        const cy = _layout === 'center'
+          ? window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2
+          : window.innerHeight / 2;
         const mx = p.clientX - rect.left;
         const my = p.clientY - rect.top;
         const tx = mx - cx;
@@ -737,12 +736,14 @@ function App() {
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const centerX = window.innerWidth * _phoneXFrac;
         const _phoneHcalc = _layout === 'center'
-          ? Math.max(380, Math.min(680, window.innerHeight * 0.62))
-          : Math.max(340, Math.min(560, window.innerHeight * 0.60));
-        const _phoneBottom = _layout === 'center'
-          ? -window.innerHeight * 0.06   // crops slightly into footer
-          : Math.max(80, Math.min(120, window.innerHeight * 0.11));
-        const centerY = window.innerHeight - _phoneBottom - _phoneHcalc / 2;
+          ? Math.max(460, Math.min(820, window.innerHeight * 0.74))
+          : Math.max(420, Math.min(720, window.innerHeight * 0.72));
+        const centerY = _layout === 'center'
+          // Phone bottom is at viewport-bottom + 6% (overflows), so its center
+          // is (windowH + windowH*0.06) - phoneH/2 from the top.
+          ? window.innerHeight + window.innerHeight * 0.06 - _phoneHcalc / 2
+          // Side layouts: phone is vertically centered.
+          : window.innerHeight / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -847,7 +848,7 @@ function App() {
             const angularSpeed = 0.6 + zLayer * 0.4;
 
             // Ellipse sized to wrap the centered phone, capped to viewport
-            const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
+            const phoneH = Math.max(460, Math.min(820, window.innerHeight * 0.74));
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
@@ -899,7 +900,7 @@ function App() {
             if ((animData as any).orbitRadius === undefined) {
               const a = animData as any;
               // Orbit radius wraps around the phone in the center, capped to viewport
-              const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
+              const phoneH = Math.max(460, Math.min(820, window.innerHeight * 0.74));
               const phoneW = phoneH * (402 / 834);
               const orbitMin = Math.min(
                 Math.max(phoneW / 2, phoneH / 2.6) + 80,
@@ -1436,17 +1437,22 @@ function App() {
           style={{
             position: 'absolute',
             left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
-            // Center crops a hair into the footer for the "rising up" effect.
-            // Side layouts sit fully above the footer so the whole phone is visible.
-            bottom: layout === 'center' ? '-6%' : 'clamp(80px, 11vh, 120px)',
-            transform: 'translateX(-50%)',
-            height: layout === 'center' ? 'clamp(380px, 62vh, 680px)' : 'clamp(340px, 60vh, 560px)',
+            // Center stays anchored at the bottom (rising-up effect).
+            // Side layouts are fully visible AND vertically centered.
+            ...(layout === 'center'
+              ? { bottom: '-6%', transform: 'translateX(-50%)' }
+              : { top: '50%', transform: 'translate(-50%, -50%)' }),
+            height: layout === 'center'
+              ? 'clamp(460px, 74vh, 820px)'
+              : 'clamp(420px, 72vh, 720px)',
             width: 'auto',
             zIndex: 5,
             pointerEvents: 'none',
             userSelect: 'none',
+            // Clip any non-transparent corner pixels on the PNG
+            borderRadius: '13%',
             filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
-            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       )}
