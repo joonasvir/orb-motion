@@ -19,6 +19,21 @@ interface SelectedOrb {
   startY: number;
 }
 
+// Shared style for the round icon buttons in the app card modal
+const iconCircleBtn = (): React.CSSProperties => ({
+  width: 52,
+  height: 52,
+  borderRadius: '50%',
+  border: 0,
+  background: '#ededed',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  transition: 'transform 0.2s ease, background 0.2s ease',
+  padding: 0,
+});
+
 const DAILY_STORAGE_KEY = 'orb-drop-date';
 const ORBS_STORAGE_KEY = 'orb-drop-orbs';
 const COVERS_STORAGE_KEY = 'orb-drop-covers';
@@ -1233,7 +1248,6 @@ function App() {
   };
 
   const appLink = selectedOrb?.data.appId ? `https://wabi.ai/app/${selectedOrb.data.appId}` : '';
-  const qrCodeUrl = appLink ? `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(appLink)}` : '';
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -1678,7 +1692,7 @@ function App() {
         </div>
       )}
 
-      {/* Card Modal */}
+      {/* Card Modal — glassy "App card" style (matches Figma 30:6880) */}
       {selectedOrb && (
         <div
           style={{
@@ -1688,135 +1702,247 @@ function App() {
             alignItems: 'center',
             justifyContent: 'center',
             zIndex: 100,
-            background: 'rgba(0,0,0,0.6)',
-            backdropFilter: 'blur(32px)',
-            WebkitBackdropFilter: 'blur(32px)',
+            // Wider, semi-transparent white-ish blur (not dark)
+            background: 'rgba(255,255,255,0.35)',
+            backdropFilter: 'blur(40px) saturate(160%)',
+            WebkitBackdropFilter: 'blur(40px) saturate(160%)',
             opacity: isClosing ? 0 : 1,
             transition: isClosing ? 'opacity 0.4s ease' : 'none',
             padding: '2rem',
           }}
           onClick={handleCloseCard}
         >
-          {/* Card - Vertical Layout */}
           <div
             className={isClosing ? 'card-exit' : 'card-enter'}
             onClick={(e) => e.stopPropagation()}
             style={{
-              maxWidth: 360,
-              width: '100%',
+              position: 'relative',
+              width: 'min(420px, 100%)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
-              padding: '2.5rem 2rem',
-              background: 'linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%)',
-              backdropFilter: 'blur(60px) saturate(200%)',
-              WebkitBackdropFilter: 'blur(60px) saturate(200%)',
-              border: '1px solid rgba(255,255,255,0.2)',
-              borderRadius: 32,
-              boxShadow: '0 24px 80px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.2), inset 0 -1px 0 rgba(255,255,255,0.05)',
+              gap: 16,
+              padding: '40px 24px 28px',
+              borderRadius: 42,
+              background: 'rgba(255,255,255,0.78)',
+              backdropFilter: 'blur(20px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+              boxShadow:
+                '0 14px 70px rgba(0,0,0,0.20), inset 1px 1px 1px rgba(255,255,255,0.32), inset -1px -1px 1px rgba(0,0,0,0.06)',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             }}
           >
-            {/* Orb */}
-            <div
-              className="orb-appear"
+            {/* Share icon top-right */}
+            <button
+              aria-label="Share"
+              onClick={(e) => e.stopPropagation()}
               style={{
-                width: 160,
-                height: 160,
-                borderRadius: '50%',
-                overflow: 'hidden',
-                boxShadow: 'inset -20px -20px 40px rgba(0,0,0,0.5), 0 0 60px rgba(120, 120, 255, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.15)',
-                marginBottom: '1.5rem',
+                position: 'absolute',
+                top: 22,
+                right: 22,
+                background: 'transparent',
+                border: 0,
+                cursor: 'pointer',
+                padding: 6,
+                color: '#1e1e1e',
+                opacity: 0.8,
+                transition: 'opacity 0.2s',
               }}
+              onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.opacity = '0.8'; }}
             >
-              <img
-                src={selectedOrb.data.imageUrl}
-                alt="App cover"
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-              <img
-                src="/orb-overlay.png"
-                alt=""
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M22 2L11 13" />
+                <path d="M22 2L15 22L11 13L2 9L22 2Z" />
+              </svg>
+            </button>
+
+            {/* Profile picture (the orb's image) + username pill */}
+            <div style={{ position: 'relative', width: 92, height: 92 }}>
+              <div
+                className="orb-appear"
                 style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                }}
-              />
-            </div>
-
-            {/* Title */}
-            <h1 style={{
-              fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
-              fontSize: '1.5rem',
-              fontWeight: 600,
-              color: 'white',
-              textAlign: 'center',
-              margin: 0,
-              marginBottom: '0.5rem',
-              letterSpacing: '-0.02em',
-            }}>
-              {selectedOrb.data.appTitle}
-            </h1>
-
-            {/* Creator */}
-            <div style={{
-              fontSize: '0.9rem',
-              color: 'rgba(255,255,255,0.6)',
-              marginBottom: '2rem',
-              fontFamily: '-apple-system, BlinkMacSystemFont, system-ui, sans-serif',
-            }}>
-              by <span style={{ color: 'white' }}>{selectedOrb.data.username}</span>
-            </div>
-
-            {/* QR Code */}
-            {qrCodeUrl && (
-              <div style={{
-                background: 'white',
-                borderRadius: 16,
-                padding: 16,
-                marginBottom: '1.5rem',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.3)',
-              }}>
-                <img src={qrCodeUrl.replace('120x120', '180x180')} alt="QR Code" style={{ display: 'block', width: 180, height: 180 }} />
-              </div>
-            )}
-
-            {/* CTA Button */}
-            {appLink && (
-              <a
-                href={appLink}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'block',
-                  width: '100%',
-                  padding: '1rem',
-                  background: 'white',
-                  color: 'black',
-                  textDecoration: 'none',
-                  borderRadius: 16,
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  textAlign: 'center',
-                  transition: 'all 0.2s ease',
-                  fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", system-ui, sans-serif',
-                  boxShadow: '0 4px 20px rgba(255,255,255,0.2)',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'scale(1.02)';
-                  e.currentTarget.style.boxShadow = '0 8px 30px rgba(255,255,255,0.3)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'scale(1)';
-                  e.currentTarget.style.boxShadow = '0 4px 20px rgba(255,255,255,0.2)';
+                  width: 92,
+                  height: 92,
+                  borderRadius: '50%',
+                  overflow: 'hidden',
+                  border: '2px solid rgba(0,0,0,0.08)',
+                  boxShadow:
+                    '0 8px 16px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
+                  position: 'relative',
                 }}
               >
-                Get on Wabi
+                <img
+                  src={selectedOrb.data.imageUrl}
+                  alt=""
+                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                />
+                <img
+                  src="/orb-overlay.png"
+                  alt=""
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
+              {/* Username pill */}
+              <div
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: -10,
+                  transform: 'translateX(-50%)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '5px 10px 5px 5px',
+                  borderRadius: 999,
+                  background: 'rgba(255,255,255,0.55)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  boxShadow: '0 5px 25px rgba(0,0,0,0.06), inset 0 0 0 0.5px rgba(255,255,255,0.6)',
+                }}
+              >
+                <span
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #f0a868, #b3563a)',
+                    border: '1px solid #fff',
+                    display: 'inline-block',
+                  }}
+                />
+                <span style={{ fontSize: 13, fontWeight: 500, color: '#0a0a0a', letterSpacing: '-0.005em' }}>
+                  {selectedOrb.data.username}
+                </span>
+              </div>
+            </div>
+
+            {/* Title + description */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, marginTop: 8, textAlign: 'center' }}>
+              <h2 style={{
+                margin: 0,
+                fontFamily: 'inherit',
+                fontWeight: 500,
+                fontSize: 26,
+                lineHeight: '32px',
+                color: '#1e1e1e',
+                letterSpacing: '-0.01em',
+              }}>
+                {selectedOrb.data.appTitle}
+              </h2>
+              <p style={{
+                margin: 0,
+                fontFamily: 'inherit',
+                fontWeight: 400,
+                fontSize: 17,
+                lineHeight: '22px',
+                color: '#424242',
+                maxWidth: 280,
+              }}>
+                A delightful mini-app made on Wabi. Scan the QR to try it out.
+              </p>
+            </div>
+
+            {/* Stats row */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: '#525252', fontSize: 14 }}>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+                160
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M9 4v6.5L3 14v2h7l1 6 1-6h7v-2l-6-3.5V4" />
+                </svg>
+                160
+              </span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                </svg>
+                12
+              </span>
+            </div>
+
+            {/* Action buttons row */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 4, width: '100%' }}>
+              {/* "Open" — dark pill */}
+              <a
+                href={appLink || '#'}
+                target={appLink ? '_blank' : undefined}
+                rel="noopener noreferrer"
+                onClick={(e) => { if (!appLink) e.preventDefault(); }}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  height: 52,
+                  padding: '0 22px',
+                  borderRadius: 60,
+                  background: 'linear-gradient(to top, #0a0a0a, #4a4a4a)',
+                  color: '#fff',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                  fontFamily: 'inherit',
+                  boxShadow:
+                    'inset -1px -1px 2px rgba(255,255,255,0.32), inset 1px 1px 1px rgba(255,255,255,0.12), 0 4px 12px rgba(0,0,0,0.15)',
+                  transition: 'transform 0.2s ease',
+                  cursor: 'pointer',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(0.97)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+                  <circle cx="8.5" cy="11.5" r="0.8" fill="currentColor" />
+                  <circle cx="12" cy="11.5" r="0.8" fill="currentColor" />
+                  <circle cx="15.5" cy="11.5" r="0.8" fill="currentColor" />
+                </svg>
+                Open
               </a>
-            )}
+              {/* Heart */}
+              <button
+                aria-label="Like"
+                onClick={(e) => e.stopPropagation()}
+                style={iconCircleBtn()}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                </svg>
+              </button>
+              {/* Bell */}
+              <button
+                aria-label="Notify"
+                onClick={(e) => e.stopPropagation()}
+                style={iconCircleBtn()}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+                </svg>
+              </button>
+              {/* Pin */}
+              <button
+                aria-label="Pin"
+                onClick={(e) => e.stopPropagation()}
+                style={iconCircleBtn()}
+              >
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 17v5" />
+                  <path d="M9 10.76L12 2l3 8.76L18 14H6L9 10.76z" />
+                  <line x1="3" y1="3" x2="21" y2="21" />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
