@@ -1441,6 +1441,43 @@ function App() {
         .orb-appear {
           animation: orb-appear 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
+        /* Smooth blur fade-in for first-paint elements. Use \`backwards\`
+           so the element renders in its initial state during animation-delay
+           (no flash before the stagger kicks in). */
+        @keyframes blur-in {
+          0% {
+            opacity: 0;
+            filter: blur(14px);
+            transform: translateY(12px);
+          }
+          100% {
+            opacity: 1;
+            filter: blur(0);
+            transform: translateY(0);
+          }
+        }
+        .blur-in {
+          animation: blur-in 1.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: opacity, filter, transform;
+        }
+        /* Same fade but no transform — for elements whose layout depends on
+           an existing transform (e.g. the phone's translateX(-50%) center). */
+        @keyframes blur-in-fixed {
+          0%   { opacity: 0; filter: blur(14px); }
+          100% { opacity: 1; filter: blur(0); }
+        }
+        .blur-in-fixed {
+          animation: blur-in-fixed 1.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: opacity, filter;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .blur-in, .blur-in-fixed {
+            animation: none !important;
+            opacity: 1 !important;
+            filter: none !important;
+            transform: none !important;
+          }
+        }
       `}</style>
 
       {/* Hero section (100vh) — contains the canvases, phone, headline, panels */}
@@ -1493,7 +1530,7 @@ function App() {
           zIndex: 20,
           pointerEvents: 'none',
         }}>
-          <h1 style={{
+          <h1 className="blur-in" style={{
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
             fontSize: layout === 'center'
               ? 'clamp(24px, 3.5vw, 50px)'
@@ -1504,6 +1541,7 @@ function App() {
             margin: 0,
             marginBottom: 'clamp(20px, 1.4vh, 30px)',
             fontFeatureSettings: '"dlig" 1',
+            animationDelay: '120ms',
           }}>
             {(() => {
               const ids = [1, 2, 3, 4];
@@ -1632,19 +1670,22 @@ function App() {
               );
             })()}
           </h1>
-          <p style={{
+          <p className="blur-in" style={{
             fontFamily: 'inherit',
             fontSize: 'clamp(13px, 1.3vw, 22px)',
             lineHeight: 1.25,
             letterSpacing: '-0.01em',
-            opacity: 0.8,
-            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
+            // Animated start state has opacity:0; the .blur-in `both` fill
+            // keeps the end opacity at 1, so use color alpha (not opacity)
+            // to keep the dim look without fighting the keyframes.
+            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.95)',
             margin: 0,
             maxWidth: 400,
             marginLeft: 'auto',
             marginRight: 'auto',
             fontWeight: 400,
             fontFeatureSettings: '"dlig" 1',
+            animationDelay: '300ms',
           }}>
             Describe what you want. Customize the vibe. Share instantly.
           </p>
@@ -1707,10 +1748,12 @@ function App() {
 
         return (
           <div
+            className="blur-in-fixed"
             onClick={() => {
               if (showProfiles) setActivePhone((p) => (p + 1) % 3);
             }}
             style={{
+              animationDelay: '400ms',
               position: 'absolute',
               left: layout === 'left'
                 ? 'calc(28% + 60px)'
@@ -1940,8 +1983,9 @@ function App() {
       {/* Floating QR — only in center layout; side layouts render it inside the text column */}
       {!showcaseMode && layout === 'center' && (
         <div
-          className="orb-qr-card"
+          className="orb-qr-card blur-in"
           style={{
+            animationDelay: '650ms',
             position: 'absolute',
             bottom: 'clamp(72px, 10vh, 110px)',
             right: 'clamp(20px, 3vw, 48px)',
@@ -2020,7 +2064,7 @@ function App() {
           fontFamily: 'inherit',
         });
         return (
-          <div style={{
+          <div className="blur-in" style={{
             position: 'absolute',
             top: 84,
             left: 16,
@@ -2037,6 +2081,7 @@ function App() {
             fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             fontSize: 12,
             zIndex: 90,
+            animationDelay: '500ms',
           }}>
             {/* Layout */}
             <div style={sectionLabel}>Layout</div>

@@ -302,11 +302,12 @@ export default function Header() {
         <a
           href="#"
           onClick={(e) => e.preventDefault()}
-          className="orb-nav-logo"
+          className="orb-nav-logo blur-in"
+          style={{ animationDelay: '40ms' }}
         >
           <WabiLogo />
         </a>
-        <div className="orb-nav-right">
+        <div className="orb-nav-right blur-in" style={{ animationDelay: '180ms' }}>
           <a
             href={APP_STORE_URL}
             target="_blank"

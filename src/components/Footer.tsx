@@ -90,7 +90,7 @@ export default function Footer() {
           padding-inline: 0;
         }
       `}</style>
-      <footer className="orb-footer">
+      <footer className="orb-footer blur-in" style={{ animationDelay: '700ms' }}>
         {/* Left slot is reserved for the joystick (rendered outside the Footer
             so it can overflow the top edge). Keep an empty spacer here for
             flex balance. */}
