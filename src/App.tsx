@@ -810,7 +810,7 @@ function App() {
           isFront: boolean;
         }> = [];
 
-        orbs.forEach((body) => {
+        orbs.forEach((body, orbIdx) => {
           const orbData = orbDataRef.current.get(body.id);
           const baseRadius = (body as any).circleRadius || BASE_RADIUS;
           let radius = baseRadius;
@@ -844,8 +844,8 @@ function App() {
             }
             const zLayer = animData.zLayer ?? 0.5;
 
-            // Angular velocity (close orbits a touch faster)
-            const angularSpeed = 0.6 + zLayer * 0.4;
+            // Single shared angular velocity so orbs keep their even spacing.
+            const angularSpeed = 0.85;
 
             // Ellipse sized to wrap the centered phone, capped to viewport
             const phoneH = Math.max(460, Math.min(820, window.innerHeight * 0.74));
@@ -856,10 +856,11 @@ function App() {
             const radiusX = baseR * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
-            // 3D orbital position in a near-horizontal plane, tilted slightly so we
-            // see it as an ellipse on screen with depth. The tilt and yaw are
-            // gently influenced by the cursor for a parallax feel.
-            const angle = animData.angle + time * angularSpeed;
+            // Even-spacing: each orb's base angle is its index in the current
+            // orbs list, mapped to [0, 2π). Single shared angular speed means
+            // spacing stays uniform around the ring even as orbs are added.
+            const baseAngle = orbs.length > 0 ? (orbIdx / orbs.length) * Math.PI * 2 : 0;
+            const angle = baseAngle + time * angularSpeed;
             const mtX = mouseTiltRef.current.x; // -1..1
             const mtY = mouseTiltRef.current.y;
             const TILT = 1.25 + mtY * 0.18;     // mouse-Y nudges tilt
