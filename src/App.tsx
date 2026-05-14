@@ -1474,6 +1474,8 @@ function App() {
                     marginRight: '0.22em',
                     marginLeft: '0.05em',
                     pointerEvents: 'auto',
+                    // Soft drop shadow below the pile (y=32, blur=60)
+                    filter: 'drop-shadow(0 32px 60px rgba(0,0,0,0.1))',
                   }}
                 >
                   {ids.map((i) => {
@@ -1495,8 +1497,8 @@ function App() {
                           height: '0.88em',
                           borderRadius: '50%',
                           overflow: 'hidden',
-                          boxShadow:
-                            '0 0 0 1px #fff, 0 3px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                          // Thin CSS-only stroke (avatars themselves are clean)
+                          boxShadow: '0 0 0 1px #fff',
                           zIndex: 10 - slot,
                           transformOrigin: 'center',
                           transform: 'translateY(var(--shift, 0px)) scale(var(--scale-active, 1))',
