@@ -81,6 +81,8 @@ function App() {
   // Tracks which cover URLs have already been handed out so we don't repeat
   // until the pool is exhausted (dedup-aware random picker below).
   const usedCoversRef = useRef<Set<string>>(new Set());
+  // Ref to the bento <section> so toggling it on can smooth-scroll into view.
+  const bentoSectionRef = useRef<HTMLElement | null>(null);
   // Holds AI-generated orb URLs (data: URLs from /api/generate-orb).
   // These are prioritized by the picker so freshly-made orbs show up next.
   const aiCoversRef = useRef<string[]>([]);
@@ -1415,6 +1417,10 @@ function App() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
+        @keyframes scroll-hint-bounce {
+          0%, 100% { transform: translate(-50%, 0); }
+          50%      { transform: translate(-50%, 6px); }
+        }
         @media (prefers-reduced-motion: reduce) {
           .t-avatar { transition: none !important; transform: none !important; }
         }
@@ -2072,7 +2078,19 @@ function App() {
                 style={pillBtn(!showBento)}
               >Off</button>
               <button
-                onClick={() => setShowBento(true)}
+                onClick={() => {
+                  setShowBento(true);
+                  // Wait a frame for the section to mount, then smooth-scroll
+                  // to it so the user immediately sees what they enabled.
+                  requestAnimationFrame(() => {
+                    setTimeout(() => {
+                      bentoSectionRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }, 60);
+                  });
+                }}
                 style={pillBtn(showBento)}
               >On</button>
             </div>
@@ -2164,12 +2182,44 @@ function App() {
         </div>
       )}
 
+      {/* Scroll-down chevron — visible only when bento is enabled so users
+          know there's more content below the hero. Sits just above the footer
+          and gently bobs. */}
+      {!showcaseMode && showBento && (
+        <button
+          type="button"
+          onClick={() => bentoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+          aria-label="Scroll to bento"
+          style={{
+            position: 'absolute',
+            bottom: 96,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: 40, height: 40,
+            border: 0,
+            borderRadius: '50%',
+            background: 'rgba(255,255,255,0.8)',
+            boxShadow: '0 6px 18px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 60,
+            animation: 'scroll-hint-bounce 1.8s ease-in-out infinite',
+          }}
+        >
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+            <path d="M3 5l4 4 4-4" stroke="#1e1e1e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
+
       </section>
       {/* End hero section */}
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
       {!showcaseMode && showBento && (
-        <section style={{
+        <section ref={bentoSectionRef} style={{
           width: '100%',
           padding: 'clamp(48px, 6vw, 96px) clamp(20px, 4vw, 64px) clamp(120px, 12vw, 180px)',
           background: '#f0f0f0',
