@@ -459,9 +459,9 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial 15 orbs — spawn synchronously so every orb gets its cyclone
+      // Initial 18 orbs — spawn synchronously so every orb gets its cyclone
       // slot on the same frame. The fade-in handles the smooth reveal.
-      const INITIAL_DROP_COUNT = 15;
+      const INITIAL_DROP_COUNT = 18;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
         const x = Math.random() * (window.innerWidth - 100) + 50;
         addOrb(x);
@@ -1378,8 +1378,12 @@ function App() {
                 <span
                   className="orb-facepile"
                   style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
+                    // Fixed-width inline-block — reordering avatars inside
+                    // never affects the surrounding text layout.
+                    display: 'inline-block',
+                    position: 'relative',
+                    width: '2.32em',
+                    height: '0.88em',
                     verticalAlign: '-0.22em',
                     marginRight: '0.22em',
                     marginLeft: '0.05em',
@@ -1389,38 +1393,42 @@ function App() {
                   const ids = [1, 2, 3, 4];
                   const selectedId = (activePhone % 4) + 1;
                   const ordered = [selectedId, ...ids.filter((id) => id !== selectedId)];
-                  return ordered.map((i, slot) => (
-                    <span
-                      key={i}
-                      className="orb-facepile-avatar"
-                      style={{
-                        width: '0.88em',
-                        height: '0.88em',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'inline-block',
-                        marginLeft: slot === 0 ? 0 : '-0.4em',
-                        boxShadow:
-                          '0 0 0 1px #fff, 0 3px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
-                        position: 'relative',
-                        zIndex: 10 - slot,
-                        transition: 'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
-                      }}
-                    >
-                      <img
-                        src={`/facepile/avatar-${i}.png`}
-                        alt=""
+                  // Stable DOM order; only the absolute `left` value animates.
+                  return ids.map((i) => {
+                    const slot = ordered.indexOf(i);
+                    return (
+                      <span
+                        key={i}
+                        className="orb-facepile-avatar"
                         style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'cover',
-                          display: 'block',
-                          userSelect: 'none',
-                          pointerEvents: 'none',
+                          position: 'absolute',
+                          left: `${slot * 0.48}em`,
+                          top: 0,
+                          width: '0.88em',
+                          height: '0.88em',
+                          borderRadius: '50%',
+                          overflow: 'hidden',
+                          boxShadow:
+                            '0 0 0 1px #fff, 0 3px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                          zIndex: 10 - slot,
+                          transition: 'left 0.5s cubic-bezier(0.22, 1, 0.36, 1), z-index 0s linear 0.25s',
                         }}
-                      />
-                    </span>
-                  ));
+                      >
+                        <img
+                          src={`/facepile/avatar-${i}.png`}
+                          alt=""
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            display: 'block',
+                            userSelect: 'none',
+                            pointerEvents: 'none',
+                          }}
+                        />
+                      </span>
+                    );
+                  });
                 })()}
                 </span>
               );
