@@ -1298,6 +1298,22 @@ function App() {
             opacity: 1;
           }
         }
+        @keyframes float-soft-a {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-9px) rotate(-0.5deg); }
+        }
+        @keyframes float-soft-b {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50% { transform: translateY(-12px) rotate(0.4deg); }
+        }
+        @keyframes float-heart {
+          0%, 100% { transform: translate(0, 0) rotate(8deg) scale(1); }
+          50% { transform: translate(-6px, -14px) rotate(2deg) scale(1.04); }
+        }
+        @keyframes notif-in {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
         @keyframes card-exit {
           0% {
             opacity: 1;
@@ -1584,6 +1600,157 @@ function App() {
               );
             })}
           </div>
+        );
+      })()}
+
+      {/* Floating notifications — chat bubbles + like card with 3D heart, hovering over the phone */}
+      {!showcaseMode && (() => {
+        // Anchor positions follow the phone for each layout
+        const phoneCx =
+          layout === 'left' ? 'calc(28% + 60px)' :
+          layout === 'right' ? 'calc(72% - 60px)' :
+          '50%';
+        return (
+          <>
+            {/* Chat bubbles — top-left of phone */}
+            <div style={{
+              position: 'absolute',
+              top: layout === 'center' ? '36%' : '22%',
+              left: `calc(${phoneCx} - 290px)`,
+              width: 320,
+              zIndex: 8,
+              pointerEvents: 'none',
+              animation: 'notif-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.4s both',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+            }}>
+              <div style={{ animation: 'float-soft-a 4.6s ease-in-out infinite' }}>
+                <div style={{
+                  fontSize: 11,
+                  color: '#9aa0a6',
+                  marginLeft: 44,
+                  marginBottom: 4,
+                  fontWeight: 500,
+                }}>Danny</div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 6 }}>
+                  <img src="/facepile/avatar-2.png" alt="" style={{
+                    width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+                    boxShadow: '0 0 0 1.5px #fff, 0 2px 6px rgba(0,0,0,0.08)',
+                  }} />
+                  <div style={{
+                    padding: '10px 16px',
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, #f6e3e7 0%, #ead9ec 100%)',
+                    color: '#1e1e1e',
+                    fontSize: 14,
+                    lineHeight: 1.3,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+                  }}>
+                    I luv our new Barcelona trip planner mini-app <span aria-hidden="true">🫶🥺</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
+                  <img src="/facepile/avatar-2.png" alt="" style={{
+                    width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
+                    boxShadow: '0 0 0 1.5px #fff, 0 2px 6px rgba(0,0,0,0.08)',
+                  }} />
+                  <div style={{
+                    padding: '10px 16px',
+                    borderRadius: 20,
+                    background: 'linear-gradient(135deg, #f6e3e7 0%, #ead9ec 100%)',
+                    color: '#1e1e1e',
+                    fontSize: 14,
+                    lineHeight: 1.3,
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+                  }}>
+                    Gonna edit it ask wabi to add some museum suggestions
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Like notification — bottom-right of phone */}
+            <div style={{
+              position: 'absolute',
+              top: layout === 'center' ? 'auto' : '60%',
+              bottom: layout === 'center' ? '18%' : 'auto',
+              left: `calc(${phoneCx} - 40px)`,
+              width: 340,
+              zIndex: 8,
+              pointerEvents: 'none',
+              animation: 'notif-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.9s both',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+            }}>
+              <div style={{ position: 'relative', animation: 'float-soft-b 5.2s ease-in-out infinite' }}>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '8px 22px 8px 8px',
+                  background: '#fff',
+                  borderRadius: 999,
+                  boxShadow: '0 14px 36px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+                }}>
+                  <div style={{ position: 'relative', width: 38, height: 38, flexShrink: 0 }}>
+                    <img src="/facepile/avatar-4.png" alt="" style={{
+                      width: '100%', height: '100%', objectFit: 'cover',
+                      borderRadius: '50%', display: 'block',
+                    }} />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: -3, right: -3,
+                      width: 18, height: 18,
+                      background: '#fff',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                    }}>
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', lineHeight: 1.25 }}>
+                    <div style={{ fontSize: 13, color: '#1e1e1e' }}>
+                      <span style={{ fontWeight: 600 }}>Veronica Maggio</span> liked your app
+                    </div>
+                    <div style={{ fontSize: 13, color: '#1e1e1e' }}>
+                      Bedtime Stories <span style={{ color: '#9aa0a6', marginLeft: 4 }}>20m</span>
+                    </div>
+                  </div>
+                </div>
+                {/* 3D red heart */}
+                <svg
+                  viewBox="0 0 100 100"
+                  width="86"
+                  height="86"
+                  style={{
+                    position: 'absolute',
+                    right: -34,
+                    bottom: -50,
+                    transform: 'rotate(8deg)',
+                    filter: 'drop-shadow(0 10px 14px rgba(0,0,0,0.22))',
+                    animation: 'float-heart 5.6s ease-in-out infinite',
+                  }}
+                  aria-hidden="true"
+                >
+                  <defs>
+                    <radialGradient id="floating-heart-grad" cx="36%" cy="28%" r="72%">
+                      <stop offset="0%" stopColor="#ff8a8a" />
+                      <stop offset="42%" stopColor="#ee2c2c" />
+                      <stop offset="100%" stopColor="#9d0d0d" />
+                    </radialGradient>
+                  </defs>
+                  <path
+                    d="M50 88 C20 70 5 45 5 30 C5 15 18 5 32 5 C40 5 47 10 50 18 C53 10 60 5 68 5 C82 5 95 15 95 30 C95 45 80 70 50 88 Z"
+                    fill="url(#floating-heart-grad)"
+                  />
+                  <ellipse cx="36" cy="22" rx="10" ry="5.5" fill="#fff" opacity="0.5" />
+                </svg>
+              </div>
+            </div>
+          </>
         );
       })()}
 
