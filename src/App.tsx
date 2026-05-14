@@ -848,7 +848,7 @@ function App() {
 
             // Ellipse sized to wrap the centered phone, capped to viewport
             const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-            const phoneW = phoneH * (480 / 800);
+            const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
@@ -900,7 +900,7 @@ function App() {
               const a = animData as any;
               // Orbit radius wraps around the phone in the center, capped to viewport
               const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-              const phoneW = phoneH * (480 / 800);
+              const phoneW = phoneH * (402 / 834);
               const orbitMin = Math.min(
                 Math.max(phoneW / 2, phoneH / 2.6) + 80,
                 Math.min(window.innerWidth, window.innerHeight) * 0.4,
@@ -2021,7 +2021,19 @@ function App() {
       {!showcaseMode && (
         <Joystick
           pulled={displayMode === 'physics'}
-          onToggle={() => setMode(displayMode === 'physics' ? 'cyclone' : 'physics')}
+          onToggle={() => {
+            const goingToPhysics = displayMode !== 'physics';
+            setMode(goingToPhysics ? 'physics' : 'cyclone');
+            // When the lever drops the orbs, also rain a few fresh ones from above
+            if (goingToPhysics) {
+              const newOrbCount = 5 + Math.floor(Math.random() * 3); // 5-7
+              for (let i = 0; i < newOrbCount; i++) {
+                const delay = i * 90 + Math.random() * 80;
+                const x = window.innerWidth * (0.12 + Math.random() * 0.76);
+                setTimeout(() => addOrb(x), delay);
+              }
+            }
+          }}
         />
       )}
 

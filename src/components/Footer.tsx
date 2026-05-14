@@ -1,6 +1,3 @@
-import { WabiWordmark } from './WabiLogo';
-
-const COLOR_DARK = '#191919';
 const COLOR_GRAY = '#6b7280';
 
 const socialIcon = (href: string, label: string, d: string) => (
@@ -94,9 +91,10 @@ export default function Footer() {
         }
       `}</style>
       <footer className="orb-footer">
-        <div style={{ display: 'flex', alignItems: 'center' }}>
-          <WabiWordmark style={{ color: COLOR_DARK }} />
-        </div>
+        {/* Left slot is reserved for the joystick (rendered outside the Footer
+            so it can overflow the top edge). Keep an empty spacer here for
+            flex balance. */}
+        <div style={{ width: 110, flexShrink: 0 }} aria-hidden="true" />
 
         <div className="orb-footer-links">
           <a href="https://wabi.ai/news" target="_blank" rel="noopener noreferrer">News</a>

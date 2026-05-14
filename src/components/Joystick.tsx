@@ -67,22 +67,22 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
       title={pulled ? 'Restore orbital formation' : 'Drop orbs'}
       onClick={handle}
       style={{
-        position: 'absolute',
-        bottom: 'clamp(64px, 9vh, 100px)',
+        position: 'fixed',
+        bottom: 6,
         left: 'clamp(16px, 2.5vw, 40px)',
-        width: 100,
-        height: 100,
+        width: 110,
+        height: 110,
         padding: 0,
         border: 0,
         background: 'transparent',
         cursor: 'pointer',
-        zIndex: 30,
+        zIndex: 80,
         outline: 'none',
         userSelect: 'none',
-        transition: 'transform 0.2s ease, filter 0.2s ease',
-        filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))',
+        transition: 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease',
+        filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.22))',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.12)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
     >
       <img
