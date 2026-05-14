@@ -96,6 +96,7 @@ function App() {
   const [activePhone, setActivePhone] = useState(0); // 0/1/2 - which dashboard is in front
   const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -144,8 +145,13 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
-  // Floating notifications cycle gently: chat → gap → like → gap → repeat
+  // Floating notifications cycle gently: chat → gap → like → gap → repeat.
+  // Only runs while `showNotifications` is on; otherwise activeNotif stays null.
   useEffect(() => {
+    if (!showNotifications) {
+      setActiveNotif(null);
+      return;
+    }
     const seq: Array<{ which: null | 'chat' | 'like'; ms: number }> = [
       { which: 'chat', ms: 5500 },
       { which: null, ms: 3500 },
@@ -160,13 +166,12 @@ function App() {
       id = window.setTimeout(tick, step.ms);
       i += 1;
     };
-    // Hold off until phones finish fanning in
-    const initial = window.setTimeout(tick, 2000);
+    const initial = window.setTimeout(tick, 800);
     return () => {
       window.clearTimeout(initial);
       if (id !== undefined) window.clearTimeout(id);
     };
-  }, []);
+  }, [showNotifications]);
 
   useEffect(() => { moonModeRef.current = moonMode; }, [moonMode]);
   useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
@@ -1643,11 +1648,11 @@ function App() {
         });
         return (
           <>
-            {/* Chat bubbles — top-left of phone */}
+            {/* Chat bubble — top-left of phone (single message, avatar overlapping left edge) */}
             <div style={{
               position: 'absolute',
-              top: layout === 'center' ? '36%' : '22%',
-              left: `calc(${phoneCx} - 290px)`,
+              top: layout === 'center' ? '38%' : '26%',
+              left: `calc(${phoneCx} - 320px)`,
               width: 320,
               zIndex: 8,
               pointerEvents: 'none',
@@ -1657,44 +1662,34 @@ function App() {
             }}>
               <div style={{ animation: 'float-soft-a 4.6s ease-in-out infinite' }}>
                 <div style={{
-                  fontSize: 11,
+                  fontSize: 12,
                   color: '#9aa0a6',
-                  marginLeft: 44,
-                  marginBottom: 4,
+                  marginLeft: 80,
+                  marginBottom: 6,
                   fontWeight: 500,
                 }}>Danny</div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: 6 }}>
+                <div style={{ position: 'relative', paddingLeft: 26 }}>
                   <img src="/facepile/avatar-2.png" alt="" style={{
-                    width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
-                    boxShadow: '0 0 0 1.5px #fff, 0 2px 6px rgba(0,0,0,0.08)',
+                    position: 'absolute',
+                    left: 0,
+                    top: 4,
+                    width: 44,
+                    height: 44,
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)',
+                    zIndex: 2,
                   }} />
                   <div style={{
-                    padding: '10px 16px',
-                    borderRadius: 20,
-                    background: 'linear-gradient(135deg, #f6e3e7 0%, #ead9ec 100%)',
+                    padding: '14px 20px 14px 36px',
+                    borderRadius: 22,
+                    background: '#fff',
                     color: '#1e1e1e',
-                    fontSize: 14,
-                    lineHeight: 1.3,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+                    fontSize: 15,
+                    lineHeight: 1.32,
+                    boxShadow: '0 10px 28px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04)',
                   }}>
                     I luv our new Barcelona trip planner mini-app <span aria-hidden="true">🫶🥺</span>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-                  <img src="/facepile/avatar-2.png" alt="" style={{
-                    width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0,
-                    boxShadow: '0 0 0 1.5px #fff, 0 2px 6px rgba(0,0,0,0.08)',
-                  }} />
-                  <div style={{
-                    padding: '10px 16px',
-                    borderRadius: 20,
-                    background: 'linear-gradient(135deg, #f6e3e7 0%, #ead9ec 100%)',
-                    color: '#1e1e1e',
-                    fontSize: 14,
-                    lineHeight: 1.3,
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
-                  }}>
-                    Gonna edit it ask wabi to add some museum suggestions
                   </div>
                 </div>
               </div>
@@ -1916,6 +1911,19 @@ function App() {
                 setMoonMode(false);
               }} style={pillBtn(!moonMode)}>Normal</button>
               <button onClick={toggleMoon} style={pillBtn(moonMode)}>Moon</button>
+            </div>
+
+            {/* Floats — toggle the cycling chat/like notifications */}
+            <div style={sectionLabel}>Floats</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+              <button
+                onClick={() => setShowNotifications(false)}
+                style={pillBtn(!showNotifications)}
+              >Off</button>
+              <button
+                onClick={() => setShowNotifications(true)}
+                style={pillBtn(showNotifications)}
+              >On</button>
             </div>
 
             {/* Damping */}
