@@ -97,6 +97,7 @@ function App() {
   const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showProfiles, setShowProfiles] = useState(true);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -144,6 +145,11 @@ function App() {
     const t = setTimeout(() => setPhonesFanned(true), 850);
     return () => clearTimeout(t);
   }, []);
+
+  // Reset to first profile when profiles is turned off (single-screen mode)
+  useEffect(() => {
+    if (!showProfiles) setActivePhone(0);
+  }, [showProfiles]);
 
   // Floating notifications cycle gently: chat → gap → like → gap → repeat.
   // Only runs while `showNotifications` is on; otherwise activeNotif stays null.
@@ -1601,8 +1607,9 @@ function App() {
           if (slot === 0) {
             return { transform: 'translateX(0%) rotate(0deg) scale(1)', zIndex: 3, opacity: 1 };
           }
-          if (!phonesFanned) {
-            // Pre-fan: behind phones hide behind the front one
+          // When profiles are off OR before the fan-in completes, the back
+          // phones stay tucked behind the front and invisible.
+          if (!showProfiles || !phonesFanned) {
             return { transform: 'translateX(0%) rotate(0deg) scale(0.97)', zIndex: slot === 1 ? 2 : 1, opacity: 0 };
           }
           if (slot === 1) {
@@ -1614,7 +1621,9 @@ function App() {
 
         return (
           <div
-            onClick={() => setActivePhone((p) => (p + 1) % 3)}
+            onClick={() => {
+              if (showProfiles) setActivePhone((p) => (p + 1) % 3);
+            }}
             style={{
               position: 'absolute',
               left: layout === 'left'
@@ -1633,11 +1642,11 @@ function App() {
                 : 'clamp(420px, 72vh, 720px)',
               aspectRatio: '402 / 834',
               zIndex: 5,
-              cursor: 'pointer',
+              cursor: showProfiles ? 'pointer' : 'default',
               userSelect: 'none',
               transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
-            title="Click to switch dashboard"
+            title={showProfiles ? 'Click to switch dashboard' : undefined}
           >
             {[0, 1, 2].map((identity) => {
               const slot = slotForIdentity(identity);
@@ -1949,6 +1958,19 @@ function App() {
                 setMoonMode(false);
               }} style={pillBtn(!moonMode)}>Normal</button>
               <button onClick={toggleMoon} style={pillBtn(moonMode)}>Moon</button>
+            </div>
+
+            {/* Profiles — single phone vs swipeable 3-screen carousel */}
+            <div style={sectionLabel}>Profiles</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+              <button
+                onClick={() => setShowProfiles(false)}
+                style={pillBtn(!showProfiles)}
+              >Off</button>
+              <button
+                onClick={() => setShowProfiles(true)}
+                style={pillBtn(showProfiles)}
+              >On</button>
             </div>
 
             {/* Floats — toggle the cycling chat/like notifications */}
