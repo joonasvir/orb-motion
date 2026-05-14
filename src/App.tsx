@@ -91,13 +91,13 @@ function App() {
   const [isClosing, setIsClosing] = useState(false);
   const [lightMode, setLightMode] = useState(false);
   const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('cyclone');
-  const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
-  const [enableOrbTap, setEnableOrbTap] = useState(true);
+  const [renderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
+  const [enableOrbTap] = useState(true);
   const [activePhone, setActivePhone] = useState(0); // 0/1/2 - which dashboard is in front
   const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
-  const [showcaseOrbCount, setShowcaseOrbCount] = useState(60);
+  const [showcaseOrbCount] = useState(60);
   const [orbSize, setOrbSize] = useState(1.0);
 
   const SHAPES = ['triangle', 'circle', 'square', 'hexagon', 'heart', 'diamond', 'star', 'spiral', 'grid', 'wave'];
@@ -154,7 +154,17 @@ function App() {
   const showcaseOrbCountRef = useRef(showcaseOrbCount);
   const orbSizeRef = useRef(orbSize);
   useEffect(() => { showcaseOrbCountRef.current = showcaseOrbCount; }, [showcaseOrbCount]);
-  useEffect(() => { orbSizeRef.current = orbSize; }, [orbSize]);
+  // Whenever orbSize changes, rescale every existing orb body to match.
+  useEffect(() => {
+    const prev = orbSizeRef.current;
+    if (engineRef.current && prev !== orbSize && prev > 0) {
+      const factor = orbSize / prev;
+      Matter.Composite.allBodies(engineRef.current.world)
+        .filter(b => b.label === 'orb')
+        .forEach(body => Matter.Body.scale(body, factor, factor));
+    }
+    orbSizeRef.current = orbSize;
+  }, [orbSize]);
 
   const dropAllOrbsRef = useRef<(count: number) => void>(() => {});
 
@@ -349,21 +359,6 @@ function App() {
     setSelectedOrb({ bodyId, data, startX: x, startY: y });
   }, []);
 
-  // Clear all orbs
-  const clearOrbs = useCallback(() => {
-    if (!engineRef.current) return;
-    Matter.Composite.allBodies(engineRef.current.world)
-      .filter(b => b.label === 'orb')
-      .forEach(orb => {
-        orbDataRef.current.delete(orb.id);
-        orbAnimDataRef.current.delete(orb.id);
-        Matter.Composite.remove(engineRef.current!.world, orb);
-      });
-    setOrbCount(0);
-    setLatestUser(null);
-    localStorage.removeItem(ORBS_STORAGE_KEY);
-  }, []);
-
   // Toggle moon gravity
   const toggleMoon = useCallback(() => {
     if (!engineRef.current) return;
@@ -377,12 +372,6 @@ function App() {
     if (engineRef.current) engineRef.current.gravity.y = 1;
     setMoonMode(false);
     setDisplayMode(mode);
-  }, []);
-
-  // Trigger showcase drop
-  const triggerShowcase = useCallback(() => {
-    setShowcaseMode(true);
-    dropAllOrbsRef.current(showcaseOrbCountRef.current);
   }, []);
 
   // Close card and drop orb from where it was frozen
@@ -469,13 +458,12 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial 15 orbs — spawn quickly within ~250ms so the cyclone reveal
-      // fade-in feels like one smooth coordinated entrance.
+      // Initial 15 orbs — spawn synchronously so every orb gets its cyclone
+      // slot on the same frame. The fade-in handles the smooth reveal.
       const INITIAL_DROP_COUNT = 15;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
-        const delay = (i / INITIAL_DROP_COUNT) * 250 + Math.random() * 60;
         const x = Math.random() * (window.innerWidth - 100) + 50;
-        setTimeout(() => addOrb(x), delay);
+        addOrb(x);
       }
 
       const mouse = Matter.Mouse.create(canvas);
@@ -1385,27 +1373,26 @@ function App() {
                     marginLeft: '0.05em',
                   }}
                 >
-                  {[1, 2, 3, 4].map((i) => {
-                    const isActive = i - 1 === activePhone;
-                    return (
+                  {(() => {
+                  const ids = [1, 2, 3, 4];
+                  const selectedId = (activePhone % 4) + 1;
+                  const ordered = [selectedId, ...ids.filter((id) => id !== selectedId)];
+                  return ordered.map((i, slot) => (
                     <span
                       key={i}
                       className="orb-facepile-avatar"
                       style={{
-                        width: '0.92em',
-                        height: '0.92em',
+                        width: '0.88em',
+                        height: '0.88em',
                         borderRadius: '50%',
                         overflow: 'hidden',
                         display: 'inline-block',
-                        marginLeft: i === 1 ? 0 : '-0.42em',
-                        boxShadow: isActive
-                          ? '0 0 0 2.5px #1e1e1e, 0 0 0 4.5px #fff, 0 6px 12px rgba(0,0,0,0.16), 0 1px 2px rgba(0,0,0,0.08)'
-                          : '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                        marginLeft: slot === 0 ? 0 : '-0.4em',
+                        boxShadow:
+                          '0 0 0 1px #fff, 0 3px 6px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
                         position: 'relative',
-                        zIndex: isActive ? 20 : 10 - i,
-                        transform: isActive ? 'translateY(-0.06em) scale(1.18)' : 'translateY(0) scale(1)',
-                        transition:
-                          'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+                        zIndex: 10 - slot,
+                        transition: 'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
                       }}
                     >
                       <img
@@ -1421,8 +1408,8 @@ function App() {
                         }}
                       />
                     </span>
-                    );
-                  })}
+                  ));
+                })()}
                 </span>
               );
               if (layout === 'center') {
@@ -1463,6 +1450,39 @@ function App() {
           }}>
             Describe what you want. Customize the vibe. Share instantly.
           </p>
+
+          {/* QR inside the text column on side layouts */}
+          {layout !== 'center' && (
+            <div
+              className="orb-qr-card"
+              style={{
+                width: 'clamp(96px, 9vw, 132px)',
+                aspectRatio: '1 / 1',
+                padding: 'clamp(6px, 0.6vw, 9px)',
+                borderRadius: 'clamp(14px, 1.6vw, 22px)',
+                margin: 'clamp(20px, 2.5vh, 36px) auto 0',
+                background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+                backdropFilter: 'blur(24px)',
+                WebkitBackdropFilter: 'blur(24px)',
+                border: renderStyle === 'shaders'
+                  ? '1.5px solid rgba(255,255,255,0.85)'
+                  : '1.5px solid rgba(0,0,0,0.05)',
+                boxShadow:
+                  '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
+                cursor: 'pointer',
+                pointerEvents: 'auto',
+                transformOrigin: 'top center',
+                transform: 'scale(1)',
+                transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
+            >
+              <img
+                src="/qr-wabi.png"
+                alt="QR code"
+                style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -1538,17 +1558,14 @@ function App() {
         );
       })()}
 
-      {/* QR (positioned per layout — same side as text column) */}
-      {!showcaseMode && (
+      {/* Floating QR — only in center layout; side layouts render it inside the text column */}
+      {!showcaseMode && layout === 'center' && (
         <div
           className="orb-qr-card"
           style={{
             position: 'absolute',
             bottom: 'clamp(72px, 10vh, 110px)',
-            // QR sits on the phone side (opposite the text)
-            ...(layout === 'left'
-              ? { left: 'clamp(20px, 3vw, 48px)' }
-              : { right: 'clamp(20px, 3vw, 48px)' }),
+            right: 'clamp(20px, 3vw, 48px)',
             width: 'clamp(96px, 9vw, 132px)',
             aspectRatio: '1 / 1',
             padding: 'clamp(6px, 0.6vw, 9px)',
@@ -1563,7 +1580,7 @@ function App() {
               '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
             zIndex: 20,
             cursor: 'pointer',
-            transformOrigin: layout === 'left' ? 'bottom left' : 'bottom right',
+            transformOrigin: 'bottom right',
             transform: 'scale(1)',
             transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
@@ -1576,226 +1593,137 @@ function App() {
         </div>
       )}
 
-      {/* Controls Panel */}
-      {showControls && !showcaseMode && (
-        <div style={{
-          position: 'absolute', top: 96, left: 20,
-          background: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 8,
-          color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
-          backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
-          minWidth: 220,
-          zIndex: 90,
-        }}>
-          {/* Render style tabs */}
-          <div style={{ marginBottom: 6, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Style</div>
-          <div style={{
-            display: 'flex',
-            background: 'rgba(255,255,255,0.06)',
-            borderRadius: 8,
-            padding: 3,
-            marginBottom: 16,
-            gap: 2,
-          }}>
-            {(['simple', 'glass', 'shaders'] as const).map((s) => {
-              const active = renderStyle === s;
-              return (
-                <button
-                  key={s}
-                  onClick={() => setRenderStyle(s)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    border: 0,
-                    borderRadius: 6,
-                    background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
-                    color: active ? 'white' : 'rgba(255,255,255,0.55)',
-                    fontSize: 11,
-                    fontWeight: active ? 600 : 500,
-                    textTransform: 'capitalize',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s, color 0.15s',
-                  }}
-                >
-                  {s}
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Layout tabs */}
-          <div style={{ marginBottom: 6, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Layout</div>
-          <div style={{
-            display: 'flex',
-            background: 'rgba(255,255,255,0.06)',
-            borderRadius: 8,
-            padding: 3,
-            marginBottom: 16,
-            gap: 2,
-          }}>
-            {(['left', 'center', 'right'] as const).map((l) => {
-              const active = layout === l;
-              return (
-                <button
-                  key={l}
-                  onClick={() => setLayout(l)}
-                  style={{
-                    flex: 1,
-                    padding: '6px 8px',
-                    border: 0,
-                    borderRadius: 6,
-                    background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
-                    color: active ? 'white' : 'rgba(255,255,255,0.55)',
-                    fontSize: 11,
-                    fontWeight: active ? 600 : 500,
-                    textTransform: 'capitalize',
-                    cursor: 'pointer',
-                    transition: 'background 0.15s, color 0.15s',
-                  }}
-                >
-                  {l}
-                </button>
-              );
-            })}
-          </div>
-
-          <div style={{ marginBottom: 12, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Controls</div>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span>Damping</span>
-              <span>{damping.toFixed(3)}</span>
-            </div>
-            <input
-              type="range" min="0.001" max="0.05" step="0.001"
-              value={damping} onChange={(e) => setDamping(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span>Orb Size</span>
-              <span>{orbSize.toFixed(1)}x</span>
-            </div>
-            <input
-              type="range" min="0.3" max="2.0" step="0.1"
-              value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-          <div style={{ marginBottom: 12, marginTop: 16, fontWeight: 'bold', opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>Showcase (F)</div>
-          <div style={{ marginBottom: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-              <span>Drop Count</span>
-              <span>{showcaseOrbCount}</span>
-            </div>
-            <input
-              type="range" min="10" max="200" step="5"
-              value={showcaseOrbCount} onChange={(e) => setShowcaseOrbCount(parseInt(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer' }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Motion sidebar (right) */}
+      {/* Combined glassy control panel */}
       {showControls && !showcaseMode && (() => {
-        const panelStyle: React.CSSProperties = {
-          position: 'absolute', top: 96, left: 260,
-          background: 'rgba(0,0,0,0.8)', padding: 16, borderRadius: 8,
-          color: 'white', fontFamily: 'system-ui, sans-serif', fontSize: 12,
-          backdropFilter: 'blur(10px)', border: '1px solid rgba(255,255,255,0.1)',
-          minWidth: 260,
-          zIndex: 90,
-        };
         const sectionLabel: React.CSSProperties = {
-          marginBottom: 6, fontWeight: 'bold', opacity: 0.5,
-          textTransform: 'uppercase', letterSpacing: 1,
+          marginBottom: 8,
+          fontWeight: 600,
+          fontSize: 10,
+          letterSpacing: 1.4,
+          textTransform: 'uppercase',
+          color: 'rgba(30,30,30,0.45)',
         };
         const segGroup: React.CSSProperties = {
-          display: 'flex', background: 'rgba(255,255,255,0.06)',
-          borderRadius: 8, padding: 3, gap: 2,
+          display: 'flex',
+          background: 'rgba(0,0,0,0.05)',
+          borderRadius: 10,
+          padding: 3,
+          gap: 2,
         };
         const segBtn = (active: boolean): React.CSSProperties => ({
-          flex: 1, padding: '6px 8px', border: 0, borderRadius: 6,
-          background: active ? 'rgba(255,255,255,0.18)' : 'transparent',
-          color: active ? 'white' : 'rgba(255,255,255,0.55)',
-          fontSize: 11, fontWeight: active ? 600 : 500,
-          textTransform: 'capitalize', cursor: 'pointer',
-          transition: 'background 0.15s, color 0.15s',
-        });
-        const actionBtn: React.CSSProperties = {
-          flex: 1, padding: '8px 10px', border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 6, background: 'rgba(255,255,255,0.06)',
-          color: 'white', fontSize: 11, fontWeight: 500, cursor: 'pointer',
-          transition: 'background 0.15s, border-color 0.15s',
+          flex: 1,
+          padding: '8px 8px',
+          border: 0,
+          borderRadius: 7,
+          background: active ? '#1e1e1e' : 'transparent',
+          color: active ? '#fff' : 'rgba(30,30,30,0.6)',
+          fontSize: 12,
+          fontWeight: active ? 600 : 500,
+          textTransform: 'capitalize',
+          cursor: 'pointer',
+          transition: 'background 0.2s ease, color 0.2s ease',
           fontFamily: 'inherit',
-        };
-        const activePill = (active: boolean): React.CSSProperties => ({
-          ...actionBtn,
-          background: active ? 'rgba(167,139,250,0.25)' : 'rgba(255,255,255,0.06)',
-          borderColor: active ? 'rgba(167,139,250,0.45)' : 'rgba(255,255,255,0.12)',
-          color: active ? '#c4b5fd' : 'white',
+        });
+        const pillBtn = (active: boolean): React.CSSProperties => ({
+          flex: 1,
+          padding: '10px 12px',
+          border: '1px solid rgba(0,0,0,0.06)',
+          borderRadius: 999,
+          background: active ? '#1e1e1e' : 'rgba(255,255,255,0.6)',
+          color: active ? '#fff' : 'rgba(30,30,30,0.8)',
+          fontSize: 12,
+          fontWeight: 500,
+          cursor: 'pointer',
+          transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
+          fontFamily: 'inherit',
         });
         return (
-          <div style={panelStyle}>
+          <div style={{
+            position: 'absolute',
+            top: 96,
+            left: 20,
+            width: 280,
+            padding: 18,
+            borderRadius: 22,
+            background: 'rgba(255,255,255,0.62)',
+            backdropFilter: 'blur(28px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.7)',
+            boxShadow:
+              '0 1px 0 rgba(255,255,255,0.6) inset, 0 -1px 0 rgba(0,0,0,0.04) inset, 0 18px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06)',
+            color: '#1e1e1e',
+            fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+            fontSize: 13,
+            zIndex: 90,
+          }}>
+            {/* Layout */}
+            <div style={sectionLabel}>Layout</div>
+            <div style={{ ...segGroup, marginBottom: 18 }}>
+              {(['left', 'center', 'right'] as const).map(l => (
+                <button key={l} onClick={() => setLayout(l)} style={segBtn(layout === l)}>{l}</button>
+              ))}
+            </div>
+
+            {/* Motion */}
             <div style={sectionLabel}>Motion</div>
-            <div style={{ ...segGroup, marginBottom: 16, flexWrap: 'wrap' }}>
+            <div style={{ ...segGroup, marginBottom: 18, flexWrap: 'wrap' }}>
               {(['physics', 'cyclone', 'orbit', 'shapes'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>
-                  {m}
-                </button>
+                <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>{m}</button>
               ))}
             </div>
 
             {displayMode === 'shapes' && (
               <>
                 <div style={sectionLabel}>Shape</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 16 }}>
-                  <button
-                    onClick={() => setCurrentShape((c) => (c - 1 + SHAPES.length) % SHAPES.length)}
-                    style={{ ...actionBtn, flex: 0, padding: '6px 10px' }}
-                  >‹</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+                  <button onClick={() => setCurrentShape((c) => (c - 1 + SHAPES.length) % SHAPES.length)}
+                    style={{ ...pillBtn(false), flex: 0, padding: '8px 12px' }}>‹</button>
                   <div style={{
-                    flex: 1, textAlign: 'center', padding: '6px 8px',
-                    background: 'rgba(52,211,153,0.18)', borderRadius: 6,
-                    color: '#6ee7b7', fontWeight: 600, textTransform: 'uppercase',
-                    letterSpacing: 1, fontSize: 11,
-                  }}>
-                    {SHAPES[currentShape]}
-                  </div>
-                  <button
-                    onClick={() => setCurrentShape((c) => (c + 1) % SHAPES.length)}
-                    style={{ ...actionBtn, flex: 0, padding: '6px 10px' }}
-                  >›</button>
+                    flex: 1, textAlign: 'center', padding: '8px 12px',
+                    background: 'rgba(0,0,0,0.05)', borderRadius: 999,
+                    color: '#1e1e1e', fontWeight: 600, textTransform: 'capitalize', fontSize: 12,
+                  }}>{SHAPES[currentShape]}</div>
+                  <button onClick={() => setCurrentShape((c) => (c + 1) % SHAPES.length)}
+                    style={{ ...pillBtn(false), flex: 0, padding: '8px 12px' }}>›</button>
                 </div>
               </>
             )}
 
+            {/* Gravity */}
             <div style={sectionLabel}>Gravity</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
               <button onClick={() => {
                 if (engineRef.current) engineRef.current.gravity.y = 1;
                 setMoonMode(false);
-              }} style={activePill(!moonMode)}>Normal</button>
-              <button onClick={toggleMoon} style={activePill(moonMode)}>Moon</button>
+              }} style={pillBtn(!moonMode)}>Normal</button>
+              <button onClick={toggleMoon} style={pillBtn(moonMode)}>Moon</button>
             </div>
 
-            <div style={sectionLabel}>Actions</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-              <button onClick={clearOrbs} style={actionBtn}>Clear</button>
-              <button onClick={triggerShowcase} style={actionBtn}>Showcase</button>
+            {/* Damping */}
+            <div style={sectionLabel}>
+              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>Damping</span>
+                <span style={{ opacity: 0.7 }}>{damping.toFixed(3)}</span>
+              </span>
             </div>
-            <button
-              onClick={() => setEnableOrbTap(v => !v)}
-              style={{
-                ...actionBtn,
-                width: '100%',
-                background: enableOrbTap ? 'rgba(96,165,250,0.22)' : 'rgba(255,255,255,0.06)',
-                borderColor: enableOrbTap ? 'rgba(96,165,250,0.45)' : 'rgba(255,255,255,0.12)',
-                color: enableOrbTap ? '#93c5fd' : 'rgba(255,255,255,0.7)',
-              }}
-            >
-              Tap orbs to open card: {enableOrbTap ? 'on' : 'off'}
-            </button>
+            <input
+              type="range" min="0.001" max="0.05" step="0.001"
+              value={damping} onChange={(e) => setDamping(parseFloat(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer', marginBottom: 16, accentColor: '#1e1e1e' }}
+            />
+
+            {/* Orb size */}
+            <div style={sectionLabel}>
+              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>Orb size</span>
+                <span style={{ opacity: 0.7 }}>{orbSize.toFixed(1)}x</span>
+              </span>
+            </div>
+            <input
+              type="range" min="0.3" max="2.0" step="0.1"
+              value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
+              style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
+            />
           </div>
         );
       })()}
