@@ -111,7 +111,6 @@ function App() {
   const cycloneTimeRef = useRef(0);
   const cycloneFocalAngleRef = useRef(0); // Slowly rotating "big zone" position
   const spinBoostRef = useRef(0); // Drag-driven extra spin (decays over time)
-  const cursorPushRef = useRef<{ x: number; y: number; active: boolean }>({ x: 0, y: 0, active: false });
   // Smoothed cursor offset from viewport center (-1..1) used to tilt the orbit
   const mouseTiltRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const mouseTiltTargetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -487,14 +486,10 @@ function App() {
       const isOrbitalMode = () =>
         displayModeRef.current === 'cyclone' || displayModeRef.current === 'orbit';
 
-      const updateCursorPush = (clientX: number, clientY: number) => {
+      // Tracks normalized cursor offset for the parallax orbit tilt.
+      // (We no longer push orbs away from the cursor — that broke orb-tap.)
+      const updateMouseTilt = (clientX: number, clientY: number) => {
         const rect = canvas.getBoundingClientRect();
-        cursorPushRef.current = {
-          x: clientX - rect.left,
-          y: clientY - rect.top,
-          active: true,
-        };
-        // Also record a normalized cursor offset for orbit-tilt
         const nx = (clientX - rect.left) / Math.max(1, rect.width) * 2 - 1;
         const ny = (clientY - rect.top) / Math.max(1, rect.height) * 2 - 1;
         mouseTiltTargetRef.current.x = Math.max(-1, Math.min(1, nx));
@@ -507,14 +502,12 @@ function App() {
         isDragging = true;
         lastDragX = p.clientX;
         lastDragY = p.clientY;
-        updateCursorPush(p.clientX, p.clientY);
       };
       const handleDragMove = (e: MouseEvent | TouchEvent) => {
         const p = 'touches' in e ? e.touches[0] : e;
         if (!p) return;
-        // Only push orbs around while actively dragging, so a plain hover
-        // doesn't deflect orbs out from under the cursor when trying to click them.
-        if (isOrbitalMode() && isDragging) updateCursorPush(p.clientX, p.clientY);
+        // Update parallax-tilt target from cursor anywhere on the canvas
+        if (isOrbitalMode()) updateMouseTilt(p.clientX, p.clientY);
         if (!isDragging) return;
         // Compute tangential drag velocity around the phone-centered motion (phone at bottom)
         const rect = canvas.getBoundingClientRect();
@@ -540,11 +533,9 @@ function App() {
       };
       const handleDragEnd = () => {
         isDragging = false;
-        cursorPushRef.current.active = false;
       };
       const handleCursorLeave = () => {
         isDragging = false;
-        cursorPushRef.current.active = false;
       };
 
       canvas.addEventListener('mousedown', handleDragStart);
@@ -888,19 +879,6 @@ function App() {
             zDepth = worldZ;
             drawAngle = 0;
 
-            // Cursor push: orbs deflect away from the cursor
-            if (cursorPushRef.current.active) {
-              const cdx = drawX - cursorPushRef.current.x;
-              const cdy = drawY - cursorPushRef.current.y;
-              const cd = Math.sqrt(cdx * cdx + cdy * cdy);
-              const pushR = 180;
-              if (cd < pushR && cd > 1) {
-                const f = Math.pow(1 - cd / pushR, 2) * 90;
-                drawX += (cdx / cd) * f;
-                drawY += (cdy / cd) * f;
-              }
-            }
-
             Matter.Body.setPosition(body, { x: drawX, y: drawY });
             Matter.Body.setStatic(body, true);
           } else if (mode === 'orbit') {
@@ -964,19 +942,6 @@ function App() {
 
             // No body rotation in orbit mode (clean look)
             drawAngle = 0;
-
-            // Cursor push: orbs deflect away from the cursor
-            if (cursorPushRef.current.active) {
-              const cdx = drawX - cursorPushRef.current.x;
-              const cdy = drawY - cursorPushRef.current.y;
-              const cd = Math.sqrt(cdx * cdx + cdy * cdy);
-              const pushR = 180;
-              if (cd < pushR && cd > 1) {
-                const f = Math.pow(1 - cd / pushR, 2) * 90;
-                drawX += (cdx / cd) * f;
-                drawY += (cdy / cd) * f;
-              }
-            }
 
             // Update physics body position (for click detection)
             Matter.Body.setPosition(body, { x: drawX, y: drawY });
@@ -1388,9 +1353,9 @@ function App() {
                       borderRadius: '50%',
                       overflow: 'hidden',
                       display: 'inline-block',
-                      marginLeft: i === 1 ? 0 : '-0.45em',
+                      marginLeft: i === 1 ? 0 : '-0.42em',
                       boxShadow:
-                        '0 0 0 0.06em #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                        '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
                       position: 'relative',
                       zIndex: 10 - i,
                       transition: 'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
@@ -1769,6 +1734,42 @@ function App() {
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             }}
           >
+            {/* Close button (top-left) */}
+            <button
+              aria-label="Close"
+              onClick={handleCloseCard}
+              style={{
+                position: 'absolute',
+                top: 18,
+                left: 18,
+                width: 32,
+                height: 32,
+                borderRadius: '50%',
+                background: 'rgba(0,0,0,0.04)',
+                border: 0,
+                cursor: 'pointer',
+                padding: 0,
+                color: '#1e1e1e',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'background 0.2s ease, transform 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(0,0,0,0.08)';
+                e.currentTarget.style.transform = 'scale(1.06)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.transform = 'scale(1)';
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <line x1="6" y1="6" x2="18" y2="18" />
+                <line x1="18" y1="6" x2="6" y2="18" />
+              </svg>
+            </button>
+
             {/* Share icon top-right */}
             <button
               aria-label="Share"
