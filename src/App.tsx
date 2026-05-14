@@ -95,6 +95,7 @@ function App() {
   const [enableOrbTap] = useState(true);
   const [activePhone, setActivePhone] = useState(0); // 0/1/2 - which dashboard is in front
   const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
+  const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -141,6 +142,30 @@ function App() {
   useEffect(() => {
     const t = setTimeout(() => setPhonesFanned(true), 850);
     return () => clearTimeout(t);
+  }, []);
+
+  // Floating notifications cycle gently: chat → gap → like → gap → repeat
+  useEffect(() => {
+    const seq: Array<{ which: null | 'chat' | 'like'; ms: number }> = [
+      { which: 'chat', ms: 5500 },
+      { which: null, ms: 3500 },
+      { which: 'like', ms: 5500 },
+      { which: null, ms: 3500 },
+    ];
+    let i = 0;
+    let id: number | undefined;
+    const tick = () => {
+      const step = seq[i % seq.length];
+      setActiveNotif(step.which);
+      id = window.setTimeout(tick, step.ms);
+      i += 1;
+    };
+    // Hold off until phones finish fanning in
+    const initial = window.setTimeout(tick, 2000);
+    return () => {
+      window.clearTimeout(initial);
+      if (id !== undefined) window.clearTimeout(id);
+    };
   }, []);
 
   useEffect(() => { moonModeRef.current = moonMode; }, [moonMode]);
@@ -1603,13 +1628,19 @@ function App() {
         );
       })()}
 
-      {/* Floating notifications — chat bubbles + like card with 3D heart, hovering over the phone */}
+      {/* Floating notifications — one at a time on a calm rotation */}
       {!showcaseMode && (() => {
-        // Anchor positions follow the phone for each layout
         const phoneCx =
           layout === 'left' ? 'calc(28% + 60px)' :
           layout === 'right' ? 'calc(72% - 60px)' :
           '50%';
+        const baseInOut: React.CSSProperties = {
+          transition: 'opacity 0.7s ease, transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
+        };
+        const visibleStyle = (visible: boolean): React.CSSProperties => ({
+          opacity: visible ? 1 : 0,
+          transform: visible ? 'translateY(0)' : 'translateY(18px)',
+        });
         return (
           <>
             {/* Chat bubbles — top-left of phone */}
@@ -1620,8 +1651,9 @@ function App() {
               width: 320,
               zIndex: 8,
               pointerEvents: 'none',
-              animation: 'notif-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.4s both',
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+              ...baseInOut,
+              ...visibleStyle(activeNotif === 'chat'),
             }}>
               <div style={{ animation: 'float-soft-a 4.6s ease-in-out infinite' }}>
                 <div style={{
@@ -1677,8 +1709,9 @@ function App() {
               width: 340,
               zIndex: 8,
               pointerEvents: 'none',
-              animation: 'notif-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.9s both',
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+              ...baseInOut,
+              ...visibleStyle(activeNotif === 'like'),
             }}>
               <div style={{ position: 'relative', animation: 'float-soft-b 5.2s ease-in-out infinite' }}>
                 <div style={{
@@ -1720,34 +1753,24 @@ function App() {
                     </div>
                   </div>
                 </div>
-                {/* 3D red heart */}
-                <svg
-                  viewBox="0 0 100 100"
-                  width="86"
-                  height="86"
+                {/* 3D heart (rendered PNG from Figma) */}
+                <img
+                  src="/heart-3d.png"
+                  alt=""
+                  draggable={false}
                   style={{
                     position: 'absolute',
-                    right: -34,
-                    bottom: -50,
+                    right: -38,
+                    bottom: -54,
+                    width: 90,
+                    height: 90,
                     transform: 'rotate(8deg)',
-                    filter: 'drop-shadow(0 10px 14px rgba(0,0,0,0.22))',
+                    filter: 'drop-shadow(0 10px 14px rgba(0,0,0,0.18))',
                     animation: 'float-heart 5.6s ease-in-out infinite',
+                    pointerEvents: 'none',
+                    userSelect: 'none',
                   }}
-                  aria-hidden="true"
-                >
-                  <defs>
-                    <radialGradient id="floating-heart-grad" cx="36%" cy="28%" r="72%">
-                      <stop offset="0%" stopColor="#ff8a8a" />
-                      <stop offset="42%" stopColor="#ee2c2c" />
-                      <stop offset="100%" stopColor="#9d0d0d" />
-                    </radialGradient>
-                  </defs>
-                  <path
-                    d="M50 88 C20 70 5 45 5 30 C5 15 18 5 32 5 C40 5 47 10 50 18 C53 10 60 5 68 5 C82 5 95 15 95 30 C95 45 80 70 50 88 Z"
-                    fill="url(#floating-heart-grad)"
-                  />
-                  <ellipse cx="36" cy="22" rx="10" ry="5.5" fill="#fff" opacity="0.5" />
-                </svg>
+                />
               </div>
             </div>
           </>
