@@ -95,7 +95,7 @@ function App() {
   const [lightMode, setLightMode] = useState(false);
   const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('cyclone');
   const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
-  const [enableOrbTap, setEnableOrbTap] = useState(false);
+  const [enableOrbTap, setEnableOrbTap] = useState(true);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount, setShowcaseOrbCount] = useState(60);
@@ -847,10 +847,10 @@ function App() {
             // Ellipse sized to wrap the centered phone, capped to viewport
             const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
             const phoneW = phoneH * (470 / 668);
-            const minR = Math.max(phoneW / 2, phoneH / 2.8) + 50;
-            const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.42;
+            const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
+            const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
-            const radiusX = baseR * (0.92 + zLayer * 0.3);
+            const radiusX = baseR * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
             // 3D orbital position in a near-horizontal plane, tilted slightly so we
@@ -913,10 +913,10 @@ function App() {
               const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
               const phoneW = phoneH * (470 / 668);
               const orbitMin = Math.min(
-                Math.max(phoneW / 2, phoneH / 2.8) + 40,
-                Math.min(window.innerWidth, window.innerHeight) * 0.32,
+                Math.max(phoneW / 2, phoneH / 2.6) + 80,
+                Math.min(window.innerWidth, window.innerHeight) * 0.4,
               );
-              const orbitMax = orbitMin + Math.min(160, Math.min(window.innerWidth, window.innerHeight) * 0.1);
+              const orbitMax = orbitMin + Math.min(200, Math.min(window.innerWidth, window.innerHeight) * 0.14);
               a.orbitRadius = orbitMin + Math.pow(Math.random(), 0.6) * (orbitMax - orbitMin);
               // Tilt of orbital plane around x-axis (-π/2 to π/2)
               a.inclination = (Math.random() - 0.5) * Math.PI;
@@ -1345,10 +1345,10 @@ function App() {
           pointerEvents: 'none',
         }}>
           <h1 style={{
-            fontFamily: 'inherit',
-            fontSize: 'clamp(30px, 4vw, 57px)',
+            fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
+            fontSize: 'clamp(30px, 4.2vw, 60px)',
             lineHeight: 1.11,
-            letterSpacing: '-0.02em',
+            letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
             marginBottom: 'clamp(10px, 1.4vh, 22px)',
