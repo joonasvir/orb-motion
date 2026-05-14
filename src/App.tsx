@@ -1556,8 +1556,9 @@ function App() {
                     // away from "ur".
                     marginLeft: '0.16em',
                     pointerEvents: 'auto',
-                    // Soft drop shadow below the pile (y=40, blur=80)
-                    filter: 'drop-shadow(0 40px 80px rgba(0,0,0,0.1))',
+                    // Soft drop shadow below the pile (y=40, blur=80).
+                    // Higher alpha so it actually reads on the bright page bg.
+                    filter: 'drop-shadow(0 40px 80px rgba(0,0,0,0.22))',
                   }}
                 >
                   {ids.map((i) => {
