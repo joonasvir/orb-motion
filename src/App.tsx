@@ -93,6 +93,8 @@ function App() {
   const [displayMode, setDisplayMode] = useState<'physics' | 'cyclone' | 'orbit' | 'shapes'>('cyclone');
   const [renderStyle, setRenderStyle] = useState<'simple' | 'glass' | 'shaders'>('glass');
   const [enableOrbTap, setEnableOrbTap] = useState(true);
+  const [activePhone, setActivePhone] = useState(0); // 0/1/2 - which dashboard is in front
+  const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount, setShowcaseOrbCount] = useState(60);
@@ -133,6 +135,12 @@ function App() {
     driftY?: number;
     tiltPhase?: number;
   }>>(new Map());
+
+  // Reveal: front phone shows alone, back phones fan in after a short delay
+  useEffect(() => {
+    const t = setTimeout(() => setPhonesFanned(true), 850);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => { moonModeRef.current = moonMode; }, [moonMode]);
   useEffect(() => { showControlsRef.current = showControls; }, [showControls]);
@@ -461,12 +469,11 @@ function App() {
       // Always start with 0 orbs
       localStorage.removeItem(ORBS_STORAGE_KEY);
 
-      // Initial cascade drop of 15 orbs across full width
+      // Initial 15 orbs — spawn quickly within ~250ms so the cyclone reveal
+      // fade-in feels like one smooth coordinated entrance.
       const INITIAL_DROP_COUNT = 15;
       for (let i = 0; i < INITIAL_DROP_COUNT; i++) {
-        const baseDelay = (i / INITIAL_DROP_COUNT) * 1500;
-        const jitter = (Math.random() - 0.5) * 400;
-        const delay = Math.max(0, baseDelay + jitter);
+        const delay = (i / INITIAL_DROP_COUNT) * 250 + Math.random() * 60;
         const x = Math.random() * (window.innerWidth - 100) + 50;
         setTimeout(() => addOrb(x), delay);
       }
@@ -808,7 +815,10 @@ function App() {
           radius: number;
           zDepth: number;
           isFront: boolean;
+          alpha: number;
         }> = [];
+
+        const nowMs = performance.now();
 
         orbs.forEach((body, orbIdx) => {
           const orbData = orbDataRef.current.get(body.id);
@@ -841,6 +851,9 @@ function App() {
               // Vertical stretch of the orbit so it wraps the tall phone
               animData.ellipseRatioY = 1.05 + Math.random() * 0.25;
               animData.phaseOffset = Math.random() * Math.PI * 2;
+              // Wall-clock timestamp when this orb first entered cyclone — used
+              // for the smooth fade-in reveal.
+              (animData as any).cycloneFadeStartMs = performance.now();
             }
             const zLayer = animData.zLayer ?? 0.5;
 
@@ -979,7 +992,24 @@ function App() {
           // (they're closer to the camera than the phone). cyclone uses worldZ, orbit
           // uses zDepth as worldZ, others stay on the back canvas.
           const isFront = (mode === 'cyclone' || mode === 'orbit') && zDepth > 0;
-          orbRenderData.push({ body, orbData, drawX, drawY, drawAngle, radius, zDepth, isFront });
+
+          // Smooth cyclone fade-in: each orb cubic-ease-outs from 0→1 opacity
+          // over ~700ms after first appearing in cyclone, with a tiny per-orb
+          // stagger so the ring reveals around rather than all at once.
+          let alpha = 1;
+          if (mode === 'cyclone') {
+            const startMs = (animData as any).cycloneFadeStartMs as number | undefined;
+            if (startMs !== undefined) {
+              const stagger = orbIdx * 22; // ms per orb
+              const FADE_MS = 700;
+              const elapsed = nowMs - startMs - stagger;
+              const p = Math.max(0, Math.min(1, elapsed / FADE_MS));
+              alpha = 1 - Math.pow(1 - p, 3); // ease-out cubic
+            } else {
+              alpha = 0;
+            }
+          }
+          orbRenderData.push({ body, orbData, drawX, drawY, drawAngle, radius, zDepth, isFront, alpha });
         });
 
         // Sort by z-depth in cyclone + orbit modes (far/small first, close/large last)
@@ -993,9 +1023,10 @@ function App() {
         }
 
         // Render orbs (branches on render style); route to front/back canvas
-        orbRenderData.forEach(({ orbData, drawX, drawY, drawAngle, radius, isFront }) => {
+        orbRenderData.forEach(({ orbData, drawX, drawY, drawAngle, radius, isFront, alpha }) => {
           const tctx = (isFront && ctxFront) ? ctxFront : ctx;
           tctx.save();
+          tctx.globalAlpha = alpha;
           tctx.translate(drawX, drawY);
           tctx.rotate(drawAngle);
 
@@ -1354,7 +1385,9 @@ function App() {
                     marginLeft: '0.05em',
                   }}
                 >
-                  {[1, 2, 3, 4].map((i) => (
+                  {[1, 2, 3, 4].map((i) => {
+                    const isActive = i - 1 === activePhone;
+                    return (
                     <span
                       key={i}
                       className="orb-facepile-avatar"
@@ -1365,12 +1398,14 @@ function App() {
                         overflow: 'hidden',
                         display: 'inline-block',
                         marginLeft: i === 1 ? 0 : '-0.42em',
-                        boxShadow:
-                          '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                        boxShadow: isActive
+                          ? '0 0 0 2.5px #1e1e1e, 0 0 0 4.5px #fff, 0 6px 12px rgba(0,0,0,0.16), 0 1px 2px rgba(0,0,0,0.08)'
+                          : '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
                         position: 'relative',
-                        zIndex: 10 - i,
+                        zIndex: isActive ? 20 : 10 - i,
+                        transform: isActive ? 'translateY(-0.06em) scale(1.18)' : 'translateY(0) scale(1)',
                         transition:
-                          'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+                          'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
                       }}
                     >
                       <img
@@ -1386,7 +1421,8 @@ function App() {
                         }}
                       />
                     </span>
-                  ))}
+                    );
+                  })}
                 </span>
               );
               if (layout === 'center') {
@@ -1430,76 +1466,77 @@ function App() {
         </div>
       )}
 
-      {/* Phone visual — three dashboards fanning out from a common base */}
-      {!showcaseMode && (
-        <div
-          style={{
-            position: 'absolute',
-            left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
-            ...(layout === 'center'
-              ? { bottom: '-6%', transform: 'translateX(-50%)' }
-              : { top: '50%', transform: 'translate(-50%, -50%)' }),
-            height: layout === 'center'
-              ? 'clamp(460px, 74vh, 820px)'
-              : 'clamp(420px, 72vh, 720px)',
-            aspectRatio: '402 / 834',
-            zIndex: 5,
-            pointerEvents: 'none',
-            userSelect: 'none',
-            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}
-        >
-          {/* Back-left phone */}
-          <img
-            src="/dash-2.png"
-            alt=""
+      {/* Phone carousel — three dashboards, click to cycle which is in front */}
+      {!showcaseMode && (() => {
+        const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-2.png'];
+        // Slot 0 = front, 1 = back-right, 2 = back-left
+        const slotForIdentity = (id: number) => (id - activePhone + 3) % 3;
+        const slotTransform = (slot: number): React.CSSProperties => {
+          if (slot === 0) {
+            return { transform: 'translateX(0%) rotate(0deg) scale(1)', zIndex: 3, opacity: 1 };
+          }
+          if (!phonesFanned) {
+            // Pre-fan: behind phones hide behind the front one
+            return { transform: 'translateX(0%) rotate(0deg) scale(0.97)', zIndex: slot === 1 ? 2 : 1, opacity: 0 };
+          }
+          if (slot === 1) {
+            return { transform: 'translateX(16%) rotate(6deg) scale(0.94)', zIndex: 2, opacity: 1 };
+          }
+          // slot 2
+          return { transform: 'translateX(-16%) rotate(-6deg) scale(0.94)', zIndex: 1, opacity: 1 };
+        };
+
+        return (
+          <div
+            onClick={() => setActivePhone((p) => (p + 1) % 3)}
             style={{
               position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              borderRadius: '13%',
-              transformOrigin: '50% 88%',
-              transform: 'translateX(-26%) rotate(-9deg) scale(0.93)',
-              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.10))',
-              zIndex: 1,
+              left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
+              ...(layout === 'center'
+                ? { bottom: '-6%', transform: 'translateX(-50%)' }
+                : { top: '50%', transform: 'translate(-50%, -50%)' }),
+              height: layout === 'center'
+                ? 'clamp(460px, 74vh, 820px)'
+                : 'clamp(420px, 72vh, 720px)',
+              aspectRatio: '402 / 834',
+              zIndex: 5,
+              cursor: 'pointer',
+              userSelect: 'none',
+              transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
             }}
-          />
-          {/* Back-right phone */}
-          <img
-            src="/dash-2.png"
-            alt=""
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              borderRadius: '13%',
-              transformOrigin: '50% 88%',
-              transform: 'translateX(26%) rotate(9deg) scale(0.93)',
-              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.10))',
-              zIndex: 2,
-            }}
-          />
-          {/* Front phone */}
-          <img
-            src="/dash-1.png"
-            alt=""
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'contain',
-              borderRadius: '13%',
-              zIndex: 3,
-              filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.14)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
-            }}
-          />
-        </div>
-      )}
+            title="Click to switch dashboard"
+          >
+            {[0, 1, 2].map((identity) => {
+              const slot = slotForIdentity(identity);
+              const st = slotTransform(slot);
+              return (
+                <img
+                  key={identity}
+                  src={PHONE_SOURCES[identity]}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    borderRadius: 50,
+                    pointerEvents: 'none',
+                    transformOrigin: '50% 88%',
+                    filter: slot === 0
+                      ? 'drop-shadow(0 24px 32px rgba(0,0,0,0.14)) drop-shadow(0 0 1px rgba(0,0,0,0.06))'
+                      : 'drop-shadow(0 18px 26px rgba(0,0,0,0.10))',
+                    transition:
+                      'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, z-index 0s linear 0.35s',
+                    ...st,
+                  }}
+                />
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* QR (positioned per layout — same side as text column) */}
       {!showcaseMode && (
