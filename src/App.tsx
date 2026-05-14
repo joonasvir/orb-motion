@@ -510,7 +510,8 @@ function App() {
         const rect = canvas.getBoundingClientRect();
         const _layout = layoutRef.current;
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
-        const cx = window.innerWidth * _phoneXFrac;
+        const _phoneXOffset = _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
+        const cx = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneH = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
@@ -730,7 +731,8 @@ function App() {
         // Orbital motion centers on the phone for the current layout.
         const _layout = layoutRef.current;
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
-        const centerX = window.innerWidth * _phoneXFrac;
+        const _phoneXOffset = _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
+        const centerX = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
@@ -1351,8 +1353,8 @@ function App() {
             : {
                 top: '50%',
                 transform: 'translateY(-50%)',
-                [layout === 'left' ? 'right' : 'left']: 'clamp(56px, 7vw, 140px)',
-                width: 'min(440px, 36vw)',
+                [layout === 'left' ? 'right' : 'left']: 'clamp(110px, 10vw, 200px)',
+                width: 'min(440px, 34vw)',
                 textAlign: 'center' as const,
               }),
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
@@ -1531,7 +1533,11 @@ function App() {
             onClick={() => setActivePhone((p) => (p + 1) % 3)}
             style={{
               position: 'absolute',
-              left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
+              left: layout === 'left'
+                ? 'calc(28% + 60px)'
+                : layout === 'right'
+                ? 'calc(72% - 60px)'
+                : '50%',
               ...(layout === 'center'
                 ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
                 : {
