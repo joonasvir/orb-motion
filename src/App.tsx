@@ -1502,7 +1502,7 @@ function App() {
             letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
-            marginBottom: 'clamp(10px, 1.4vh, 20px)',
+            marginBottom: 'clamp(20px, 1.4vh, 30px)',
             fontFeatureSettings: '"dlig" 1',
           }}>
             {(() => {
