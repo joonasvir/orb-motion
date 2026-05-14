@@ -512,7 +512,9 @@ function App() {
       const handleDragMove = (e: MouseEvent | TouchEvent) => {
         const p = 'touches' in e ? e.touches[0] : e;
         if (!p) return;
-        if (isOrbitalMode()) updateCursorPush(p.clientX, p.clientY);
+        // Only push orbs around while actively dragging, so a plain hover
+        // doesn't deflect orbs out from under the cursor when trying to click them.
+        if (isOrbitalMode() && isDragging) updateCursorPush(p.clientX, p.clientY);
         if (!isDragging) return;
         // Compute tangential drag velocity around the phone-centered motion (phone at bottom)
         const rect = canvas.getBoundingClientRect();
@@ -536,7 +538,10 @@ function App() {
         lastDragX = p.clientX;
         lastDragY = p.clientY;
       };
-      const handleDragEnd = () => { isDragging = false; };
+      const handleDragEnd = () => {
+        isDragging = false;
+        cursorPushRef.current.active = false;
+      };
       const handleCursorLeave = () => {
         isDragging = false;
         cursorPushRef.current.active = false;
@@ -1338,8 +1343,8 @@ function App() {
             : {
                 top: '50%',
                 transform: 'translateY(-50%)',
-                [layout === 'left' ? 'right' : 'left']: 'clamp(32px, 5vw, 80px)',
-                width: 'min(520px, 42vw)',
+                [layout === 'left' ? 'right' : 'left']: 'clamp(56px, 7vw, 140px)',
+                width: 'min(440px, 36vw)',
                 textAlign: 'center' as const,
               }),
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
@@ -1351,13 +1356,13 @@ function App() {
           <h1 style={{
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
             fontSize: layout === 'center'
-              ? 'clamp(28px, 4.2vw, 60px)'
-              : 'clamp(26px, 3.4vw, 48px)',
+              ? 'clamp(24px, 3.5vw, 50px)'
+              : 'clamp(22px, 2.8vw, 40px)',
             lineHeight: 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
-            marginBottom: 'clamp(10px, 1.4vh, 22px)',
+            marginBottom: 'clamp(10px, 1.4vh, 20px)',
             fontFeatureSettings: '"dlig" 1',
           }}>
             <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
@@ -1411,13 +1416,13 @@ function App() {
           </h1>
           <p style={{
             fontFamily: 'inherit',
-            fontSize: 'clamp(15px, 1.6vw, 28px)',
-            lineHeight: 1.2,
+            fontSize: 'clamp(13px, 1.3vw, 22px)',
+            lineHeight: 1.25,
             letterSpacing: '-0.01em',
             opacity: 0.8,
             color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : '#636363',
             margin: 0,
-            maxWidth: 454,
+            maxWidth: 400,
             marginLeft: 'auto',
             marginRight: 'auto',
             fontWeight: 400,
@@ -1436,15 +1441,15 @@ function App() {
           style={{
             position: 'absolute',
             left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
-            bottom: '-6%',
+            bottom: layout === 'center' ? '-6%' : '4%',
             transform: 'translateX(-50%)',
-            height: 'clamp(380px, 62vh, 680px)',
+            height: layout === 'center' ? 'clamp(380px, 62vh, 680px)' : 'clamp(360px, 56vh, 600px)',
             width: 'auto',
             zIndex: 5,
             pointerEvents: 'none',
             userSelect: 'none',
             filter: 'drop-shadow(0 24px 32px rgba(0,0,0,0.12)) drop-shadow(0 0 1px rgba(0,0,0,0.06))',
-            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+            transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         />
       )}
@@ -1456,7 +1461,8 @@ function App() {
           style={{
             position: 'absolute',
             bottom: 'clamp(72px, 10vh, 110px)',
-            ...(layout === 'right'
+            // QR sits on the phone side (opposite the text)
+            ...(layout === 'left'
               ? { left: 'clamp(20px, 3vw, 48px)' }
               : { right: 'clamp(20px, 3vw, 48px)' }),
             width: 'clamp(96px, 9vw, 132px)',
@@ -1473,7 +1479,7 @@ function App() {
               '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
             zIndex: 20,
             cursor: 'pointer',
-            transformOrigin: layout === 'right' ? 'bottom left' : 'bottom right',
+            transformOrigin: layout === 'left' ? 'bottom left' : 'bottom right',
             transform: 'scale(1)',
             transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
