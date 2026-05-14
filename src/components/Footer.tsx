@@ -94,7 +94,7 @@ export default function Footer() {
         {/* Left slot is reserved for the joystick (rendered outside the Footer
             so it can overflow the top edge). Keep an empty spacer here for
             flex balance. */}
-        <div style={{ width: 110, flexShrink: 0 }} aria-hidden="true" />
+        <div style={{ width: 64, flexShrink: 0 }} aria-hidden="true" />
 
         <div className="orb-footer-links">
           <a href="https://wabi.ai/news" target="_blank" rel="noopener noreferrer">News</a>

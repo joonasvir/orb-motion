@@ -1424,7 +1424,7 @@ function App() {
             fontWeight: 400,
             fontFeatureSettings: '"dlig" 1',
           }}>
-            Describe what you want. Customize the vibe. Share instantly. Wabis are ephemeral.
+            Describe what you want. Customize the vibe. Share instantly.
           </p>
         </div>
       )}

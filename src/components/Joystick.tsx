@@ -69,9 +69,9 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
       style={{
         position: 'fixed',
         bottom: 6,
-        left: 'clamp(16px, 2.5vw, 40px)',
-        width: 110,
-        height: 110,
+        left: 14,
+        width: 56,
+        height: 56,
         padding: 0,
         border: 0,
         background: 'transparent',
@@ -79,11 +79,19 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
         zIndex: 80,
         outline: 'none',
         userSelect: 'none',
-        transition: 'transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease',
-        filter: 'drop-shadow(0 10px 18px rgba(0,0,0,0.22))',
+        transformOrigin: 'left bottom',
+        transition: 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease',
+        filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.12)'; }}
-      onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+      onMouseEnter={(e) => {
+        // Grow and tuck a touch closer to the corner via the transform-origin
+        e.currentTarget.style.transform = 'translate(-4px, 4px) scale(1.55)';
+        e.currentTarget.style.filter = 'drop-shadow(0 14px 22px rgba(0,0,0,0.26))';
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.transform = 'translate(0, 0) scale(1)';
+        e.currentTarget.style.filter = 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))';
+      }}
     >
       <img
         src="/joystick.webp"
