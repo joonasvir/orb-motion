@@ -511,7 +511,7 @@ function App() {
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const cx = window.innerWidth * _phoneXFrac;
         const _phoneH = _layout === 'center'
-          ? Math.max(460, Math.min(820, window.innerHeight * 0.74))
+          ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         const cy = _layout === 'center'
           ? window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2
@@ -731,12 +731,12 @@ function App() {
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const centerX = window.innerWidth * _phoneXFrac;
         const _phoneHcalc = _layout === 'center'
-          ? Math.max(460, Math.min(820, window.innerHeight * 0.74))
+          ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         const centerY = _layout === 'center'
           // Phone bottom is at viewport-bottom + 6% (overflows), so its center
           // is (windowH + windowH*0.06) - phoneH/2 from the top.
-          ? window.innerHeight + window.innerHeight * 0.06 - _phoneHcalc / 2
+          ? window.innerHeight + window.innerHeight * 0.16 - _phoneHcalc / 2
           // Side layouts: phone is vertically centered.
           : window.innerHeight / 2;
 
@@ -849,7 +849,7 @@ function App() {
             const angularSpeed = 0.85;
 
             // Ellipse sized to wrap the centered phone, capped to viewport
-            const phoneH = Math.max(460, Math.min(820, window.innerHeight * 0.74));
+            const phoneH = Math.max(390, Math.min(700, window.innerHeight * 0.63));
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
@@ -902,7 +902,7 @@ function App() {
             if ((animData as any).orbitRadius === undefined) {
               const a = animData as any;
               // Orbit radius wraps around the phone in the center, capped to viewport
-              const phoneH = Math.max(460, Math.min(820, window.innerHeight * 0.74));
+              const phoneH = Math.max(390, Math.min(700, window.innerHeight * 0.63));
               const phoneW = phoneH * (402 / 834);
               const orbitMin = Math.min(
                 Math.max(phoneW / 2, phoneH / 2.6) + 80,
@@ -1513,10 +1513,10 @@ function App() {
               position: 'absolute',
               left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
               ...(layout === 'center'
-                ? { bottom: '-6%', transform: 'translateX(-50%)' }
+                ? { bottom: '-16%', transform: 'translateX(-50%)' }
                 : { top: '50%', transform: 'translate(-50%, -50%)' }),
               height: layout === 'center'
-                ? 'clamp(460px, 74vh, 820px)'
+                ? 'clamp(390px, 63vh, 700px)'
                 : 'clamp(420px, 72vh, 720px)',
               aspectRatio: '402 / 834',
               zIndex: 5,
