@@ -1301,7 +1301,7 @@ function App() {
   const appLink = selectedOrb?.data.appId ? `https://wabi.ai/app/${selectedOrb.data.appId}` : '';
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', minHeight: '100%', position: 'relative' }}>
       <style>{`
         .orb-qr-card:hover {
           transform: scale(1.65) !important;
@@ -1375,6 +1375,14 @@ function App() {
           animation: orb-appear 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
         }
       `}</style>
+
+      {/* Hero section (100vh) — contains the canvases, phone, headline, panels */}
+      <section style={{
+        position: 'relative',
+        width: '100%',
+        height: '100vh',
+        overflow: 'hidden',
+      }}>
 
       {/* Back canvas: orbs behind the phone */}
       <canvas
@@ -2028,6 +2036,263 @@ function App() {
         }}>
           Click to drop · Tap orb to view · Press D for controls
         </div>
+      )}
+
+      </section>
+      {/* End hero section */}
+
+      {/* Bento — 4 cards in a wide/square grid below the hero */}
+      {!showcaseMode && (
+        <section style={{
+          width: '100%',
+          padding: 'clamp(48px, 6vw, 96px) clamp(20px, 4vw, 64px) clamp(120px, 12vw, 180px)',
+          background: '#f0f0f0',
+          fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+          position: 'relative',
+          zIndex: 0,
+        }}>
+          <div style={{
+            maxWidth: 1500,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gridAutoRows: 'minmax(380px, 460px)',
+            gap: 24,
+          }}>
+            {/* 1 — Creation that feels like play (wide-left) */}
+            <article style={{
+              gridColumn: '1 / 3',
+              background: '#fff',
+              borderRadius: 24,
+              padding: 'clamp(28px, 3vw, 52px)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
+              display: 'flex',
+              alignItems: 'center',
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: 'clamp(24px, 2.4vw, 34px)',
+                lineHeight: 1.1,
+                fontWeight: 400,
+                color: '#0a0a0a',
+                maxWidth: 280,
+                position: 'relative',
+                zIndex: 2,
+              }}>Creation that feels like play</h2>
+              {/* Decorative orb cluster on the right */}
+              <div style={{
+                position: 'absolute',
+                right: '-3%',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 'clamp(260px, 35%, 480px)',
+                aspectRatio: '1',
+                background:
+                  'radial-gradient(circle at 30% 30%, #ffd29a 0%, #f0a868 35%, #b3563a 75%, transparent 80%), radial-gradient(circle at 70% 70%, rgba(180, 130, 255, 0.5) 0%, transparent 40%)',
+                borderRadius: '50%',
+                filter: 'blur(4px)',
+                opacity: 0.85,
+              }} />
+            </article>
+
+            {/* 2 — Remix anything you see (square-right) */}
+            <article style={{
+              gridColumn: '3 / 4',
+              background: '#fff',
+              borderRadius: 24,
+              padding: 'clamp(28px, 3vw, 52px)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+            }}>
+              {/* Mini "app card" preview at the top, peeking up */}
+              <div style={{
+                position: 'absolute',
+                top: -36,
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: '76%',
+                aspectRatio: '1 / 1.05',
+                borderRadius: 28,
+                background: 'rgba(255,255,255,0.78)',
+                backdropFilter: 'blur(20px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+                boxShadow:
+                  '0 14px 70px rgba(0,0,0,0.20), inset 1px 1px 1px rgba(255,255,255,0.32), inset -1px -1px 1px rgba(0,0,0,0.06)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                padding: 'clamp(20px, 2.5vw, 36px) 12px',
+                gap: 12,
+              }}>
+                <div style={{
+                  width: 76,
+                  height: 76,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 30% 30%, #ffbe8a, #c2543f)',
+                  boxShadow: '0 8px 16px rgba(0,0,0,0.10), 0 0 0 2px rgba(0,0,0,0.06)',
+                }} />
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontWeight: 500, fontSize: 18, color: '#1e1e1e', marginBottom: 4 }}>London story creator</div>
+                  <div style={{ fontSize: 13, color: '#525252', maxWidth: 200, margin: '0 auto', lineHeight: 1.35 }}>
+                    Play a fast-paced card game with vibrant 80s anime vibes.
+                  </div>
+                </div>
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '8px 16px',
+                  borderRadius: 999,
+                  background: 'linear-gradient(to top, #0a0a0a, #4a4a4a)',
+                  color: '#fff',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  boxShadow: 'inset -1px -1px 2px rgba(255,255,255,0.3), inset 1px 1px 1px rgba(255,255,255,0.12)',
+                }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                  </svg>
+                  Edit
+                </div>
+              </div>
+              <h2 style={{
+                marginTop: 'auto',
+                marginBottom: 8,
+                fontSize: 'clamp(24px, 2.4vw, 34px)',
+                lineHeight: 1.1,
+                fontWeight: 400,
+                color: '#0a0a0a',
+                textAlign: 'center',
+              }}>Remix anything you see</h2>
+            </article>
+
+            {/* 3 — Discover the best from the community (square-left) */}
+            <article style={{
+              gridColumn: '1 / 2',
+              background: '#fff',
+              borderRadius: 24,
+              padding: 'clamp(28px, 3vw, 52px)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: 'clamp(24px, 2.4vw, 34px)',
+                lineHeight: 1.1,
+                fontWeight: 400,
+                color: '#0a0a0a',
+                maxWidth: 320,
+                position: 'relative',
+                zIndex: 2,
+              }}>Discover the best from the community</h2>
+              {/* Phone screenshot background, fading down */}
+              <img
+                src="/dash-1.png"
+                alt=""
+                style={{
+                  position: 'absolute',
+                  left: '50%',
+                  bottom: '-30%',
+                  transform: 'translateX(-50%) scale(1.05)',
+                  width: '85%',
+                  height: 'auto',
+                  borderRadius: 36,
+                  filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.10))',
+                  pointerEvents: 'none',
+                }}
+              />
+            </article>
+
+            {/* 4 — Apps built on your context (wide-right) */}
+            <article style={{
+              gridColumn: '2 / 4',
+              background: '#fff',
+              borderRadius: 24,
+              padding: 'clamp(28px, 3vw, 52px)',
+              position: 'relative',
+              overflow: 'hidden',
+              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
+              display: 'flex',
+              alignItems: 'center',
+            }}>
+              <h2 style={{
+                margin: 0,
+                fontSize: 'clamp(24px, 2.4vw, 34px)',
+                lineHeight: 1.1,
+                fontWeight: 400,
+                color: '#0a0a0a',
+                maxWidth: 280,
+                position: 'relative',
+                zIndex: 2,
+              }}>Apps built on your context</h2>
+              {/* Stacked integration cards on the right */}
+              <div style={{
+                position: 'absolute',
+                right: 'clamp(28px, 4vw, 80px)',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: 'clamp(280px, 36%, 420px)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}>
+                {[
+                  { name: 'Spotify', color: 'linear-gradient(135deg, #1ed760, #1aa34a)', emoji: '♪' },
+                  { name: 'Calendar', color: 'linear-gradient(135deg, #ff7a59, #d94a35)', emoji: '◷' },
+                  { name: 'Messages', color: 'linear-gradient(135deg, #64b5ff, #1e88e5)', emoji: '✉' },
+                ].map((svc) => (
+                  <div key={svc.name} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                    padding: '16px 18px',
+                    borderRadius: 22,
+                    background: 'rgba(242,242,242,0.7)',
+                    backdropFilter: 'blur(20px) saturate(150%)',
+                    WebkitBackdropFilter: 'blur(20px) saturate(150%)',
+                    boxShadow: '0 1px 0 rgba(0,0,0,0.02), 0 6px 18px rgba(0,0,0,0.06)',
+                    border: '1px solid rgba(255,255,255,0.6)',
+                  }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: '50%',
+                      background: svc.color,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#fff', fontSize: 20, fontWeight: 700,
+                    }}>{svc.emoji}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 16, fontWeight: 500, color: '#0a0a0a' }}>{svc.name}</div>
+                      <div style={{ fontSize: 13, color: '#737373' }}>Connected</div>
+                    </div>
+                    {/* iOS-style green toggle */}
+                    <div style={{
+                      width: 44, height: 26, borderRadius: 999,
+                      background: 'linear-gradient(180deg, #72d390, #6bc687)',
+                      boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.2)',
+                      position: 'relative',
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        right: 2, top: 2,
+                        width: 22, height: 22,
+                        borderRadius: '50%',
+                        background: '#fff',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.06)',
+                      }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </article>
+          </div>
+        </section>
       )}
 
       {/* Card Modal — glassy "App card" style (matches Figma 30:6880) */}
