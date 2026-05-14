@@ -1,4 +1,5 @@
 import WabiLogo from './WabiLogo';
+import { Link } from '../lib/router';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/wabi-make-mini-apps/id6478775737';
 
@@ -308,6 +309,24 @@ export default function Header() {
           <WabiLogo />
         </a>
         <div className="orb-nav-right blur-in" style={{ animationDelay: '180ms' }}>
+          <Link
+            href="/manifesto"
+            className="orb-nav-link"
+            style={{
+              color: 'rgba(30,30,30,0.78)',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+              fontSize: 14,
+              fontWeight: 500,
+              textDecoration: 'none',
+              letterSpacing: '-0.005em',
+              transition: 'color 0.2s ease',
+              whiteSpace: 'nowrap',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.color = '#0a0a0a')}
+            onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(30,30,30,0.78)')}
+          >
+            Manifesto
+          </Link>
           <a
             href={APP_STORE_URL}
             target="_blank"
