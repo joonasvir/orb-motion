@@ -466,13 +466,6 @@ function App() {
   }, []);
 
   // Toggle moon gravity
-  const toggleMoon = useCallback(() => {
-    if (!engineRef.current) return;
-    const next = !moonModeRef.current;
-    engineRef.current.gravity.y = next ? -0.4 : 1;
-    setMoonMode(next);
-  }, []);
-
   // Set displayMode (also resets gravity/moon)
   const setMode = useCallback((mode: 'physics' | 'cyclone' | 'orbit' | 'shapes') => {
     if (engineRef.current) engineRef.current.gravity.y = 1;
@@ -1980,29 +1973,32 @@ function App() {
 
       {/* Combined glassy control panel */}
       {showControls && !showcaseMode && (() => {
+        // ~30% more compact, ~40% more transparent. Tightened spacing,
+        // smaller text, and stronger blur for the "frosted pane" feel.
         const sectionLabel: React.CSSProperties = {
-          marginBottom: 8,
+          marginBottom: 5,
           fontWeight: 600,
-          fontSize: 10,
-          letterSpacing: 1.4,
+          fontSize: 9,
+          letterSpacing: 1.3,
           textTransform: 'uppercase',
-          color: 'rgba(30,30,30,0.45)',
+          color: 'rgba(30,30,30,0.42)',
         };
+        const SECTION_GAP = 10;
         const segGroup: React.CSSProperties = {
           display: 'flex',
-          background: 'rgba(0,0,0,0.05)',
-          borderRadius: 10,
-          padding: 3,
+          background: 'rgba(0,0,0,0.04)',
+          borderRadius: 8,
+          padding: 2,
           gap: 2,
         };
         const segBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
-          padding: '8px 8px',
+          padding: '5px 6px',
           border: 0,
-          borderRadius: 7,
+          borderRadius: 6,
           background: active ? '#1e1e1e' : 'transparent',
           color: active ? '#fff' : 'rgba(30,30,30,0.6)',
-          fontSize: 12,
+          fontSize: 11,
           fontWeight: active ? 600 : 500,
           textTransform: 'capitalize',
           cursor: 'pointer',
@@ -2011,12 +2007,12 @@ function App() {
         });
         const pillBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
-          padding: '10px 12px',
-          border: '1px solid rgba(0,0,0,0.06)',
+          padding: '6px 10px',
+          border: '1px solid rgba(0,0,0,0.05)',
           borderRadius: 999,
-          background: active ? '#1e1e1e' : 'rgba(255,255,255,0.6)',
-          color: active ? '#fff' : 'rgba(30,30,30,0.8)',
-          fontSize: 12,
+          background: active ? '#1e1e1e' : 'rgba(255,255,255,0.45)',
+          color: active ? '#fff' : 'rgba(30,30,30,0.78)',
+          fontSize: 11,
           fontWeight: 500,
           cursor: 'pointer',
           transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
@@ -2025,25 +2021,25 @@ function App() {
         return (
           <div style={{
             position: 'absolute',
-            top: 96,
-            left: 20,
-            width: 280,
-            padding: 18,
-            borderRadius: 22,
-            background: 'rgba(255,255,255,0.62)',
-            backdropFilter: 'blur(28px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.7)',
+            top: 84,
+            left: 16,
+            width: 224,
+            padding: 14,
+            borderRadius: 18,
+            background: 'rgba(255,255,255,0.36)',
+            backdropFilter: 'blur(36px) saturate(190%)',
+            WebkitBackdropFilter: 'blur(36px) saturate(190%)',
+            border: '1px solid rgba(255,255,255,0.55)',
             boxShadow:
-              '0 1px 0 rgba(255,255,255,0.6) inset, 0 -1px 0 rgba(0,0,0,0.04) inset, 0 18px 40px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.06)',
+              '0 1px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.03) inset, 0 20px 44px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05)',
             color: '#1e1e1e',
             fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
-            fontSize: 13,
+            fontSize: 12,
             zIndex: 90,
           }}>
             {/* Layout */}
             <div style={sectionLabel}>Layout</div>
-            <div style={{ ...segGroup, marginBottom: 18 }}>
+            <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
               {(['left', 'center', 'right'] as const).map(l => (
                 <button key={l} onClick={() => setLayout(l)} style={segBtn(layout === l)}>{l}</button>
               ))}
@@ -2051,7 +2047,7 @@ function App() {
 
             {/* Motion */}
             <div style={sectionLabel}>Motion</div>
-            <div style={{ ...segGroup, marginBottom: 18, flexWrap: 'wrap' }}>
+            <div style={{ ...segGroup, marginBottom: SECTION_GAP, flexWrap: 'wrap' }}>
               {(['physics', 'cyclone', 'orbit', 'shapes'] as const).map(m => (
                 <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>{m}</button>
               ))}
@@ -2060,33 +2056,23 @@ function App() {
             {displayMode === 'shapes' && (
               <>
                 <div style={sectionLabel}>Shape</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: SECTION_GAP }}>
                   <button onClick={() => setCurrentShape((c) => (c - 1 + SHAPES.length) % SHAPES.length)}
-                    style={{ ...pillBtn(false), flex: 0, padding: '8px 12px' }}>‹</button>
+                    style={{ ...pillBtn(false), flex: 0, padding: '5px 10px' }}>‹</button>
                   <div style={{
-                    flex: 1, textAlign: 'center', padding: '8px 12px',
-                    background: 'rgba(0,0,0,0.05)', borderRadius: 999,
-                    color: '#1e1e1e', fontWeight: 600, textTransform: 'capitalize', fontSize: 12,
+                    flex: 1, textAlign: 'center', padding: '5px 10px',
+                    background: 'rgba(0,0,0,0.04)', borderRadius: 999,
+                    color: '#1e1e1e', fontWeight: 600, textTransform: 'capitalize', fontSize: 11,
                   }}>{SHAPES[currentShape]}</div>
                   <button onClick={() => setCurrentShape((c) => (c + 1) % SHAPES.length)}
-                    style={{ ...pillBtn(false), flex: 0, padding: '8px 12px' }}>›</button>
+                    style={{ ...pillBtn(false), flex: 0, padding: '5px 10px' }}>›</button>
                 </div>
               </>
             )}
 
-            {/* Gravity */}
-            <div style={sectionLabel}>Gravity</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-              <button onClick={() => {
-                if (engineRef.current) engineRef.current.gravity.y = 1;
-                setMoonMode(false);
-              }} style={pillBtn(!moonMode)}>Normal</button>
-              <button onClick={toggleMoon} style={pillBtn(moonMode)}>Moon</button>
-            </div>
-
             {/* Profiles — single phone vs swipeable 3-screen carousel */}
             <div style={sectionLabel}>Profiles</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
               <button
                 onClick={() => setShowProfiles(false)}
                 style={pillBtn(!showProfiles)}
@@ -2099,7 +2085,7 @@ function App() {
 
             {/* Floats — toggle the cycling chat/like notifications */}
             <div style={sectionLabel}>Floats</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
               <button
                 onClick={() => setShowNotifications(false)}
                 style={pillBtn(!showNotifications)}
@@ -2112,7 +2098,7 @@ function App() {
 
             {/* Bento — toggle the scroll-down bento section below the hero */}
             <div style={sectionLabel}>Bento</div>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
               <button
                 onClick={() => {
                   setShowBento(false);
@@ -2146,12 +2132,12 @@ function App() {
               placeholder="Prompt (optional)"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                marginBottom: 8,
-                border: '1px solid rgba(0,0,0,0.08)',
-                borderRadius: 10,
-                background: 'rgba(255,255,255,0.7)',
-                fontSize: 12,
+                padding: '6px 10px',
+                marginBottom: 5,
+                border: '1px solid rgba(0,0,0,0.06)',
+                borderRadius: 8,
+                background: 'rgba(255,255,255,0.55)',
+                fontSize: 11,
                 fontFamily: 'inherit',
                 color: '#1e1e1e',
                 outline: 'none',
@@ -2169,15 +2155,15 @@ function App() {
                 width: '100%',
                 opacity: isGenerating ? 0.7 : 1,
                 cursor: isGenerating ? 'progress' : 'pointer',
-                marginBottom: genError ? 6 : 18,
+                marginBottom: genError ? 4 : SECTION_GAP,
               }}
             >
               {isGenerating ? 'Generating…' : 'Generate'}
             </button>
             {genError && (
               <div style={{
-                marginBottom: 18,
-                fontSize: 11,
+                marginBottom: SECTION_GAP,
+                fontSize: 10,
                 color: '#b91c1c',
                 lineHeight: 1.4,
               }}>{genError}</div>
@@ -2193,7 +2179,7 @@ function App() {
             <input
               type="range" min="0.001" max="0.05" step="0.001"
               value={damping} onChange={(e) => setDamping(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer', marginBottom: 16, accentColor: '#1e1e1e' }}
+              style={{ width: '100%', cursor: 'pointer', marginBottom: 8, accentColor: '#1e1e1e' }}
             />
 
             {/* Orb size */}
