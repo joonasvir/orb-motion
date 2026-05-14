@@ -510,13 +510,18 @@ function App() {
         // Update parallax-tilt target from cursor anywhere on the canvas
         if (isOrbitalMode()) updateMouseTilt(p.clientX, p.clientY);
         if (!isDragging) return;
-        // Compute tangential drag velocity around the phone-centered motion (phone at bottom)
+        // Compute tangential drag velocity around the phone-centered motion (per layout)
         const rect = canvas.getBoundingClientRect();
-        const _phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
         const _layout = layoutRef.current;
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const cx = window.innerWidth * _phoneXFrac;
-        const cy = window.innerHeight + window.innerHeight * 0.06 - _phoneH / 2;
+        const _phoneH = _layout === 'center'
+          ? Math.max(380, Math.min(680, window.innerHeight * 0.62))
+          : Math.max(340, Math.min(560, window.innerHeight * 0.60));
+        const _phoneBottom = _layout === 'center'
+          ? -window.innerHeight * 0.06
+          : Math.max(80, Math.min(120, window.innerHeight * 0.11));
+        const cy = window.innerHeight - _phoneBottom - _phoneH / 2;
         const mx = p.clientX - rect.left;
         const my = p.clientY - rect.top;
         const tx = mx - cx;
@@ -727,13 +732,17 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
-        // Orbital motion centers on the phone, which is anchored at the bottom
-        // and positioned by the current layout (left/center/right).
-        const _phoneHcalc = Math.max(380, Math.min(680, window.innerHeight * 0.62));
+        // Orbital motion centers on the phone for the current layout.
         const _layout = layoutRef.current;
         const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
         const centerX = window.innerWidth * _phoneXFrac;
-        const centerY = window.innerHeight + window.innerHeight * 0.06 - _phoneHcalc / 2;
+        const _phoneHcalc = _layout === 'center'
+          ? Math.max(380, Math.min(680, window.innerHeight * 0.62))
+          : Math.max(340, Math.min(560, window.innerHeight * 0.60));
+        const _phoneBottom = _layout === 'center'
+          ? -window.innerHeight * 0.06   // crops slightly into footer
+          : Math.max(80, Math.min(120, window.innerHeight * 0.11));
+        const centerY = window.innerHeight - _phoneBottom - _phoneHcalc / 2;
 
         // Background: white for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -839,7 +848,7 @@ function App() {
 
             // Ellipse sized to wrap the centered phone, capped to viewport
             const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-            const phoneW = phoneH * (470 / 668);
+            const phoneW = phoneH * (480 / 800);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
@@ -891,7 +900,7 @@ function App() {
               const a = animData as any;
               // Orbit radius wraps around the phone in the center, capped to viewport
               const phoneH = Math.max(380, Math.min(680, window.innerHeight * 0.62));
-              const phoneW = phoneH * (470 / 668);
+              const phoneW = phoneH * (480 / 800);
               const orbitMin = Math.min(
                 Math.max(phoneW / 2, phoneH / 2.6) + 80,
                 Math.min(window.innerWidth, window.innerHeight) * 0.4,
@@ -1427,9 +1436,11 @@ function App() {
           style={{
             position: 'absolute',
             left: layout === 'left' ? '28%' : layout === 'right' ? '72%' : '50%',
-            bottom: layout === 'center' ? '-6%' : '4%',
+            // Center crops a hair into the footer for the "rising up" effect.
+            // Side layouts sit fully above the footer so the whole phone is visible.
+            bottom: layout === 'center' ? '-6%' : 'clamp(80px, 11vh, 120px)',
             transform: 'translateX(-50%)',
-            height: layout === 'center' ? 'clamp(380px, 62vh, 680px)' : 'clamp(360px, 56vh, 600px)',
+            height: layout === 'center' ? 'clamp(380px, 62vh, 680px)' : 'clamp(340px, 60vh, 560px)',
             width: 'auto',
             zIndex: 5,
             pointerEvents: 'none',
