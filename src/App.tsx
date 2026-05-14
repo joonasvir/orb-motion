@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import Joystick from './components/Joystick';
 
 interface OrbData {
   id: string;
@@ -1330,54 +1331,74 @@ function App() {
             marginBottom: 'clamp(10px, 1.4vh, 20px)',
             fontFeatureSettings: '"dlig" 1',
           }}>
-            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
-            <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
-              for you and your{' '}
-              <span
-                className="orb-facepile"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  verticalAlign: '-0.22em',
-                  marginRight: '0.22em',
-                  marginLeft: '0.05em',
-                }}
-              >
-                {[1, 2, 3, 4].map((i) => (
-                  <span
-                    key={i}
-                    className="orb-facepile-avatar"
-                    style={{
-                      width: '0.92em',
-                      height: '0.92em',
-                      borderRadius: '50%',
-                      overflow: 'hidden',
-                      display: 'inline-block',
-                      marginLeft: i === 1 ? 0 : '-0.42em',
-                      boxShadow:
-                        '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
-                      position: 'relative',
-                      zIndex: 10 - i,
-                      transition: 'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
-                    }}
-                  >
-                    <img
-                      src={`/facepile/avatar-${i}.png`}
-                      alt=""
+            {(() => {
+              const facepile = (
+                <span
+                  className="orb-facepile"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    verticalAlign: '-0.22em',
+                    marginRight: '0.22em',
+                    marginLeft: '0.05em',
+                  }}
+                >
+                  {[1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="orb-facepile-avatar"
                       style={{
-                        width: '100%',
-                        height: '100%',
-                        objectFit: 'cover',
-                        display: 'block',
-                        userSelect: 'none',
-                        pointerEvents: 'none',
+                        width: '0.92em',
+                        height: '0.92em',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'inline-block',
+                        marginLeft: i === 1 ? 0 : '-0.42em',
+                        boxShadow:
+                          '0 0 0 2px #fff, 0 4px 8px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06)',
+                        position: 'relative',
+                        zIndex: 10 - i,
+                        transition:
+                          'margin-left 0.4s cubic-bezier(0.22, 1, 0.36, 1), transform 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
                       }}
-                    />
+                    >
+                      <img
+                        src={`/facepile/avatar-${i}.png`}
+                        alt=""
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          display: 'block',
+                          userSelect: 'none',
+                          pointerEvents: 'none',
+                        }}
+                      />
+                    </span>
+                  ))}
+                </span>
+              );
+              if (layout === 'center') {
+                return (
+                  <>
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
+                      for you and your {facepile} friends
+                    </span>
+                  </>
+                );
+              }
+              // Side layouts: 3 lines (matches Figma 29:5312)
+              return (
+                <>
+                  <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Personal software</span>
+                  <span style={{ display: 'block', whiteSpace: 'nowrap' }}>for you and your</span>
+                  <span style={{ display: 'block', whiteSpace: 'nowrap' }}>
+                    {facepile} friends
                   </span>
-                ))}
-              </span>
-              friends
-            </span>
+                </>
+              );
+            })()}
           </h1>
           <p style={{
             fontFamily: 'inherit',
@@ -1983,6 +2004,14 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Joystick — toggles between physics (drop) and cyclone (formation) */}
+      {!showcaseMode && (
+        <Joystick
+          pulled={displayMode === 'physics'}
+          onToggle={() => setMode(displayMode === 'physics' ? 'cyclone' : 'physics')}
+        />
       )}
 
       {/* Footer (fixed bottom) */}
