@@ -98,6 +98,7 @@ function App() {
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfiles, setShowProfiles] = useState(true);
+  const [showBento, setShowBento] = useState(false);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -1996,6 +1997,22 @@ function App() {
               >On</button>
             </div>
 
+            {/* Bento — toggle the scroll-down bento section below the hero */}
+            <div style={sectionLabel}>Bento</div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+              <button
+                onClick={() => {
+                  setShowBento(false);
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }}
+                style={pillBtn(!showBento)}
+              >Off</button>
+              <button
+                onClick={() => setShowBento(true)}
+                style={pillBtn(showBento)}
+              >On</button>
+            </div>
+
             {/* Damping */}
             <div style={sectionLabel}>
               <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
@@ -2042,7 +2059,7 @@ function App() {
       {/* End hero section */}
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
-      {!showcaseMode && (
+      {!showcaseMode && showBento && (
         <section style={{
           width: '100%',
           padding: 'clamp(48px, 6vw, 96px) clamp(20px, 4vw, 64px) clamp(120px, 12vw, 180px)',
