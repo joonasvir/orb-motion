@@ -56,12 +56,9 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
   const handle = useCallback(() => {
     const nowPulled = !lastRef.current;
     lastRef.current = nowPulled;
-    playLeverSound(!nowPulled); // direction
+    playLeverSound(!nowPulled);
     onToggle();
   }, [onToggle]);
-
-  // Tilt angle of the stick when pulled
-  const tilt = pulled ? -22 : 0;
 
   return (
     <button
@@ -71,10 +68,10 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
       onClick={handle}
       style={{
         position: 'absolute',
-        bottom: 'clamp(72px, 10vh, 110px)',
-        left: 'clamp(20px, 3vw, 48px)',
-        width: 84,
-        height: 84,
+        bottom: 'clamp(64px, 9vh, 100px)',
+        left: 'clamp(16px, 2.5vw, 40px)',
+        width: 100,
+        height: 100,
         padding: 0,
         border: 0,
         background: 'transparent',
@@ -82,74 +79,30 @@ export default function Joystick({ pulled, onToggle }: JoystickProps) {
         zIndex: 30,
         outline: 'none',
         userSelect: 'none',
-        transformOrigin: 'center bottom',
-        transition: 'transform 0.2s ease',
+        transition: 'transform 0.2s ease, filter 0.2s ease',
+        filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.05)'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.06)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
     >
-      <svg
-        viewBox="0 0 100 100"
-        width="100%"
-        height="100%"
-        style={{ display: 'block', filter: 'drop-shadow(0 8px 12px rgba(0,0,0,0.18))' }}
-      >
-        <defs>
-          <linearGradient id="js-base-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#4d4d4d" />
-            <stop offset="100%" stopColor="#2c2c2c" />
-          </linearGradient>
-          <radialGradient id="js-ball-grad" cx="35%" cy="30%" r="65%">
-            <stop offset="0%" stopColor="#ff8a6e" />
-            <stop offset="55%" stopColor="#e25540" />
-            <stop offset="100%" stopColor="#9b2f1f" />
-          </radialGradient>
-          <radialGradient id="js-btn-red-grad" cx="35%" cy="30%" r="65%">
-            <stop offset="0%" stopColor="#ff7a5f" />
-            <stop offset="100%" stopColor="#b8392a" />
-          </radialGradient>
-          <radialGradient id="js-btn-gray-grad" cx="35%" cy="30%" r="65%">
-            <stop offset="0%" stopColor="#d4d4d4" />
-            <stop offset="100%" stopColor="#888" />
-          </radialGradient>
-        </defs>
-
-        {/* Base — rounded diamond/cushion */}
-        <ellipse cx="50" cy="84" rx="40" ry="11" fill="#1a1a1a" opacity="0.35" />
-        <path
-          d="M14 70 Q14 56 28 52 L72 52 Q86 56 86 70 L86 78 Q86 86 76 88 L24 88 Q14 86 14 78 Z"
-          fill="url(#js-base-grad)"
-          stroke="#1a1a1a"
-          strokeWidth="0.8"
-        />
-
-        {/* Pivot ring (the bellows around the stick) */}
-        <ellipse cx="50" cy="60" rx="14" ry="5.5" fill="#3a3a3a" />
-        <ellipse cx="50" cy="60" rx="11" ry="4" fill="#2a2a2a" />
-        <ellipse cx="50" cy="59" rx="8" ry="2.8" fill="#1f1f1f" />
-
-        {/* Lever (group rotates around the pivot) */}
-        <g
-          style={{
-            transformOrigin: '50px 60px',
-            transform: `rotate(${tilt}deg)`,
-            transition: 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
-          }}
-        >
-          {/* Stick shaft */}
-          <rect x="46" y="22" width="8" height="40" rx="3" fill="#3a3a3a" />
-          <rect x="46.5" y="22" width="2" height="40" rx="1" fill="#5a5a5a" opacity="0.7" />
-          {/* Ball */}
-          <circle cx="50" cy="18" r="14" fill="url(#js-ball-grad)" stroke="#7a1f12" strokeWidth="0.5" />
-          <ellipse cx="46" cy="13" rx="4.5" ry="2.6" fill="#fff" opacity="0.55" />
-        </g>
-
-        {/* Buttons on the base */}
-        <ellipse cx="70" cy="72" rx="6.5" ry="3.2" fill="#1a1a1a" opacity="0.4" />
-        <circle cx="70" cy="71" r="5.5" fill="url(#js-btn-red-grad)" stroke="#7a1f12" strokeWidth="0.4" />
-        <ellipse cx="30" cy="76" rx="6" ry="3" fill="#1a1a1a" opacity="0.4" />
-        <circle cx="30" cy="75" r="5" fill="url(#js-btn-gray-grad)" stroke="#555" strokeWidth="0.4" />
-      </svg>
+      <img
+        src="/joystick.webp"
+        alt=""
+        draggable={false}
+        style={{
+          width: '100%',
+          height: '100%',
+          display: 'block',
+          objectFit: 'contain',
+          transformOrigin: '50% 75%',
+          transform: pulled
+            ? 'rotate(-14deg) skewX(2deg)'
+            : 'rotate(0deg) skewX(0deg)',
+          transition: 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      />
     </button>
   );
 }
