@@ -44,7 +44,10 @@ export default function Footer() {
           font-size: 12px;
           color: ${COLOR_GRAY};
           font-family: system-ui, -apple-system, sans-serif;
-          pointer-events: none;
+          background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0.85) 100%);
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          border-top: 1px solid rgba(0,0,0,0.04);
         }
         .orb-footer > * { pointer-events: auto; }
         .orb-footer-links {

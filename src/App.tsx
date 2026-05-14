@@ -19,25 +19,6 @@ interface SelectedOrb {
   startY: number;
 }
 
-// Inline avatar stack used inside the headline ("for you and your [avatars] friends")
-const AVATAR_GRADIENTS = [
-  'linear-gradient(135deg, #ffd29a, #d9665a)',
-  'linear-gradient(135deg, #ffe4a0, #c2543f)',
-  'linear-gradient(135deg, #ffbe8a, #b8543a)',
-];
-const avatarStackStyle = (i: number): React.CSSProperties => ({
-  display: 'inline-block',
-  width: '0.92em',
-  height: '0.92em',
-  borderRadius: '50%',
-  background: AVATAR_GRADIENTS[i % AVATAR_GRADIENTS.length],
-  border: '0.06em solid #fff',
-  boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
-  marginLeft: i === 0 ? 0 : '-0.4em',
-  position: 'relative',
-  zIndex: 3 - i,
-});
-
 const DAILY_STORAGE_KEY = 'orb-drop-date';
 const ORBS_STORAGE_KEY = 'orb-drop-orbs';
 const COVERS_STORAGE_KEY = 'orb-drop-covers';
@@ -1257,6 +1238,15 @@ function App() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       <style>{`
+        .orb-qr-card:hover {
+          transform: scale(1.65) !important;
+          box-shadow:
+            0 30px 50px rgba(0,0,0,0.12),
+            0 12px 20px rgba(0,0,0,0.06),
+            inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05),
+            inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03),
+            inset 0 0 12px rgba(0,0,0,0.03) !important;
+        }
         @keyframes card-enter {
           0% {
             opacity: 0;
@@ -1356,11 +1346,20 @@ function App() {
             whiteSpace: 'pre-wrap',
           }}>
             Personal software<br />for you and your{' '}
-            <span style={{ display: 'inline-flex', alignItems: 'center', verticalAlign: 'middle', marginRight: 6 }}>
-              <span style={avatarStackStyle(0)} />
-              <span style={avatarStackStyle(1)} />
-              <span style={avatarStackStyle(2)} />
-            </span>
+            <img
+              src="/facepile.png"
+              alt=""
+              style={{
+                display: 'inline-block',
+                verticalAlign: '-0.18em',
+                height: '0.9em',
+                width: 'auto',
+                marginRight: '0.18em',
+                marginLeft: '0.05em',
+                userSelect: 'none',
+                pointerEvents: 'none',
+              }}
+            />
             friends
           </h1>
           <p style={{
@@ -1406,16 +1405,17 @@ function App() {
       {/* QR (positioned per layout — same side as text column) */}
       {!showcaseMode && (
         <div
+          className="orb-qr-card"
           style={{
             position: 'absolute',
             bottom: 'clamp(72px, 10vh, 110px)',
             ...(layout === 'right'
               ? { left: 'clamp(20px, 3vw, 48px)' }
               : { right: 'clamp(20px, 3vw, 48px)' }),
-            width: 'clamp(140px, 14vw, 220px)',
+            width: 'clamp(96px, 9vw, 132px)',
             aspectRatio: '1 / 1',
-            padding: 'clamp(7px, 0.7vw, 10px)',
-            borderRadius: 'clamp(18px, 2vw, 28px)',
+            padding: 'clamp(6px, 0.6vw, 9px)',
+            borderRadius: 'clamp(14px, 1.6vw, 22px)',
             background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
@@ -1425,13 +1425,16 @@ function App() {
             boxShadow:
               '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
             zIndex: 20,
-            pointerEvents: 'none',
+            cursor: 'pointer',
+            transformOrigin: layout === 'right' ? 'bottom left' : 'bottom right',
+            transform: 'scale(1)',
+            transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
           }}
         >
           <img
             src="/qr-wabi.png"
             alt="QR code"
-            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }}
+            style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', pointerEvents: 'none' }}
           />
         </div>
       )}
