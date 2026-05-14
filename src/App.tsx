@@ -105,6 +105,9 @@ function App() {
   const [enableOrbTap] = useState(true);
   const [activePhone, setActivePhone] = useState(0); // 0/1/2 - which dashboard is in front
   const [phonesFanned, setPhonesFanned] = useState(false); // back phones fan in after load
+  // Mirrors the facepile: which persona is the user currently hovering /
+  // has selected. Drives the avatar that overlays the phone's top-right.
+  const [hoveredFaceId, setHoveredFaceId] = useState<number | null>(null);
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfiles, setShowProfiles] = useState(true);
@@ -1541,7 +1544,10 @@ function App() {
               const facepile = (
                 <span
                   className="orb-facepile t-avatar-group"
-                  onMouseLeave={(e) => updateSpring(e.currentTarget, null)}
+                  onMouseLeave={(e) => {
+                    updateSpring(e.currentTarget, null);
+                    setHoveredFaceId(null);
+                  }}
                   style={{
                     // Fixed-width inline-block — reordering avatars inside
                     // never affects the surrounding text layout.
@@ -1549,9 +1555,13 @@ function App() {
                     position: 'relative',
                     width: '2.32em',
                     height: '0.88em',
-                    verticalAlign: '-0.22em',
+                    // Slightly less negative → facepile rides a few px higher
+                    // (sits more on the text baseline of "ur friends").
+                    verticalAlign: '-0.15em',
                     marginRight: '0.22em',
-                    marginLeft: '0.05em',
+                    // A touch more left padding pushes the cluster right,
+                    // away from "ur".
+                    marginLeft: '0.16em',
                     pointerEvents: 'auto',
                     // Soft drop shadow below the pile (y=32, blur=60)
                     filter: 'drop-shadow(0 32px 60px rgba(0,0,0,0.1))',
@@ -1567,6 +1577,7 @@ function App() {
                         onMouseEnter={(e) => {
                           const root = e.currentTarget.parentElement as HTMLElement | null;
                           updateSpring(root, i);
+                          setHoveredFaceId(i);
                         }}
                         style={{
                           position: 'absolute',
@@ -1757,6 +1768,38 @@ function App() {
                 />
               );
             })}
+
+            {/* Persona avatar overlay — sits in the dashboard's top-right
+                "profile" slot. Tracks the currently-hovered facepile avatar,
+                falling back to whichever phone is in front. */}
+            {(() => {
+              const fallbackId = (activePhone % 4) + 1;
+              const personaId = hoveredFaceId ?? fallbackId;
+              return (
+                <img
+                  key={`persona-${personaId}`}
+                  src={`/facepile/avatar-${personaId}.png`}
+                  alt=""
+                  draggable={false}
+                  style={{
+                    position: 'absolute',
+                    // Matches the profile glyph baked into the dashboard PNGs.
+                    top: '4.2%',
+                    right: '6.4%',
+                    width: '6.6%',
+                    aspectRatio: '1',
+                    borderRadius: '50%',
+                    objectFit: 'cover',
+                    pointerEvents: 'none',
+                    zIndex: 4,
+                    boxShadow: '0 0 0 2px #fff, 0 4px 10px rgba(0,0,0,0.10)',
+                    transition: 'opacity 0.3s ease',
+                    // Fade in once the front phone is settled
+                    opacity: 1,
+                  }}
+                />
+              );
+            })()}
           </div>
         );
       })()}
