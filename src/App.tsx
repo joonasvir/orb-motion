@@ -2,7 +2,12 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import Matter from 'matter-js';
 import Header from './components/Header';
 import Footer from './components/Footer';
-import Joystick from './components/Joystick';
+import Joystick, {
+  playLeverSound,
+  playBubbleSound,
+  playWhooshSound,
+  type JoystickSound,
+} from './components/Joystick';
 
 interface OrbData {
   id: string;
@@ -112,6 +117,8 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfiles, setShowProfiles] = useState(true);
   const [showBento, setShowBento] = useState(false);
+  // Which synthesized joystick sound to use ("lever" was the original).
+  const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -2170,6 +2177,25 @@ function App() {
               >On</button>
             </div>
 
+            {/* Joystick sound — pick one of three synths; tap to preview */}
+            <div style={sectionLabel}>Joystick sound</div>
+            <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
+              {([
+                ['lever',  'Lever',  playLeverSound],
+                ['bubble', 'Bubble', playBubbleSound],
+                ['whoosh', 'Whoosh', playWhooshSound],
+              ] as const).map(([key, label, preview]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setJoystickSound(key);
+                    preview(false); // play the "engage" variant as a preview
+                  }}
+                  style={segBtn(joystickSound === key)}
+                >{label}</button>
+              ))}
+            </div>
+
             {/* Generate — call OpenAI image API to spawn brand-new orb covers */}
             <div style={sectionLabel}>Generate orb</div>
             <input
@@ -2840,6 +2866,7 @@ function App() {
       {/* Joystick — toggles between physics (drop) and cyclone (formation) */}
       {!showcaseMode && (
         <Joystick
+          sound={joystickSound}
           pulled={displayMode === 'physics'}
           onToggle={() => {
             const goingToPhysics = displayMode !== 'physics';
