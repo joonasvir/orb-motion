@@ -10,6 +10,8 @@ import Joystick, {
 } from './components/Joystick';
 import HandControl from './components/HandControl';
 import HandToolbar from './components/HandToolbar';
+import HoverSpiral from './components/HoverSpiral';
+import PersonalSubhead from './components/PersonalSubhead';
 
 interface OrbData {
   id: string;
@@ -123,6 +125,12 @@ function App() {
   // that float around the phone, themed to the active persona. Off by default —
   // they're more of a flourish than a baseline.
   const [showPersonaProps, setShowPersonaProps] = useState(false);
+  // Alternate "Make it personal" layout — replaces headline + subhead with a
+  // larger left-positioned headline and a cycling-word subhead. Hovering the
+  // cycling word reveals an SVG overlay of handwritten phrases curving across
+  // the page. Toggled from the panel.
+  const [personalMode, setPersonalMode] = useState(false);
+  const [spiralVisible, setSpiralVisible] = useState(false);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1912,6 +1920,16 @@ function App() {
                   })}
                 </span>
               );
+              // "Make it personal" — alternate layout. Two-line headline,
+              // facepile gets rendered inside the SUBHEAD instead.
+              if (personalMode) {
+                return (
+                  <>
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Make it</span>
+                    <span style={{ display: 'block', whiteSpace: 'nowrap', fontStyle: 'italic' }}>personal</span>
+                  </>
+                );
+              }
               if (layout === 'center') {
                 return (
                   <>
@@ -1936,8 +1954,10 @@ function App() {
           </h1>
           <p className="blur-in" style={{
             fontFamily: 'inherit',
-            fontSize: 'clamp(13px, 1.3vw, 22px)',
-            lineHeight: 1.25,
+            fontSize: personalMode
+              ? 'clamp(16px, 1.7vw, 28px)'
+              : 'clamp(13px, 1.3vw, 22px)',
+            lineHeight: personalMode ? 1.2 : 1.25,
             letterSpacing: '-0.01em',
             // Animated start state has opacity:0; the .blur-in `both` fill
             // keeps the end opacity at 1, so use color alpha (not opacity)
@@ -1946,14 +1966,18 @@ function App() {
             // #f0f0f0). Was rgba(99,99,99,0.95) ≈ #6A6A6A — too dark.
             color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.7)',
             margin: 0,
-            maxWidth: 400,
+            maxWidth: personalMode ? 360 : 400,
             marginLeft: 'auto',
             marginRight: 'auto',
             fontWeight: 400,
             fontFeatureSettings: '"dlig" 1',
             animationDelay: '300ms',
           }}>
-            Describe what you want. Customize the vibe. Share instantly.
+            {personalMode ? (
+              <PersonalSubhead onHoverChange={setSpiralVisible} />
+            ) : (
+              'Describe what you want. Customize the vibe. Share instantly.'
+            )}
           </p>
 
           {/* QR inside the text column on side layouts */}
@@ -2387,6 +2411,10 @@ function App() {
         </div>
       )}
 
+      {/* Curving handwritten phrases that reveal when the user hovers the
+          cycling word in "Make it personal" mode. Pointer-events: none. */}
+      {!minimalUI && personalMode && <HoverSpiral visible={spiralVisible} />}
+
       {/* Combined glassy control panel */}
       {showControls && !showcaseMode && (() => {
         // ~30% more compact, ~40% more transparent. Tightened spacing,
@@ -2586,6 +2614,16 @@ function App() {
             <SwitchRow label="Profiles"  on={showProfiles}      onChange={setShowProfiles} />
             <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
             <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
+            <SwitchRow
+              label="Make it personal"
+              on={personalMode}
+              onChange={(v) => {
+                setPersonalMode(v);
+                // Snap to 'left' on enable — the new copy is designed for it.
+                // Disable doesn't restore; the user can pick whatever after.
+                if (v) setLayout('left');
+              }}
+            />
             <SwitchRow
               label="Bento"
               on={showBento}
