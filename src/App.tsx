@@ -177,7 +177,7 @@ function App() {
   // hand-control webcam stay visible. Cyclone re-centers to viewport middle.
   const [focusMode, setFocusMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
-  const [orbSize, setOrbSize] = useState(1.0);
+  const [orbSize, setOrbSize] = useState(0.8);
 
   const SHAPES = ['triangle', 'circle', 'square', 'hexagon', 'heart', 'diamond', 'star', 'spiral', 'grid', 'wave'];
 
