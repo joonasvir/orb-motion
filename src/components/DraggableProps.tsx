@@ -35,33 +35,33 @@ interface Props {
 }
 
 const PROPS: PropDef[] = [
-  // Atlas — top, peeks past the right edge
+  // Atlas — top, peeks past the right edge of the phone. Big and tilted.
   {
     id: 'atlas',
     src: '/props/travel-atlas.png',
-    top: '-18%',
-    right: '-22%',
-    width: '52%',
-    rotate: 10,
+    top: '-12%',
+    right: '-38%',
+    width: '78%',
+    rotate: 12,
     z: 2,
   },
-  // Tickets + folded map — bottom-left, peeks out below + left
+  // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
-    bottom: '8%',
-    left: '-34%',
-    width: '54%',
-    rotate: -8,
+    bottom: '-2%',
+    left: '-46%',
+    width: '76%',
+    rotate: -10,
     z: 3,
   },
-  // Globe — bottom-right, peeks past the right edge
+  // Globe — bottom-right, peeks past the right edge. Large + slight tilt.
   {
     id: 'globe',
     src: '/props/travel-globe.png',
-    bottom: '14%',
-    right: '-26%',
-    width: '36%',
+    bottom: '-2%',
+    right: '-42%',
+    width: '58%',
     rotate: -4,
     z: 1,
   },
