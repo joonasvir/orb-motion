@@ -544,7 +544,28 @@ function App() {
   // Toggle moon gravity
   // Set displayMode (also resets gravity/moon)
   const setMode = useCallback((mode: 'physics' | 'cyclone' | 'orbit' | 'shapes') => {
-    if (engineRef.current) engineRef.current.gravity.y = 1;
+    if (engineRef.current) {
+      engineRef.current.gravity.y = 1;
+      // When switching INTO physics, unfreeze + wake every orb. This is the
+      // bulletproof fix for "some orbs get stuck mid-air" on lever/clap:
+      // cyclone / orbit / shapes call setStatic(true) every frame, which can
+      // leave Matter in a sleeping state. setStatic(false) alone won't wake
+      // a sleeping body — gravity is ignored — so we explicitly wake each
+      // one and add a tiny random velocity so even orbs sitting EXACTLY
+      // where they need to fall from don't appear motionless for a beat.
+      if (mode === 'physics') {
+        Matter.Composite.allBodies(engineRef.current.world)
+          .filter(b => b.label === 'orb')
+          .forEach(b => {
+            Matter.Body.setStatic(b, false);
+            Matter.Sleeping.set(b, false);
+            Matter.Body.setVelocity(b, {
+              x: (Math.random() - 0.5) * 1.6,
+              y: 0.4 + Math.random() * 0.4,
+            });
+          });
+      }
+    }
     setMoonMode(false);
     setDisplayMode(mode);
   }, []);
@@ -1208,8 +1229,13 @@ function App() {
               drawY = newY;
             }
           } else {
-            // Physics mode
+            // Physics mode — unfreeze, and defensively wake if sleeping so
+            // gravity can act. (The body may have entered sleep while it
+            // was kinematic in cyclone/orbit/shapes.) Only wakes if already
+            // asleep, so the engine's sleep optimization still kicks in
+            // once an orb settles.
             Matter.Body.setStatic(body, false);
+            if (body.isSleeping) Matter.Sleeping.set(body, false);
           }
 
           // Orbs go on the front canvas (above phone) when their worldZ is positive
