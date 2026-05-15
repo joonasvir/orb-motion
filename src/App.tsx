@@ -136,6 +136,10 @@ function App() {
   // larger left-positioned headline and a cycling-word subhead.
   // Default ON (per the latest direction).
   const [personalMode, setPersonalMode] = useState(true);
+  // "Manifesto unlocking..." toast — shown for 3s after the M key is
+  // pressed, then the page navigates to manifesto.joonasvirtanen.com.
+  const [manifestoUnlocking, setManifestoUnlocking] = useState(false);
+  const manifestoUnlockingRef = useRef(false);
   // Ref-sync so the rAF render loop can read the latest value cheaply —
   // used to keep the cyclone center anchored to the phone's tighter
   // personalMode position.
@@ -1535,9 +1539,16 @@ function App() {
           resetOrbsRef.current?.();
         }
         if (e.key === 'm' || e.key === 'M') {
-          const newMode = !moonModeRef.current;
-          engine.gravity.y = newMode ? -0.4 : 1;
-          setMoonMode(newMode);
+          // Manifesto unlock: show a 3s toast, then jump to the manifesto
+          // subdomain. Guard against double-triggers while the unlock is
+          // already pending.
+          if (!manifestoUnlockingRef.current) {
+            manifestoUnlockingRef.current = true;
+            setManifestoUnlocking(true);
+            window.setTimeout(() => {
+              window.location.href = 'https://manifesto.joonasvirtanen.com';
+            }, 3000);
+          }
         }
         if (e.key === 'd' || e.key === 'D') {
           setShowControls(prev => !prev);
@@ -3607,6 +3618,55 @@ function App() {
           addOrb(x);
         }}
       />
+
+      {/* "Manifesto unlocking..." toast — fades in on M key press, hangs
+          out for 3s, then the page navigates to the manifesto subdomain. */}
+      {manifestoUnlocking && (
+        <div
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '12px 20px',
+            borderRadius: 999,
+            background: 'rgba(20,20,20,0.86)',
+            color: '#fff',
+            fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: 0.3,
+            backdropFilter: 'blur(20px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(20px) saturate(180%)',
+            border: '1px solid rgba(255,255,255,0.12)',
+            boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
+            zIndex: 200,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 10,
+            animation: 'manifesto-toast-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) both',
+          }}
+        >
+          <span style={{
+            width: 8, height: 8, borderRadius: '50%',
+            background: '#7cffaa',
+            boxShadow: '0 0 12px rgba(124,255,170,0.65)',
+            animation: 'manifesto-dot-pulse 1.2s ease-in-out infinite',
+          }} />
+          Manifesto unlocking…
+        </div>
+      )}
+      <style>{`
+        @keyframes manifesto-toast-in {
+          0%   { opacity: 0; transform: translate(-50%, 16px); filter: blur(6px); }
+          100% { opacity: 1; transform: translate(-50%, 0);    filter: blur(0); }
+        }
+        @keyframes manifesto-dot-pulse {
+          0%, 100% { opacity: 0.6; transform: scale(1); }
+          50%      { opacity: 1;   transform: scale(1.25); }
+        }
+      `}</style>
 
       {/* Footer (fixed bottom) */}
       {!minimalUI && <Footer />}
