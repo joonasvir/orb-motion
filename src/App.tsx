@@ -151,6 +151,11 @@ function App() {
   // Tractor-beam point in viewport-pixel coords (decays automatically).
   // (x, y, expiresAt) — orbs pull toward this point while it's active.
   const tractorBeamRef = useRef<{ x: number; y: number; expiresAt: number } | null>(null);
+  // Two-hand tilt signal (-1..1). Drives an extra rotation around the
+  // cyclone's tilt axis so the orbital plane leans with the user's hands.
+  // Smoothed via target so it eases instead of snapping.
+  const handsTiltRef = useRef(0);
+  const handsTiltTargetRef = useRef(0);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   // Focus mode = orbs-only-but-keep-controls. Hides the headline, phone,
@@ -1158,7 +1163,15 @@ function App() {
             const angle = baseAngle + time * angularSpeed;
             const mtX = mouseTiltRef.current.x; // -1..1
             const mtY = mouseTiltRef.current.y;
-            const TILT = 1.25 + mtY * 0.18;     // mouse-Y nudges tilt
+            // Smooth the two-hand tilt input toward its target each frame so
+            // the cyclone eases between angles instead of snapping.
+            handsTiltRef.current +=
+              (handsTiltTargetRef.current - handsTiltRef.current) * 0.10;
+            // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
+            // (now ±0.45 rad ≈ ±26°, was ±10°) + two-hand angle (±0.7 rad ≈
+            // ±40°). Single hand still gets a felt nudge; two hands let you
+            // tilt the orbital plane far.
+            const TILT = 1.25 + mtY * 0.45 + handsTiltRef.current * 0.7;
             const YAW = mtX * 0.35;             // mouse-X rotates orbit around Y axis
             const cosT = Math.cos(TILT);
             const sinT = Math.sin(TILT);
@@ -3401,6 +3414,11 @@ function App() {
             const mul = 2.8 - y * 2.65;
             cycloneRadiusMulTargetRef.current = Math.max(0.15, Math.min(2.8, mul));
           }
+        }}
+        onHandsTilt={(t) => {
+          // Two-hand tilt → cyclone's orbital plane tilt. Null means hands
+          // are no longer both visible → relax back to no extra tilt.
+          handsTiltTargetRef.current = t ?? 0;
         }}
         onHandsDistance={(d) => {
           // BOTH hands visible: distance between them drives the cyclone size.

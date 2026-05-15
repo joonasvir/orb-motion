@@ -47,6 +47,11 @@ interface HandControlProps {
   /** Continuous inter-hand distance (normalized 0..~1.4) while BOTH hands are
       visible. null when fewer than 2 hands. Takes priority over palm-height. */
   onHandsDistance?: (d: number | null) => void;
+  /** Continuous tilt signal from the LINE between the two hands. Range -1..1,
+      where 0 = hands at the same height, positive = the user's left hand is
+      higher (mirrored space), negative = the user's right hand is higher.
+      null when fewer than 2 hands. Drives the cyclone's orbital tilt. */
+  onHandsTilt?: (t: number | null) => void;
   /** One-shot per pinch (thumb tip + index tip touching). Position is the
       pinch point (mirrored, normalized 0..1). */
   onPinch?: (pos: { x: number; y: number }) => void;
@@ -143,6 +148,7 @@ export default function HandControl({
   onGesture,
   onPalmHeight,
   onHandsDistance,
+  onHandsTilt,
   onPinch,
   showPreview = true,
   onStatus,
@@ -169,18 +175,19 @@ export default function HandControl({
   const lastGestureRef = useRef<HandGesture>(null);
   const lastPalmHeightReportedRef = useRef(false);
   const lastHandsDistanceReportedRef = useRef(false);
+  const lastHandsTiltReportedRef = useRef(false);
 
   const [status, setStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
 
   // Keep latest callback refs so the rAF loop doesn't capture stale closures.
   const cbsRef = useRef({
     onClap, onHandPosition, onGesture,
-    onPalmHeight, onHandsDistance, onPinch,
+    onPalmHeight, onHandsDistance, onHandsTilt, onPinch,
     size, showSkeleton,
   });
   cbsRef.current = {
     onClap, onHandPosition, onGesture,
-    onPalmHeight, onHandsDistance, onPinch,
+    onPalmHeight, onHandsDistance, onHandsTilt, onPinch,
     size, showSkeleton,
   };
 
@@ -274,6 +281,10 @@ export default function HandControl({
           lastHandsDistanceReportedRef.current = false;
           cbsRef.current.onHandsDistance?.(null);
         }
+        if (lastHandsTiltReportedRef.current) {
+          lastHandsTiltReportedRef.current = false;
+          cbsRef.current.onHandsTilt?.(null);
+        }
         lastHandsRef.current = null;
         return;
       }
@@ -333,6 +344,29 @@ export default function HandControl({
       } else if (lastHandsDistanceReportedRef.current) {
         lastHandsDistanceReportedRef.current = false;
         cbsRef.current.onHandsDistance?.(null);
+      }
+
+      // Hands tilt — angle of the line BETWEEN the two hand centers. Sorted
+      // by raw x so the vector points camera-left → camera-right. After the
+      // display mirror that's user-right → user-left, so dy > 0 means the
+      // user's LEFT hand sits higher in the frame (lower raw y). We invert
+      // the sign on report so a positive output corresponds to "user's right
+      // hand is higher" — that's the intuitive way to tilt a plane to the
+      // right with your hands. Normalized to ±1 at ±35° tilt.
+      if (centers.length === 2) {
+        const sorted = [...centers].sort((a, b) => a.x - b.x);
+        const dx = sorted[1].x - sorted[0].x;
+        const dy = sorted[1].y - sorted[0].y;
+        if (dx > 0.001) {
+          const angle = Math.atan2(dy, dx); // -π/2..π/2
+          const norm = Math.max(-1, Math.min(1, angle / (Math.PI / 5.14))); // ±35°→±1
+          lastHandsTiltReportedRef.current = true;
+          // Negate so "user's right hand higher" → positive tilt.
+          cbsRef.current.onHandsTilt?.(-norm);
+        }
+      } else if (lastHandsTiltReportedRef.current) {
+        lastHandsTiltReportedRef.current = false;
+        cbsRef.current.onHandsTilt?.(null);
       }
 
       // Palm height — only fires when ONE hand is visible AND it's an open

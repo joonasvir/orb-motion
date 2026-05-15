@@ -24,6 +24,7 @@ const GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
   { emoji: '✊', label: 'Fist',          effect: 'drop' },
   { emoji: '🤏', label: 'Pinch',         effect: 'spawn orb' },
   { emoji: '👐', label: 'Hand distance', effect: 'cyclone size' },
+  { emoji: '⤡',  label: 'Hand tilt',     effect: 'orbit tilt · raise one hand' },
   { emoji: '📏', label: 'Palm height',   effect: 'cyclone size · single hand' },
   { emoji: '👋', label: 'Clap',          effect: 'reset · rain fresh orbs' },
 ];
