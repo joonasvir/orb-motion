@@ -105,7 +105,13 @@ const MODEL_URL =
 const CLAP_THRESHOLD = 0.18;   // hands "touching" in normalized units
 const APPROACH_VEL   = 0.35;   // distance decrease per frame to count as a clap
 const CLAP_COOLDOWN  = 700;    // ms — debounce so one clap fires once
-const POSITION_LERP  = 0.35;   // smoothing on hand center reports
+// Per-frame smoothing factors. Lower = smoother + more lag. These do an
+// up-front low-pass at the SIGNAL stage so the downstream visual lerps in
+// App.tsx have a clean target to chase instead of a jittery MediaPipe stream.
+const POSITION_LERP  = 0.14;   // hand center
+const DISTANCE_LERP  = 0.16;   // inter-hand distance
+const TILT_LERP      = 0.14;   // inter-hand angle / tilt
+const HEIGHT_LERP    = 0.16;   // palm Y while one open palm is in frame
 const PINCH_THRESHOLD = 0.055; // thumb+index tip distance below this counts as a pinch
 const PINCH_COOLDOWN  = 320;   // ms — debounce so a single touch fires once
 
@@ -172,6 +178,12 @@ export default function HandControl({
   const lastClapAtRef = useRef(0);
   const lastPinchAtRef = useRef(0);
   const smoothedPosRef = useRef<{ x: number; y: number } | null>(null);
+  // Smoothed signal refs — accumulators that hold a low-pass-filtered version
+  // of each continuous value. Initialized to null and seeded on first frame
+  // so we don't pull every new gesture toward 0 from the start.
+  const smoothedDistRef = useRef<number | null>(null);
+  const smoothedTiltRef = useRef<number | null>(null);
+  const smoothedHeightRef = useRef<number | null>(null);
   const lastGestureRef = useRef<HandGesture>(null);
   const lastPalmHeightReportedRef = useRef(false);
   const lastHandsDistanceReportedRef = useRef(false);
@@ -286,6 +298,11 @@ export default function HandControl({
           cbsRef.current.onHandsTilt?.(null);
         }
         lastHandsRef.current = null;
+        // Reset signal-smoothing accumulators so a fresh appearance starts
+        // from the new value, not the last cached one.
+        smoothedDistRef.current = null;
+        smoothedTiltRef.current = null;
+        smoothedHeightRef.current = null;
         return;
       }
 
@@ -338,11 +355,18 @@ export default function HandControl({
 
       // Hands distance — takes priority over palm-height when both hands are
       // in frame. App.tsx maps this to cyclone radius (close = tight, far = wide).
+      // Low-pass the raw distance before reporting to kill MediaPipe jitter.
       if (twoHandDistance != null) {
         lastHandsDistanceReportedRef.current = true;
-        cbsRef.current.onHandsDistance?.(twoHandDistance);
+        const prev = smoothedDistRef.current;
+        const smoothed = prev == null
+          ? twoHandDistance
+          : prev + (twoHandDistance - prev) * DISTANCE_LERP;
+        smoothedDistRef.current = smoothed;
+        cbsRef.current.onHandsDistance?.(smoothed);
       } else if (lastHandsDistanceReportedRef.current) {
         lastHandsDistanceReportedRef.current = false;
+        smoothedDistRef.current = null;
         cbsRef.current.onHandsDistance?.(null);
       }
 
@@ -360,12 +384,17 @@ export default function HandControl({
         if (dx > 0.001) {
           const angle = Math.atan2(dy, dx); // -π/2..π/2
           const norm = Math.max(-1, Math.min(1, angle / (Math.PI / 5.14))); // ±35°→±1
-          lastHandsTiltReportedRef.current = true;
           // Negate so "user's right hand higher" → positive tilt.
-          cbsRef.current.onHandsTilt?.(-norm);
+          const raw = -norm;
+          const prev = smoothedTiltRef.current;
+          const smoothed = prev == null ? raw : prev + (raw - prev) * TILT_LERP;
+          smoothedTiltRef.current = smoothed;
+          lastHandsTiltReportedRef.current = true;
+          cbsRef.current.onHandsTilt?.(smoothed);
         }
       } else if (lastHandsTiltReportedRef.current) {
         lastHandsTiltReportedRef.current = false;
+        smoothedTiltRef.current = null;
         cbsRef.current.onHandsTilt?.(null);
       }
 
@@ -374,10 +403,15 @@ export default function HandControl({
       // palm height yields to that to avoid two signals fighting each other.
       const oneHandOpen = centers.length === 1 && g === 'open';
       if (oneHandOpen) {
+        const raw = dominantCenter.y;
+        const prev = smoothedHeightRef.current;
+        const smoothed = prev == null ? raw : prev + (raw - prev) * HEIGHT_LERP;
+        smoothedHeightRef.current = smoothed;
         lastPalmHeightReportedRef.current = true;
-        cbsRef.current.onPalmHeight?.(dominantCenter.y);
+        cbsRef.current.onPalmHeight?.(smoothed);
       } else if (lastPalmHeightReportedRef.current) {
         lastPalmHeightReportedRef.current = false;
+        smoothedHeightRef.current = null;
         cbsRef.current.onPalmHeight?.(null);
       }
 

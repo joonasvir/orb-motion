@@ -1041,12 +1041,14 @@ function App() {
         spinBoostRef.current *= 0.96;
         const spinMult = 1 + spinBoostRef.current;
 
-        // Smooth mouse-tilt toward its target (low-pass filter)
+        // Smooth mouse-tilt toward its target (low-pass filter). Lower factor
+        // = silkier motion. 0.035 → ~95% of target in ~1.3s; intentional so
+        // hand jitter doesn't translate to visible orb wiggle.
         {
           const t = mouseTiltTargetRef.current;
           const c = mouseTiltRef.current;
-          c.x += (t.x - c.x) * 0.06;
-          c.y += (t.y - c.y) * 0.06;
+          c.x += (t.x - c.x) * 0.035;
+          c.y += (t.y - c.y) * 0.035;
         }
 
         // Update cyclone time and focal angle (very slow base speed)
@@ -1143,9 +1145,12 @@ function App() {
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
-            // Smooth radius multiplier (driven by hand height when extras on).
+            // Smooth radius multiplier (driven by hand height / hand distance).
+            // Softer than before (0.06 → 0.035) — hand-driven inputs benefit
+            // from compounding both the input-stage smoothing in HandControl
+            // AND this visual lerp here.
             cycloneRadiusMulRef.current +=
-              (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.06;
+              (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.035;
             // Split-mode squeeze — webcam owns half the viewport, so shrink the
             // cyclone so orbs don't disappear behind the video tile.
             const splitMul = handLayoutModeRef.current === 'split' ? 0.7 : 1;
@@ -1164,9 +1169,10 @@ function App() {
             const mtX = mouseTiltRef.current.x; // -1..1
             const mtY = mouseTiltRef.current.y;
             // Smooth the two-hand tilt input toward its target each frame so
-            // the cyclone eases between angles instead of snapping.
+            // the cyclone eases between angles instead of snapping. 0.10 → 0.055
+            // for noticeably calmer plane motion.
             handsTiltRef.current +=
-              (handsTiltTargetRef.current - handsTiltRef.current) * 0.10;
+              (handsTiltTargetRef.current - handsTiltRef.current) * 0.055;
             // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
             // (now ±0.45 rad ≈ ±26°, was ±10°) + two-hand angle (±0.7 rad ≈
             // ±40°). Single hand still gets a felt nudge; two hands let you
