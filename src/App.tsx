@@ -1424,6 +1424,25 @@ function App() {
           0%, 100% { transform: translate(-50%, 0); }
           50%      { transform: translate(-50%, 6px); }
         }
+        /* Gentle floating motion for persona props. Each prop inlines its
+           rotation as --rot, so the animation can compose translate + rotate
+           without clobbering the rest of the transform. Three variants stagger
+           the rhythm so props don't visibly sync. */
+        @keyframes prop-float-a {
+          0%, 100% { transform: rotate(var(--rot, 0deg)) translateY(0); }
+          50%      { transform: rotate(var(--rot, 0deg)) translateY(-10px); }
+        }
+        @keyframes prop-float-b {
+          0%, 100% { transform: rotate(var(--rot, 0deg)) translate(0, 0); }
+          50%      { transform: rotate(var(--rot, 0deg)) translate(4px, -6px); }
+        }
+        @keyframes prop-float-c {
+          0%, 100% { transform: rotate(var(--rot, 0deg)) translate(0, 0); }
+          50%      { transform: rotate(var(--rot, 0deg)) translate(-3px, -8px); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          [style*="prop-float"] { animation: none !important; }
+        }
         @media (prefers-reduced-motion: reduce) {
           .t-avatar { transition: none !important; transform: none !important; }
         }
@@ -1844,6 +1863,111 @@ function App() {
                 />
               );
             })()}
+          </div>
+        );
+      })()}
+
+      {/* Persona props — themed 3D objects floating around the phone, swapping
+          with the active persona. Coordinates are % of the phone container
+          (negative values intentionally spill outside the phone bounds). */}
+      {!showcaseMode && (() => {
+        // Position fields are percentages of the phone container (the same
+        // box the dashboard PNG fills). Negative values are allowed and will
+        // render outside the phone outline.
+        type PropDef = {
+          src: string;
+          top?: string; right?: string; bottom?: string; left?: string;
+          width: string;      // as % of the phone container width
+          rotate?: number;    // initial rotation (deg)
+          float?: 'a' | 'b' | 'c'; // pick a float animation variant
+          z?: number;
+        };
+        const PROPS: PropDef[][] = [
+          // ▸ Persona 0 — Family
+          [
+            { src: '/props/family-mobile.png', top: '-18%', left: '-32%',  width: '52%', rotate: -6,  float: 'a', z: 4 },
+            { src: '/props/family-heart.png',  bottom: '8%', right: '-30%', width: '38%', rotate:  8,  float: 'b', z: 4 },
+          ],
+          // ▸ Persona 1 — Travel
+          [
+            { src: '/props/travel-ticket-map.png', top: '-8%',  right: '-38%', width: '64%', rotate:  10, float: 'a', z: 4 },
+            { src: '/props/travel-globe.png',      bottom: '8%', right: '-34%', width: '40%', rotate:  -6, float: 'b', z: 5 },
+            { src: '/props/travel-atlas.png',      top: '38%', left: '-44%',  width: '48%', rotate: -12, float: 'c', z: 4 },
+          ],
+          // ▸ Persona 2 — Games
+          [
+            { src: '/props/games-controller.png', top: '-4%', right: '-44%', width: '46%', rotate:  12, float: 'a', z: 4 },
+            { src: '/props/games-cursor.png',     top: '22%', right: '-22%', width: '22%', rotate:  -8, float: 'b', z: 5 },
+            { src: '/props/games-play.png',       bottom: '12%', left: '-26%', width: '28%', rotate: -10, float: 'c', z: 4 },
+          ],
+        ];
+
+        // Match the phone container's positioning so props sit around it.
+        const wrapperStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: layout === 'left'
+            ? 'calc(28% + 60px)'
+            : layout === 'right'
+            ? 'calc(72% - 60px)'
+            : '50%',
+          ...(layout === 'center'
+            ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+            : {
+                top: '50%',
+                transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+              }),
+          height: layout === 'center'
+            ? 'clamp(390px, 63vh, 700px)'
+            : 'clamp(420px, 72vh, 720px)',
+          aspectRatio: '402 / 834',
+          // Props sit ABOVE the front-canvas orbs (z=6) and phone (z=5) since
+          // they're the persona-defining hero decoration.
+          zIndex: 7,
+          pointerEvents: 'none',
+          transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+        };
+
+        return (
+          <div style={wrapperStyle} aria-hidden="true">
+            {PROPS.flatMap((personaProps, personaIdx) =>
+              personaProps.map((p, i) => {
+                const active = personaIdx === activePhone;
+                const animName = p.float ? `prop-float-${p.float}` : 'prop-float-a';
+                return (
+                  <img
+                    key={`p-${personaIdx}-${i}`}
+                    src={p.src}
+                    alt=""
+                    draggable={false}
+                    style={{
+                      position: 'absolute',
+                      top: p.top, right: p.right, bottom: p.bottom, left: p.left,
+                      width: p.width,
+                      height: 'auto',
+                      zIndex: p.z ?? 4,
+                      opacity: active ? 1 : 0,
+                      // Custom property consumed by the prop-float-* keyframes
+                      // so the animation can compose translate + rotate.
+                      ['--rot' as any]: `${p.rotate ?? 0}deg`,
+                      transform: `rotate(${p.rotate ?? 0}deg)`,
+                      animation: active
+                        ? `${animName} 6.5s ease-in-out infinite ${(i * 0.7).toFixed(2)}s`
+                        : 'none',
+                      // Pop in slightly delayed so each persona's props cascade
+                      transitionDelay: active ? `${120 + i * 90}ms` : '0ms',
+                      transition:
+                        'opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), filter 0.65s ease',
+                      filter: active
+                        ? 'drop-shadow(0 18px 28px rgba(0,0,0,0.18)) drop-shadow(0 4px 6px rgba(0,0,0,0.10))'
+                        : 'drop-shadow(0 8px 14px rgba(0,0,0,0.10))',
+                      pointerEvents: 'none',
+                      userSelect: 'none',
+                      willChange: 'transform, opacity',
+                    }}
+                  />
+                );
+              })
+            )}
           </div>
         );
       })()}
