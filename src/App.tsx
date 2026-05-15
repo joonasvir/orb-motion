@@ -120,8 +120,9 @@ function App() {
   const [showProfiles, setShowProfiles] = useState(true);
   const [showBento, setShowBento] = useState(false);
   // 3D persona props (heart / mobile / globe / atlas / controller / cursor / etc.)
-  // that float around the phone, themed to the active persona.
-  const [showPersonaProps, setShowPersonaProps] = useState(true);
+  // that float around the phone, themed to the active persona. Off by default —
+  // they're more of a flourish than a baseline.
+  const [showPersonaProps, setShowPersonaProps] = useState(false);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -2431,6 +2432,89 @@ function App() {
           transition: 'background 0.2s ease, color 0.2s ease, border-color 0.2s ease',
           fontFamily: 'inherit',
         });
+
+        // Apple Liquid Glass-style switch, black/white. ~36×20 with a
+        // glassy track when off, charcoal track + white thumb when on.
+        const Switch = ({ on, onChange, ariaLabel }: { on: boolean; onChange: (v: boolean) => void; ariaLabel?: string }) => (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={on}
+            aria-label={ariaLabel}
+            onClick={() => onChange(!on)}
+            style={{
+              width: 32,
+              height: 18,
+              borderRadius: 999,
+              padding: 0,
+              border: '1px solid rgba(0,0,0,0.06)',
+              background: on ? '#1e1e1e' : 'rgba(255,255,255,0.55)',
+              boxShadow: on
+                ? 'inset 0 1px 2px rgba(0,0,0,0.35), 0 0.5px 0 rgba(255,255,255,0.55) inset'
+                : 'inset 0 1px 2px rgba(0,0,0,0.05), 0 0.5px 0 rgba(255,255,255,0.7) inset',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease',
+              flexShrink: 0,
+              outline: 'none',
+            }}
+          >
+            <span style={{
+              position: 'absolute',
+              top: 1,
+              left: on ? 15 : 1,
+              width: 14,
+              height: 14,
+              borderRadius: '50%',
+              background: '#fff',
+              boxShadow: '0 1px 2.5px rgba(0,0,0,0.28), 0 0.5px 0 rgba(0,0,0,0.08)',
+              transition: 'left 0.22s cubic-bezier(0.5, 0, 0.2, 1)',
+            }} />
+          </button>
+        );
+
+        // Inline label + switch on one row. Optional `hint` (small text like
+        // "Loading…" / "R" / etc.) sits between the label and the switch.
+        const SwitchRow = ({
+          label, on, onChange, hint, hintColor,
+        }: {
+          label: string;
+          on: boolean;
+          onChange: (v: boolean) => void;
+          hint?: React.ReactNode;
+          hintColor?: string;
+        }) => (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            height: 26,
+            marginBottom: SECTION_GAP - 2,
+          }}>
+            <span style={{
+              display: 'inline-flex',
+              alignItems: 'baseline',
+              gap: 8,
+              fontWeight: 600,
+              fontSize: 9,
+              letterSpacing: 1.3,
+              textTransform: 'uppercase',
+              color: 'rgba(30,30,30,0.55)',
+            }}>
+              {label}
+              {hint != null && (
+                <span style={{
+                  textTransform: 'none',
+                  letterSpacing: 0,
+                  fontWeight: 500,
+                  fontSize: 10,
+                  color: hintColor ?? 'rgba(30,30,30,0.5)',
+                }}>{hint}</span>
+              )}
+            </span>
+            <Switch on={on} onChange={onChange} ariaLabel={label} />
+          </div>
+        );
         return (
           <div className="blur-in" style={{
             position: 'absolute',
@@ -2484,55 +2568,19 @@ function App() {
               </>
             )}
 
-            {/* Profiles — single phone vs swipeable 3-screen carousel */}
-            <div style={sectionLabel}>Profiles</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button
-                onClick={() => setShowProfiles(false)}
-                style={pillBtn(!showProfiles)}
-              >Off</button>
-              <button
-                onClick={() => setShowProfiles(true)}
-                style={pillBtn(showProfiles)}
-              >On</button>
-            </div>
-
-            {/* Floats — toggle the cycling chat/like notifications */}
-            <div style={sectionLabel}>Floats</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button
-                onClick={() => setShowNotifications(false)}
-                style={pillBtn(!showNotifications)}
-              >Off</button>
-              <button
-                onClick={() => setShowNotifications(true)}
-                style={pillBtn(showNotifications)}
-              >On</button>
-            </div>
-
-            {/* 3D icons — the persona-themed props that float around the phone
-                (heart / mobile / globe / atlas / controller / cursor / play). */}
-            <div style={sectionLabel}>3D icons</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button onClick={() => setShowPersonaProps(false)} style={pillBtn(!showPersonaProps)}>Off</button>
-              <button onClick={() => setShowPersonaProps(true)}  style={pillBtn(showPersonaProps)}>On</button>
-            </div>
-
-            {/* Bento — toggle the scroll-down bento section below the hero */}
-            <div style={sectionLabel}>Bento</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button
-                onClick={() => {
-                  setShowBento(false);
+            {/* Inline Apple-style switch rows for everything binary. */}
+            <SwitchRow label="Profiles"  on={showProfiles}      onChange={setShowProfiles} />
+            <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
+            <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
+            <SwitchRow
+              label="Bento"
+              on={showBento}
+              onChange={(v) => {
+                setShowBento(v);
+                if (!v) {
                   window.scrollTo({ top: 0, behavior: 'smooth' });
-                }}
-                style={pillBtn(!showBento)}
-              >Off</button>
-              <button
-                onClick={() => {
-                  setShowBento(true);
-                  // Wait a frame for the section to mount, then smooth-scroll
-                  // to it so the user immediately sees what they enabled.
+                } else {
+                  // Wait a frame for the section to mount, then scroll to it.
                   requestAnimationFrame(() => {
                     setTimeout(() => {
                       bentoSectionRef.current?.scrollIntoView({
@@ -2541,19 +2589,10 @@ function App() {
                       });
                     }, 60);
                   });
-                }}
-                style={pillBtn(showBento)}
-              >On</button>
-            </div>
-
-            {/* Focus — orbs in the middle, everything else hidden, BUT keep
-                this control panel and the hand-control webcam. Different from
-                Playground (below) which hides the panel too. */}
-            <div style={sectionLabel}>Focus</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button onClick={() => setFocusMode(false)} style={pillBtn(!focusMode)}>Off</button>
-              <button onClick={() => setFocusMode(true)}  style={pillBtn(focusMode)}>On</button>
-            </div>
+                }
+              }}
+            />
+            <SwitchRow label="Focus" on={focusMode} onChange={setFocusMode} />
 
             {/* Playground — fullscreen orbs-only vibe (hides this panel too). */}
             <div style={sectionLabel}>Playground</div>
@@ -2681,53 +2720,38 @@ function App() {
               height: 1,
               background: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.08) 80%, rgba(0,0,0,0) 100%)',
             }} />
-            <div style={sectionLabel}>
-              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                <span>Hand mode</span>
-                {handStatus !== 'off' && handStatus !== 'ready' && (
-                  <span style={{
-                    opacity: 0.7,
-                    textTransform: 'none',
-                    letterSpacing: 0,
-                    fontWeight: 500,
-                    color: handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : 'rgba(30,30,30,0.55)',
-                  }}>
-                    {handStatus === 'loading' && 'Loading…'}
-                    {handStatus === 'denied'  && 'Denied'}
-                    {handStatus === 'error'   && 'Error'}
-                  </span>
-                )}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: handMode ? 8 : 0 }}>
-              <button
-                onClick={() => {
-                  // Exit Hand mode: kill the camera + restore the landing.
-                  // Skeleton + camera-size preferences are kept so re-entering
-                  // remembers them.
-                  setHandMode(false);
-                  setHandControl(false);
-                  setFocusMode(false);
-                }}
-                style={pillBtn(!handMode)}
-              >Off</button>
-              <button
-                onClick={() => {
-                  // Enter Hand mode: turn EVERYTHING on in one click.
-                  // Camera + core gestures + Focus (the rest of the UI hides).
+            <SwitchRow
+              label="Hand mode"
+              on={handMode}
+              hint={
+                handStatus === 'loading' ? 'Loading…'
+                : handStatus === 'denied'  ? 'Denied'
+                : handStatus === 'error'   ? 'Error'
+                : null
+              }
+              hintColor={handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : undefined}
+              onChange={(v) => {
+                if (v) {
+                  // Enter Hand mode: turn EVERYTHING on in one click —
+                  // camera + core gestures + Focus.
                   setHandMode(true);
                   setHandControl(true);
                   setFocusMode(true);
-                }}
-                style={pillBtn(handMode)}
-              >On</button>
-            </div>
+                } else {
+                  // Exit: kill camera + restore the landing. Skeleton +
+                  // camera-size preferences are kept across cycles.
+                  setHandMode(false);
+                  setHandControl(false);
+                  setFocusMode(false);
+                }
+              }}
+            />
 
             {/* Sub-controls — only shown once Hand mode is on */}
             {handMode && (
               <>
                 {/* Camera size — S / M / L / XL segmented control */}
-                <div style={{ ...sectionLabel, marginTop: 6 }}>Camera size</div>
+                <div style={{ ...sectionLabel, marginTop: 4 }}>Camera size</div>
                 <div style={{ ...segGroup, marginBottom: 8 }}>
                   {(['s', 'm', 'l', 'xl'] as const).map(s => (
                     <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
@@ -2737,11 +2761,7 @@ function App() {
                 </div>
 
                 {/* Tracking — show live hand skeleton on the feed */}
-                <div style={sectionLabel}>Tracking</div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setHandShowSkeleton(false)} style={pillBtn(!handShowSkeleton)}>Off</button>
-                  <button onClick={() => setHandShowSkeleton(true)}  style={pillBtn(handShowSkeleton)}>On</button>
-                </div>
+                <SwitchRow label="Tracking" on={handShowSkeleton} onChange={setHandShowSkeleton} />
               </>
             )}
           </div>
