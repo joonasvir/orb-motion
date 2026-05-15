@@ -11,6 +11,7 @@ import Joystick, {
 import HandControl from './components/HandControl';
 import HandToolbar from './components/HandToolbar';
 import PersonalSubhead from './components/PersonalSubhead';
+import DraggableProps from './components/DraggableProps';
 
 interface OrbData {
   id: string;
@@ -2046,6 +2047,31 @@ function App() {
           )}
         </div>
       )}
+
+      {/* Draggable behind-the-phone props (atlas / tickets / globe) — only in
+          personalMode. Sits below the phone in stacking order so the assets
+          peek out from behind it; each prop is individually drag-and-drop. */}
+      {!minimalUI && personalMode && (() => {
+        const wrapperStyle: React.CSSProperties = {
+          position: 'absolute',
+          left: layout === 'left'
+            ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
+            : layout === 'right'
+            ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
+            : '50%',
+          ...(layout === 'center'
+            ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+            : {
+                top: '50%',
+                transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+              }),
+          height: layout === 'center'
+            ? 'clamp(390px, 63vh, 700px)'
+            : 'clamp(420px, 72vh, 720px)',
+          aspectRatio: '402 / 834',
+        };
+        return <DraggableProps wrapperStyle={wrapperStyle} />;
+      })()}
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}
       {!minimalUI && (() => {
