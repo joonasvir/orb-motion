@@ -128,7 +128,8 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
         <CyclingWord
           words={WORDS}
           onHoverChange={onHoverChange}
-          style={{ color: '#1c1c1c', fontWeight: 500 }}
+          // Inherit the subhead's color + weight — no darker treatment so
+          // the cycling word reads as part of the line, not pulled forward.
         />
       </span>
       <span style={{ display: 'block' }}>mini-apps for you</span>
