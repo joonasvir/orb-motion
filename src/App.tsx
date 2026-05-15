@@ -128,6 +128,10 @@ function App() {
   const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
   const [handCameraSize, setHandCameraSize] = useState<'s' | 'm' | 'l' | 'xl'>('m');
   const [handShowSkeleton, setHandShowSkeleton] = useState(true);
+  // High-level "Hand mode" toggle — the one big lever at the bottom of the
+  // panel. Flipping it on cascades into handControl + handExtras + focusMode
+  // so the user gets the full webcam-driven experience in one click.
+  const [handMode, setHandMode] = useState(false);
   // Cyclone radius multiplier (1.0 = default). Pinned to 1 unless an open
   // palm is held, in which case palm height drives it (high → tight, low → wide).
   const cycloneRadiusMulRef = useRef(1.0);
@@ -2418,66 +2422,6 @@ function App() {
               >On</button>
             </div>
 
-            {/* Hand control — camera + MediaPipe HandLandmarker. Move your
-                hand, open palm restores the cyclone, fist drops to physics,
-                CLAP triggers the same lever as the joystick. */}
-            <div style={sectionLabel}>
-              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                <span>Hand control</span>
-                {handStatus !== 'off' && handStatus !== 'ready' && (
-                  <span style={{
-                    opacity: 0.7,
-                    textTransform: 'none',
-                    letterSpacing: 0,
-                    fontWeight: 500,
-                    color: handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : 'rgba(30,30,30,0.55)',
-                  }}>
-                    {handStatus === 'loading' && 'Loading…'}
-                    {handStatus === 'denied'  && 'Denied'}
-                    {handStatus === 'error'   && 'Error'}
-                  </span>
-                )}
-              </span>
-            </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: handControl ? 8 : SECTION_GAP }}>
-              <button onClick={() => setHandControl(false)} style={pillBtn(!handControl)}>Off</button>
-              <button onClick={() => setHandControl(true)}  style={pillBtn(handControl)}>On</button>
-            </div>
-            {/* Extra gestures sub-toggle — only meaningful when Hand control on */}
-            {handControl && (
-              <>
-                <div style={{ ...sectionLabel, marginTop: 2 }}>
-                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                    <span>Extra gestures</span>
-                    <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
-                      pinch · point · spread · height
-                    </span>
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-                  <button onClick={() => setHandExtras(false)} style={pillBtn(!handExtras)}>Off</button>
-                  <button onClick={() => setHandExtras(true)}  style={pillBtn(handExtras)}>On</button>
-                </div>
-
-                {/* Camera size — S / M / L / XL segmented control */}
-                <div style={sectionLabel}>Camera size</div>
-                <div style={{ ...segGroup, marginBottom: 8 }}>
-                  {(['s', 'm', 'l', 'xl'] as const).map(s => (
-                    <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
-                      {s.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Tracking — show live hand skeleton on the feed */}
-                <div style={sectionLabel}>Tracking</div>
-                <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-                  <button onClick={() => setHandShowSkeleton(false)} style={pillBtn(!handShowSkeleton)}>Off</button>
-                  <button onClick={() => setHandShowSkeleton(true)}  style={pillBtn(handShowSkeleton)}>On</button>
-                </div>
-              </>
-            )}
-
             {/* Focus — orbs in the middle, everything else hidden, BUT keep
                 this control panel and the hand-control webcam. Different from
                 Playground (below) which hides the panel too. */}
@@ -2588,6 +2532,97 @@ function App() {
               value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
               style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
             />
+
+            {/* ─── Hand mode (camera + gestures + focus, all in one toggle) ───
+                Sits at the very bottom of the panel. Flipping On gives you the
+                full experience: webcam preview with skeleton overlay, every
+                gesture wired (open / fist / clap / pinch / point / spread /
+                squeeze / palm-height), and Focus mode so the rest of the page
+                gets out of the way. Off restores the landing. */}
+            <div style={{
+              marginTop: SECTION_GAP + 4,
+              marginBottom: SECTION_GAP,
+              height: 1,
+              background: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.08) 80%, rgba(0,0,0,0) 100%)',
+            }} />
+            <div style={sectionLabel}>
+              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>Hand mode</span>
+                {handStatus !== 'off' && handStatus !== 'ready' && (
+                  <span style={{
+                    opacity: 0.7,
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    fontWeight: 500,
+                    color: handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : 'rgba(30,30,30,0.55)',
+                  }}>
+                    {handStatus === 'loading' && 'Loading…'}
+                    {handStatus === 'denied'  && 'Denied'}
+                    {handStatus === 'error'   && 'Error'}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: handMode ? 8 : 0 }}>
+              <button
+                onClick={() => {
+                  // Exit Hand mode: kill the camera + restore the landing.
+                  // Skeleton + camera-size preferences are kept so re-entering
+                  // remembers them.
+                  setHandMode(false);
+                  setHandControl(false);
+                  setFocusMode(false);
+                }}
+                style={pillBtn(!handMode)}
+              >Off</button>
+              <button
+                onClick={() => {
+                  // Enter Hand mode: turn EVERYTHING on in one click.
+                  // Camera + all gestures + Focus (the rest of the UI hides).
+                  setHandMode(true);
+                  setHandControl(true);
+                  setHandExtras(true);
+                  setFocusMode(true);
+                }}
+                style={pillBtn(handMode)}
+              >On</button>
+            </div>
+
+            {/* Sub-controls — only shown once Hand mode is on */}
+            {handMode && (
+              <>
+                {/* Camera size — S / M / L / XL segmented control */}
+                <div style={{ ...sectionLabel, marginTop: 6 }}>Camera size</div>
+                <div style={{ ...segGroup, marginBottom: 8 }}>
+                  {(['s', 'm', 'l', 'xl'] as const).map(s => (
+                    <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
+                      {s.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tracking — show live hand skeleton on the feed */}
+                <div style={sectionLabel}>Tracking</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <button onClick={() => setHandShowSkeleton(false)} style={pillBtn(!handShowSkeleton)}>Off</button>
+                  <button onClick={() => setHandShowSkeleton(true)}  style={pillBtn(handShowSkeleton)}>On</button>
+                </div>
+
+                {/* Extra gestures — sub-toggle for pinch/spread/height/point */}
+                <div style={sectionLabel}>
+                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Extra gestures</span>
+                    <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
+                      pinch · point · spread · height
+                    </span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setHandExtras(false)} style={pillBtn(!handExtras)}>Off</button>
+                  <button onClick={() => setHandExtras(true)}  style={pillBtn(handExtras)}>On</button>
+                </div>
+              </>
+            )}
           </div>
         );
       })()}
