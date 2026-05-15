@@ -1045,14 +1045,15 @@ function App() {
         spinBoostRef.current *= 0.96;
         const spinMult = 1 + spinBoostRef.current;
 
-        // Smooth mouse-tilt toward its target (low-pass filter). Lower factor
-        // = silkier motion. 0.035 → ~95% of target in ~1.3s; intentional so
-        // hand jitter doesn't translate to visible orb wiggle.
+        // Smooth mouse-tilt toward its target (low-pass filter). 0.045 →
+        // ~95% of target in ~1.0s. Combined with input smoothing in
+        // HandControl this still kills jitter, but feels less laggy than
+        // 0.035 did.
         {
           const t = mouseTiltTargetRef.current;
           const c = mouseTiltRef.current;
-          c.x += (t.x - c.x) * 0.035;
-          c.y += (t.y - c.y) * 0.035;
+          c.x += (t.x - c.x) * 0.045;
+          c.y += (t.y - c.y) * 0.045;
         }
 
         // Update cyclone time and focal angle (very slow base speed)
@@ -1150,11 +1151,9 @@ function App() {
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
             // Smooth radius multiplier (driven by hand height / hand distance).
-            // Softer than before (0.06 → 0.035) — hand-driven inputs benefit
-            // from compounding both the input-stage smoothing in HandControl
-            // AND this visual lerp here.
+            // 0.045 settles in ~1s — silky but still responsive.
             cycloneRadiusMulRef.current +=
-              (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.035;
+              (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.045;
             // Split-mode squeeze — webcam owns half the viewport, so shrink the
             // cyclone so orbs don't disappear behind the video tile.
             const splitMul = handLayoutModeRef.current === 'split' ? 0.7 : 1;
@@ -1173,10 +1172,9 @@ function App() {
             const mtX = mouseTiltRef.current.x; // -1..1
             const mtY = mouseTiltRef.current.y;
             // Smooth the two-hand tilt input toward its target each frame so
-            // the cyclone eases between angles instead of snapping. 0.10 → 0.055
-            // for noticeably calmer plane motion.
+            // the cyclone eases between angles instead of snapping.
             handsTiltRef.current +=
-              (handsTiltTargetRef.current - handsTiltRef.current) * 0.055;
+              (handsTiltTargetRef.current - handsTiltRef.current) * 0.07;
             // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
             // (now ±0.45 rad ≈ ±26°, was ±10°) + two-hand angle (±0.7 rad ≈
             // ±40°). Single hand still gets a felt nudge; two hands let you
@@ -2398,26 +2396,38 @@ function App() {
           color: 'rgba(30,30,30,0.42)',
         };
         const SECTION_GAP = 10;
+        // Apple Liquid Glass segmented control — glassy track, glassy
+        // dark "selected" pill with a subtle inner highlight + soft drop
+        // shadow so the active option visually lifts off the track.
         const segGroup: React.CSSProperties = {
           display: 'flex',
-          background: 'rgba(0,0,0,0.04)',
-          borderRadius: 8,
-          padding: 2,
-          gap: 2,
+          background: 'rgba(255,255,255,0.45)',
+          borderRadius: 10,
+          padding: 3,
+          gap: 0,
+          border: '1px solid rgba(255,255,255,0.55)',
+          boxShadow:
+            'inset 0 1px 2px rgba(0,0,0,0.05), 0 0.5px 0 rgba(255,255,255,0.6) inset',
+          backdropFilter: 'blur(10px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(10px) saturate(160%)',
         };
         const segBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
           padding: '5px 6px',
-          border: 0,
-          borderRadius: 6,
+          border: active ? '1px solid rgba(0,0,0,0.65)' : '1px solid transparent',
+          borderRadius: 7,
           background: active ? '#1e1e1e' : 'transparent',
           color: active ? '#fff' : 'rgba(30,30,30,0.6)',
           fontSize: 11,
           fontWeight: active ? 600 : 500,
           textTransform: 'capitalize',
           cursor: 'pointer',
-          transition: 'background 0.2s ease, color 0.2s ease',
+          transition:
+            'background 0.22s cubic-bezier(0.5, 0, 0.2, 1), color 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
           fontFamily: 'inherit',
+          boxShadow: active
+            ? '0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.4)'
+            : 'none',
         });
         const pillBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
