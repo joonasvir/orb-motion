@@ -8,7 +8,7 @@ import { useState } from 'react';
  *   - 'minimized': tiny pill showing "?" + "Gestures" — click to expand
  *   - 'dismissed': hidden completely (until the user toggles Hand mode off+on)
  *
- * The toolbar describes everything that's wired in HandControl. If you add a
+ * Lists the four core gestures wired in HandControl + App.tsx. If you add a
  * gesture there, add a chip here.
  */
 
@@ -17,25 +17,16 @@ export type HandToolbarVisibility = 'expanded' | 'minimized' | 'dismissed';
 interface Props {
   /** Don't render at all when the parent says so (e.g. Hand mode is off). */
   enabled: boolean;
-  /** Whether the four "extras" gestures should also be listed. */
-  extras: boolean;
 }
 
-const CORE_GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
+const GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
   { emoji: '✋', label: 'Open palm',  effect: 'cyclone' },
   { emoji: '✊', label: 'Fist',       effect: 'drop' },
+  { emoji: '📏', label: 'Palm height', effect: 'cyclone size' },
   { emoji: '👋', label: 'Clap',       effect: 'reset · rain fresh orbs' },
 ];
 
-const EXTRA_GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
-  { emoji: '👆', label: 'Point',      effect: 'tractor beam' },
-  { emoji: '🤏', label: 'Pinch',      effect: 'spawn orb' },
-  { emoji: '👐', label: 'Spread',     effect: 'explode' },
-  { emoji: '🙌', label: 'Squeeze',    effect: 'cluster' },
-  { emoji: '📏', label: 'Palm height', effect: 'cyclone size' },
-];
-
-export default function HandToolbar({ enabled, extras }: Props) {
+export default function HandToolbar({ enabled }: Props) {
   const [vis, setVis] = useState<HandToolbarVisibility>('expanded');
 
   if (!enabled || vis === 'dismissed') return null;
@@ -77,8 +68,6 @@ export default function HandToolbar({ enabled, extras }: Props) {
     );
   }
 
-  const items = extras ? [...CORE_GESTURES, ...EXTRA_GESTURES] : CORE_GESTURES;
-
   return (
     <div
       style={{
@@ -111,7 +100,7 @@ export default function HandToolbar({ enabled, extras }: Props) {
           flexWrap: 'wrap',
         }}
       >
-        {items.map(g => (
+        {GESTURES.map(g => (
           <div
             key={g.label}
             style={{

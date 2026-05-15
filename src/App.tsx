@@ -121,11 +121,15 @@ function App() {
   const [showBento, setShowBento] = useState(false);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
+  // Ref-sync so resetOrbs (defined below) always plays the latest synth.
+  const joystickSoundLatestRef = useRef<JoystickSound>('lever');
+  useEffect(() => { joystickSoundLatestRef.current = joystickSound; }, [joystickSound]);
   // Hand-control mode — camera + MediaPipe HandLandmarker, two-hand clap
   // triggers the joystick toggle, gesture (open/fist) flips physics/cyclone,
   // hand position drives the cyclone parallax tilt.
   const [handControl, setHandControl] = useState(false);
-  const [handExtras, setHandExtras] = useState(false);
+  // (Extra gestures removed — pinch/point/spread/squeeze were too false-fire-y.
+  //  Core gestures only: open / fist / clap / palm-height.)
   const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
   const [handCameraSize, setHandCameraSize] = useState<'s' | 'm' | 'l' | 'xl'>('l');
   const [handShowSkeleton, setHandShowSkeleton] = useState(true);
@@ -570,11 +574,54 @@ function App() {
     setDisplayMode(mode);
   }, []);
 
+  // Shared "reset" — wipe every orb, switch to physics, rain a fresh handful
+  // from the top. Triggered by: the clap gesture, the Reset button in the
+  // panel, and the R keyboard shortcut. Plays the currently-selected joystick
+  // synth as the engage sound so it always lands like a satisfying drop.
+  const resetOrbs = useCallback(() => {
+    if (!engineRef.current) return;
+    // Sound first (independent of orb-mode).
+    const s = joystickSoundLatestRef.current;
+    const play = s === 'bubble' ? playBubbleSound
+              : s === 'whoosh' ? playWhooshSound
+              : playLeverSound;
+    play(false);
+
+    // Clear every orb.
+    Matter.Composite.allBodies(engineRef.current.world)
+      .filter(b => b.label === 'orb')
+      .forEach(orb => {
+        orbDataRef.current.delete(orb.id);
+        orbAnimDataRef.current.delete(orb.id);
+        Matter.Composite.remove(engineRef.current!.world, orb);
+      });
+    setOrbCount(0);
+    localStorage.removeItem(ORBS_STORAGE_KEY);
+
+    // Force physics so the new orbs fall.
+    setMode('physics');
+
+    // Rain 6-8 fresh orbs from the top across the full viewport width.
+    const count = 6 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < count; i++) {
+      const delay = i * 130 + Math.random() * 80;
+      setTimeout(() => {
+        const x = Math.random() * (window.innerWidth - 100) + 50;
+        addOrbRefForToggle.current?.(x);
+      }, delay);
+    }
+  }, [setMode]);
+  useEffect(() => { resetOrbsRef.current = resetOrbs; }, [resetOrbs]);
+
   // Shared "lever toggle" — flips physics ↔ cyclone exactly like the joystick.
   // Lives at the top level so the joystick AND the hand-clap can both call it.
   const displayModeForToggleRef = useRef(displayMode);
   useEffect(() => { displayModeForToggleRef.current = displayMode; }, [displayMode]);
   const addOrbRefForToggle = useRef<((x?: number) => void) | null>(null);
+  // Ref to the latest resetOrbs callback so the R-key keyboard handler — which
+  // is bound once inside the main init useEffect — always calls the current
+  // version without restarting the engine.
+  const resetOrbsRef = useRef<(() => void) | null>(null);
   const toggleLever = useCallback(() => {
     const goingToPhysics = displayModeForToggleRef.current !== 'physics';
     setMode(goingToPhysics ? 'physics' : 'cyclone');
@@ -1424,6 +1471,10 @@ function App() {
           setOrbCount(0);
           setLatestUser(null);
           localStorage.removeItem(ORBS_STORAGE_KEY);
+        }
+        if (e.key === 'r' || e.key === 'R') {
+          // Same as the clap gesture + Reset button: wipe, then rain.
+          resetOrbsRef.current?.();
         }
         if (e.key === 'm' || e.key === 'M') {
           const newMode = !moonModeRef.current;
@@ -2576,12 +2627,24 @@ function App() {
               style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
             />
 
-            {/* ─── Hand mode (camera + gestures + focus, all in one toggle) ───
+            {/* Reset — same action as the clap gesture, just a button. Press
+                R for the keyboard shortcut. */}
+            <div style={{ ...sectionLabel, marginTop: SECTION_GAP + 4 }}>
+              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>Reset</span>
+                <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>R</span>
+              </span>
+            </div>
+            <button
+              onClick={resetOrbs}
+              style={{ ...pillBtn(true), width: '100%' }}
+            >Drop fresh orbs</button>
+
+            {/* ─── Hand mode (camera + core gestures + focus, all in one toggle) ───
                 Sits at the very bottom of the panel. Flipping On gives you the
-                full experience: webcam preview with skeleton overlay, every
-                gesture wired (open / fist / clap / pinch / point / spread /
-                squeeze / palm-height), and Focus mode so the rest of the page
-                gets out of the way. Off restores the landing. */}
+                full experience: webcam preview with skeleton overlay, open palm
+                / fist / clap / palm-height gestures, and Focus mode so the rest
+                of the page gets out of the way. Off restores the landing. */}
             <div style={{
               marginTop: SECTION_GAP + 4,
               marginBottom: SECTION_GAP,
@@ -2621,10 +2684,9 @@ function App() {
               <button
                 onClick={() => {
                   // Enter Hand mode: turn EVERYTHING on in one click.
-                  // Camera + all gestures + Focus (the rest of the UI hides).
+                  // Camera + core gestures + Focus (the rest of the UI hides).
                   setHandMode(true);
                   setHandControl(true);
-                  setHandExtras(true);
                   setFocusMode(true);
                 }}
                 style={pillBtn(handMode)}
@@ -2646,23 +2708,9 @@ function App() {
 
                 {/* Tracking — show live hand skeleton on the feed */}
                 <div style={sectionLabel}>Tracking</div>
-                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                <div style={{ display: 'flex', gap: 6 }}>
                   <button onClick={() => setHandShowSkeleton(false)} style={pillBtn(!handShowSkeleton)}>Off</button>
                   <button onClick={() => setHandShowSkeleton(true)}  style={pillBtn(handShowSkeleton)}>On</button>
-                </div>
-
-                {/* Extra gestures — sub-toggle for pinch/spread/height/point */}
-                <div style={sectionLabel}>
-                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                    <span>Extra gestures</span>
-                    <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
-                      pinch · point · spread · height
-                    </span>
-                  </span>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setHandExtras(false)} style={pillBtn(!handExtras)}>Off</button>
-                  <button onClick={() => setHandExtras(true)}  style={pillBtn(handExtras)}>On</button>
                 </div>
               </>
             )}
@@ -2759,7 +2807,7 @@ function App() {
 
       {/* Gesture toolbar — bottom-center, only when Hand mode is on. The
           toolbar itself manages its own expanded/minimized/dismissed state. */}
-      <HandToolbar enabled={handMode} extras={handExtras} />
+      <HandToolbar enabled={handMode} />
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
       {!minimalUI && showBento && (
@@ -3320,7 +3368,6 @@ function App() {
           point there. */}
       <HandControl
         enabled={handControl}
-        extras={handExtras}
         size={handCameraSize}
         showSkeleton={handShowSkeleton}
         layoutMode={handLayoutMode}
@@ -3328,41 +3375,7 @@ function App() {
         onChangeLayoutMode={setHandLayoutMode}
         onChangeSplitSide={setHandSplitSide}
         onStatus={setHandStatus}
-        onClap={() => {
-          // Play the currently-selected joystick sound — the "engage"
-          // direction so it always sounds like the lever pulling down.
-          const sound = joystickSound === 'bubble' ? playBubbleSound
-                      : joystickSound === 'whoosh' ? playWhooshSound
-                      : playLeverSound;
-          sound(false);
-
-          // Clap = "snowglobe shake": clear every orb, then rain a fresh
-          // handful from the top. (The joystick still does the simpler
-          // toggle-and-add-a-few; clap is the dramatic reset.)
-          if (!engineRef.current) return;
-          Matter.Composite.allBodies(engineRef.current.world)
-            .filter(b => b.label === 'orb')
-            .forEach(orb => {
-              orbDataRef.current.delete(orb.id);
-              orbAnimDataRef.current.delete(orb.id);
-              Matter.Composite.remove(engineRef.current!.world, orb);
-            });
-          setOrbCount(0);
-          localStorage.removeItem(ORBS_STORAGE_KEY);
-
-          // Force physics so the new orbs fall instead of joining a cyclone.
-          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
-
-          // Drop 6-8 fresh orbs from the top across the full width, staggered.
-          const count = 6 + Math.floor(Math.random() * 3);
-          for (let i = 0; i < count; i++) {
-            const delay = i * 130 + Math.random() * 80;
-            setTimeout(() => {
-              const x = Math.random() * (window.innerWidth - 100) + 50;
-              addOrbRefForToggle.current?.(x);
-            }, delay);
-          }
-        }}
+        onClap={() => resetOrbs()}
         onHandPosition={(pos) => {
           if (!pos) return;
           // Mirror what the cursor parallax does: map normalized 0..1 → -1..1.
@@ -3371,79 +3384,23 @@ function App() {
         }}
         onGesture={(g) => {
           // Open palm → cyclone (orbs reform). Closed fist → physics (drop).
-          // 'point' is handled by onIndexPoint, ignored here.
           if (g === 'open' && displayModeForToggleRef.current !== 'cyclone') {
             setMode('cyclone');
           } else if (g === 'fist' && displayModeForToggleRef.current !== 'physics') {
             setMode('physics');
           }
         }}
-        onPinch={(pos) => {
-          // Spawn a fresh orb at the pinch point. Translate normalized → px.
-          const x = pos.x * window.innerWidth;
-          addOrb(x);
-        }}
-        onIndexPoint={(pos) => {
-          if (pos) {
-            tractorBeamRef.current = {
-              x: pos.x * window.innerWidth,
-              y: pos.y * window.innerHeight,
-              // Refreshed every frame while pointing — short expiry so the beam
-              // dies the moment the gesture is released.
-              expiresAt: performance.now() + 200,
-            };
-          } else {
-            tractorBeamRef.current = null;
-          }
-        }}
         onPalmHeight={(y) => {
-          // y=0 (top) → wider cyclone (1.5x), y=1 (bottom) → tighter (0.6x).
-          // Released (null) → snap target back to neutral 1.0.
+          // Dramatic range: y=0 (hand at top) → 2.2x cyclone radius (orbs
+          // spread to fill the viewport). y=1 (hand at bottom) → 0.3x
+          // (orbs pinch tight into a small ring). y=0.5 → ~1.05x neutral.
+          // Released (null) → snap back to 1.0.
           if (y == null) {
             cycloneRadiusMulTargetRef.current = 1.0;
           } else {
-            const mul = 1.5 - y * 0.9; // y=0 → 1.5, y=1 → 0.6
-            cycloneRadiusMulTargetRef.current = Math.max(0.55, Math.min(1.6, mul));
+            const mul = 2.2 - y * 1.9;
+            cycloneRadiusMulTargetRef.current = Math.max(0.3, Math.min(2.2, mul));
           }
-        }}
-        onSpread={(magnitude) => {
-          // Push every orb radially outward from the screen center, once.
-          if (!engineRef.current) return;
-          const cx = window.innerWidth / 2;
-          const cy = window.innerHeight / 2;
-          const force = 0.012 * (0.4 + magnitude);
-          Matter.Composite.allBodies(engineRef.current.world)
-            .filter(b => b.label === 'orb')
-            .forEach(b => {
-              const dx = b.position.x - cx;
-              const dy = b.position.y - cy;
-              const len = Math.max(1, Math.hypot(dx, dy));
-              Matter.Body.applyForce(b, b.position, {
-                x: (dx / len) * force,
-                y: (dy / len) * force,
-              });
-            });
-          // Knock the cyclone into physics so the impulse is visible.
-          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
-        }}
-        onSqueeze={(magnitude) => {
-          // Pull orbs toward the screen center.
-          if (!engineRef.current) return;
-          const cx = window.innerWidth / 2;
-          const cy = window.innerHeight / 2;
-          const force = 0.008 * (0.4 + magnitude);
-          Matter.Composite.allBodies(engineRef.current.world)
-            .filter(b => b.label === 'orb')
-            .forEach(b => {
-              const dx = cx - b.position.x;
-              const dy = cy - b.position.y;
-              const len = Math.max(1, Math.hypot(dx, dy));
-              Matter.Body.applyForce(b, b.position, {
-                x: (dx / len) * force,
-                y: (dy / len) * force,
-              });
-            });
-          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
         }}
       />
 
