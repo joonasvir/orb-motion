@@ -119,6 +119,9 @@ function App() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfiles, setShowProfiles] = useState(true);
   const [showBento, setShowBento] = useState(false);
+  // 3D persona props (heart / mobile / globe / atlas / controller / cursor / etc.)
+  // that float around the phone, themed to the active persona.
+  const [showPersonaProps, setShowPersonaProps] = useState(true);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -2104,7 +2107,7 @@ function App() {
       {/* Persona props — themed 3D objects floating around the phone, swapping
           with the active persona. Coordinates are % of the phone container
           (negative values intentionally spill outside the phone bounds). */}
-      {!minimalUI && (() => {
+      {!minimalUI && showPersonaProps && (() => {
         // Position fields are percentages of the phone container (the same
         // box the dashboard PNG fills). Negative values are allowed and will
         // render outside the phone outline.
@@ -2505,6 +2508,14 @@ function App() {
                 onClick={() => setShowNotifications(true)}
                 style={pillBtn(showNotifications)}
               >On</button>
+            </div>
+
+            {/* 3D icons — the persona-themed props that float around the phone
+                (heart / mobile / globe / atlas / controller / cursor / play). */}
+            <div style={sectionLabel}>3D icons</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+              <button onClick={() => setShowPersonaProps(false)} style={pillBtn(!showPersonaProps)}>Off</button>
+              <button onClick={() => setShowPersonaProps(true)}  style={pillBtn(showPersonaProps)}>On</button>
             </div>
 
             {/* Bento — toggle the scroll-down bento section below the hero */}
