@@ -16,6 +16,10 @@ interface Props {
   onHoverChange?: (hovered: boolean) => void;
 }
 
+// Every word here must read as a clean adjective in:
+//   "Wabis are [WORD] mini-apps for you and your friends"
+// No nouns with leading articles ("a memory", "a game"), no phrases that
+// drop a verb in the middle ("made together"). Curated for grammar.
 const WORDS = [
   'useful',
   'fun',
@@ -26,21 +30,27 @@ const WORDS = [
   'silly',
   'beautiful',
   'one-of-a-kind',
-  'inside jokes',
-  'as ridiculous as you',
-  'just for tonight',
-  'a love letter',
-  'wabi-sabi',
-  'made for your dog',
-  'made together',
-  'a daily journal',
-  'a game',
-  'made for two',
   'private',
-  'a gift',
-  'a secret handshake',
-  'a tiny universe',
-  'a memory',
+  'wabi-sabi',
+  'nostalgic',
+  'intimate',
+  'playful',
+  'ridiculous',
+  'chaotic',
+  'delightful',
+  'handmade',
+  'bespoke',
+  'hilarious',
+  'gentle',
+  'soulful',
+  'weird',
+  'magical',
+  'loving',
+  'collaborative',
+  'quirky',
+  'thoughtful',
+  'joyful',
+  'secret',
 ];
 
 // Lift-on-hover spring: same recipe as the headline facepile. When a sibling
