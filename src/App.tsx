@@ -167,6 +167,31 @@ function App() {
     return () => clearTimeout(t);
   }, []);
 
+  // Once the blur-in animation finishes on an element, KILL the animation
+  // outright and clear the inline `filter`. Why both?
+  //
+  // The .blur-in class declares `animation-fill-mode: both`, which means the
+  // browser keeps applying the animation's last keyframe forever — and Chrome
+  // computes the end-keyframe `filter: none` as `blur(0px)` (interpolation
+  // treats `none` as zeroed filter functions). Even a no-op blur(0) on an
+  // ANCESTOR creates a filter pipeline that CLIPS descendant `drop-shadow`
+  // filters to that ancestor's bounding box — which was hiding the
+  // facepile's soft 40/80 shadow under the headline.
+  //
+  // Setting `animation: none` removes the persisted filter; the inline-style
+  // opacity/transform we set alongside it preserves the final visual state.
+  useEffect(() => {
+    const clear = (e: AnimationEvent) => {
+      if (e.animationName === 'blur-in' || e.animationName === 'blur-in-fixed') {
+        const el = e.target as HTMLElement;
+        el.style.animation = 'none';
+        el.style.filter = 'none';
+      }
+    };
+    document.addEventListener('animationend', clear);
+    return () => document.removeEventListener('animationend', clear);
+  }, []);
+
   // Reset to first profile when profiles is turned off (single-screen mode)
   useEffect(() => {
     if (!showProfiles) setActivePhone(0);
@@ -1469,16 +1494,25 @@ function App() {
         }
         /* Smooth blur fade-in for first-paint elements. Use \`backwards\`
            so the element renders in its initial state during animation-delay
-           (no flash before the stagger kicks in). */
+           (no flash before the stagger kicks in).
+           IMPORTANT: end at \`filter: none\`, not \`filter: blur(0)\`.
+           Residual \`filter\` on an ancestor (even a no-op blur(0)) creates a
+           filter pipeline that clips descendant \`drop-shadow\` filters to the
+           ancestor's bounding box — that hides the facepile's soft shadow. */
         @keyframes blur-in {
           0% {
             opacity: 0;
             filter: blur(14px);
             transform: translateY(12px);
           }
-          100% {
+          99% {
             opacity: 1;
             filter: blur(0);
+            transform: translateY(0);
+          }
+          100% {
+            opacity: 1;
+            filter: none;
             transform: translateY(0);
           }
         }
@@ -1490,7 +1524,8 @@ function App() {
            an existing transform (e.g. the phone's translateX(-50%) center). */
         @keyframes blur-in-fixed {
           0%   { opacity: 0; filter: blur(14px); }
-          100% { opacity: 1; filter: blur(0); }
+          99%  { opacity: 1; filter: blur(0); }
+          100% { opacity: 1; filter: none; }
         }
         .blur-in-fixed {
           animation: blur-in-fixed 1.05s cubic-bezier(0.22, 1, 0.36, 1) both;
@@ -1620,9 +1655,12 @@ function App() {
                     // away from "ur".
                     marginLeft: '0.16em',
                     pointerEvents: 'auto',
-                    // Soft drop shadow below the pile (y=40, blur=80).
-                    // Higher alpha so it actually reads on the bright page bg.
-                    filter: 'drop-shadow(0 40px 80px rgba(0,0,0,0.22))',
+                    // Soft drop shadow below the pile — y=40, blur=80 per the
+                    // request. Stacked: a tighter near-shadow (anchors the pile
+                    // to the line) + the wide soft one (the long fall-off).
+                    // Higher alpha because 80px of blur on #f0f0f0 dilutes fast.
+                    filter:
+                      'drop-shadow(0 8px 14px rgba(0,0,0,0.12)) drop-shadow(0 40px 80px rgba(0,0,0,0.32))',
                   }}
                 >
                   {ids.map((i) => {
