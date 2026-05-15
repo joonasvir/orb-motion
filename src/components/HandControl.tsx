@@ -31,7 +31,7 @@ import type { HandLandmarker } from '@mediapipe/tasks-vision';
  *  - 700ms cooldown so a single clap fires once.
  */
 
-export type HandGesture = 'open' | 'fist' | null;
+export type HandGesture = 'open' | 'fist' | 'point' | null;
 
 interface HandControlProps {
   enabled: boolean;
@@ -41,6 +41,17 @@ interface HandControlProps {
   onHandPosition?: (pos: { x: number; y: number } | null) => void;
   /** Current gesture of the dominant hand. Fires only when it changes. */
   onGesture?: (g: HandGesture) => void;
+  /** Whether to wire the four extra gestures (pinch / spread / height / point). */
+  extras?: boolean;
+  /** Fires once per pinch (thumb+index tip touch). Position is the pinch point. */
+  onPinch?: (pos: { x: number; y: number }) => void;
+  /** Continuous: fires while index-finger point is held; null when released. */
+  onIndexPoint?: (pos: { x: number; y: number } | null) => void;
+  /** Continuous height (0=top, 1=bottom) while an open palm is visible. null otherwise. */
+  onPalmHeight?: (y: number | null) => void;
+  /** One-shot two-hand impulses. magnitude is roughly proportional to speed (clamped 0..1). */
+  onSpread?: (magnitude: number) => void;
+  onSqueeze?: (magnitude: number) => void;
   /** Whether the small preview should be visible. */
   showPreview?: boolean;
   /** Reports loading/error state up so the panel can show "Loading…" / "Denied". */
@@ -58,10 +69,16 @@ const CLAP_THRESHOLD = 0.18;   // hands "touching" in normalized units
 const APPROACH_VEL   = 0.35;   // distance decrease per frame to count as a clap
 const CLAP_COOLDOWN  = 700;    // ms — debounce so one clap fires once
 const POSITION_LERP  = 0.35;   // smoothing on hand center reports
+const PINCH_THRESHOLD = 0.055; // thumb+index tip dist below this counts as pinch
+const PINCH_COOLDOWN  = 320;   // ms between accepted pinches
+const TWOHAND_VEL_MIN = 0.06;  // per-frame inter-hand distance change to call spread/squeeze
+const TWOHAND_COOLDOWN = 350;  // ms between spread/squeeze events
 
 // Landmark indices that MediaPipe's hand model uses.
 // Reference: https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
 const WRIST = 0;
+const THUMB_TIP = 4;
+const INDEX_TIP = 8;
 const FINGERTIPS = [4, 8, 12, 16, 20];   // thumb, index, middle, ring, pinky
 const KNUCKLES   = [2, 5, 9, 13, 17];
 
@@ -73,20 +90,24 @@ function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
 
 function classifyGesture(landmarks: Array<{ x: number; y: number }>): HandGesture {
   const wrist = landmarks[WRIST];
-  let openCount = 0;
-  let fistCount = 0;
+  // Track per-finger extension state. Index 0=thumb, 1=index, 2=middle, 3=ring, 4=pinky.
+  const extended: boolean[] = [false, false, false, false, false];
+  const curled: boolean[]   = [false, false, false, false, false];
   for (let i = 0; i < 5; i++) {
     const tip = landmarks[FINGERTIPS[i]];
     const knuckle = landmarks[KNUCKLES[i]];
     if (!tip || !knuckle) return null;
     const dTip = dist(tip, wrist);
     const dKnuckle = dist(knuckle, wrist);
-    // Tip noticeably farther than knuckle → finger extended; closer → curled.
-    if (dTip > dKnuckle * 1.25) openCount += 1;
-    else if (dTip < dKnuckle * 0.95) fistCount += 1;
+    if (dTip > dKnuckle * 1.25) extended[i] = true;
+    else if (dTip < dKnuckle * 0.95) curled[i] = true;
   }
-  if (openCount >= 4) return 'open';
-  if (fistCount >= 4) return 'fist';
+  const extCount = extended.filter(Boolean).length;
+  const curlCount = curled.filter(Boolean).length;
+  if (extCount >= 4) return 'open';
+  if (curlCount >= 4) return 'fist';
+  // Index-point = index extended, middle + ring + pinky curled (thumb either way).
+  if (extended[1] && curled[2] && curled[3] && curled[4]) return 'point';
   return null;
 }
 
@@ -95,6 +116,12 @@ export default function HandControl({
   onClap,
   onHandPosition,
   onGesture,
+  extras = false,
+  onPinch,
+  onIndexPoint,
+  onPalmHeight,
+  onSpread,
+  onSqueeze,
   showPreview = true,
   onStatus,
 }: HandControlProps) {
@@ -105,16 +132,28 @@ export default function HandControl({
   const lastVideoTimeRef = useRef(-1);
 
   // Per-frame state held in refs so the rAF loop sees the latest values.
-  const lastHandsRef = useRef<{ centers: Array<{ x: number; y: number }> } | null>(null);
+  const lastHandsRef = useRef<{ centers: Array<{ x: number; y: number }>; distance: number } | null>(null);
   const lastClapAtRef = useRef(0);
+  const lastPinchAtRef = useRef(0);
+  const lastSpreadAtRef = useRef(0);
   const smoothedPosRef = useRef<{ x: number; y: number } | null>(null);
   const lastGestureRef = useRef<HandGesture>(null);
+  const lastIndexPointReportedRef = useRef(false);
+  const lastPalmHeightReportedRef = useRef(false);
 
   const [status, setStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
 
   // Keep latest callback refs so the rAF loop doesn't capture stale closures.
-  const cbsRef = useRef({ onClap, onHandPosition, onGesture });
-  cbsRef.current = { onClap, onHandPosition, onGesture };
+  const cbsRef = useRef({
+    onClap, onHandPosition, onGesture,
+    onPinch, onIndexPoint, onPalmHeight, onSpread, onSqueeze,
+    extras,
+  });
+  cbsRef.current = {
+    onClap, onHandPosition, onGesture,
+    onPinch, onIndexPoint, onPalmHeight, onSpread, onSqueeze,
+    extras,
+  };
 
   useEffect(() => {
     onStatus?.(status);
@@ -196,6 +235,14 @@ export default function HandControl({
           lastGestureRef.current = null;
           cbsRef.current.onGesture?.(null);
         }
+        if (lastIndexPointReportedRef.current) {
+          lastIndexPointReportedRef.current = false;
+          cbsRef.current.onIndexPoint?.(null);
+        }
+        if (lastPalmHeightReportedRef.current) {
+          lastPalmHeightReportedRef.current = false;
+          cbsRef.current.onPalmHeight?.(null);
+        }
         lastHandsRef.current = null;
         return;
       }
@@ -231,18 +278,74 @@ export default function HandControl({
         cbsRef.current.onGesture?.(g);
       }
 
-      // Clap detection — needs both hands.
+      // Clap + two-hand spread/squeeze (mutually exclusive — clap wins).
+      const now = performance.now();
+      let twoHandDistance: number | null = null;
       if (centers.length === 2 && lastHandsRef.current && lastHandsRef.current.centers.length === 2) {
         const d  = dist(centers[0], centers[1]);
-        const dPrev = dist(lastHandsRef.current.centers[0], lastHandsRef.current.centers[1]);
+        twoHandDistance = d;
+        const dPrev = lastHandsRef.current.distance;
         const approach = dPrev - d;
-        const now = performance.now();
         if (d < CLAP_THRESHOLD && approach > APPROACH_VEL && now - lastClapAtRef.current > CLAP_COOLDOWN) {
           lastClapAtRef.current = now;
           cbsRef.current.onClap?.();
+        } else if (cbsRef.current.extras && Math.abs(approach) > TWOHAND_VEL_MIN && now - lastSpreadAtRef.current > TWOHAND_COOLDOWN) {
+          // Spread = distance growing; Squeeze = shrinking but not a clap.
+          // Magnitude scales linearly with per-frame |approach|, clamped 0..1.
+          const mag = Math.min(1, Math.abs(approach) / 0.25);
+          if (approach < 0) {
+            lastSpreadAtRef.current = now;
+            cbsRef.current.onSpread?.(mag);
+          } else {
+            lastSpreadAtRef.current = now;
+            cbsRef.current.onSqueeze?.(mag);
+          }
+        }
+      } else if (centers.length === 2) {
+        twoHandDistance = dist(centers[0], centers[1]);
+      }
+
+      // ─── Extras (only when enabled by the panel toggle) ─────────────────
+      if (cbsRef.current.extras) {
+        const dom = handLandmarks[dominantIdx];
+
+        // Pinch — thumb tip + index tip < threshold. Position is the midpoint.
+        // Note: hand landmarks are NOT x-flipped (only the smoothed center is),
+        // so we flip x ourselves for the report.
+        const thumb = dom[THUMB_TIP];
+        const idxTip = dom[INDEX_TIP];
+        if (thumb && idxTip) {
+          const pinchD = dist(thumb, idxTip);
+          if (pinchD < PINCH_THRESHOLD && now - lastPinchAtRef.current > PINCH_COOLDOWN) {
+            lastPinchAtRef.current = now;
+            cbsRef.current.onPinch?.({
+              x: 1 - (thumb.x + idxTip.x) / 2,
+              y: (thumb.y + idxTip.y) / 2,
+            });
+          }
+        }
+
+        // Index point — continuous tractor-beam target at the index fingertip.
+        if (g === 'point' && idxTip) {
+          lastIndexPointReportedRef.current = true;
+          cbsRef.current.onIndexPoint?.({ x: 1 - idxTip.x, y: idxTip.y });
+        } else if (lastIndexPointReportedRef.current) {
+          lastIndexPointReportedRef.current = false;
+          cbsRef.current.onIndexPoint?.(null);
+        }
+
+        // Palm height — when an open palm is visible, continuously report its
+        // Y in viewport-normalized (0=top, 1=bottom). Drives cyclone radius.
+        if (g === 'open') {
+          lastPalmHeightReportedRef.current = true;
+          cbsRef.current.onPalmHeight?.(dominantCenter.y);
+        } else if (lastPalmHeightReportedRef.current) {
+          lastPalmHeightReportedRef.current = false;
+          cbsRef.current.onPalmHeight?.(null);
         }
       }
-      lastHandsRef.current = { centers };
+
+      lastHandsRef.current = { centers, distance: twoHandDistance ?? 0 };
     }
 
     if (enabled) start();

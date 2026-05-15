@@ -124,7 +124,15 @@ function App() {
   // triggers the joystick toggle, gesture (open/fist) flips physics/cyclone,
   // hand position drives the cyclone parallax tilt.
   const [handControl, setHandControl] = useState(false);
+  const [handExtras, setHandExtras] = useState(false);
   const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
+  // Cyclone radius multiplier (1.0 = default). Pinned to 1 unless an open
+  // palm is held, in which case palm height drives it (high → tight, low → wide).
+  const cycloneRadiusMulRef = useRef(1.0);
+  const cycloneRadiusMulTargetRef = useRef(1.0);
+  // Tractor-beam point in viewport-pixel coords (decays automatically).
+  // (x, y, expiresAt) — orbs pull toward this point while it's active.
+  const tractorBeamRef = useRef<{ x: number; y: number; expiresAt: number } | null>(null);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -1023,7 +1031,11 @@ function App() {
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             const baseR = Math.min(minR, maxR);
-            const radiusX = baseR * (1.0 + zLayer * 0.35);
+            // Smooth radius multiplier (driven by hand height when extras on).
+            cycloneRadiusMulRef.current +=
+              (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.06;
+            const radMul = cycloneRadiusMulRef.current;
+            const radiusX = baseR * radMul * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
             // Each orb's base angle is determined by its PERMANENT slot, not
@@ -1059,6 +1071,16 @@ function App() {
             drawX = centerX + worldX * persp;
             drawY = centerY + worldY * persp;
             radius = baseRadius * persp * (0.55 + zLayer * 0.45);
+
+            // Tractor beam — when an index-point gesture is active, lerp every
+            // cyclone orb partway toward the on-screen fingertip. Strength
+            // decays back to 0 after the gesture releases.
+            const beam = tractorBeamRef.current;
+            if (beam && performance.now() < beam.expiresAt) {
+              const pull = 0.18;
+              drawX = drawX * (1 - pull) + beam.x * pull;
+              drawY = drawY * (1 - pull) + beam.y * pull;
+            }
 
             // Sort key: closer (larger worldZ) renders later within its canvas
             zDepth = worldZ;
@@ -2390,9 +2412,38 @@ function App() {
                 )}
               </span>
             </div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: handControl ? 8 : SECTION_GAP }}>
               <button onClick={() => setHandControl(false)} style={pillBtn(!handControl)}>Off</button>
               <button onClick={() => setHandControl(true)}  style={pillBtn(handControl)}>On</button>
+            </div>
+            {/* Extra gestures sub-toggle — only meaningful when Hand control on */}
+            {handControl && (
+              <>
+                <div style={{ ...sectionLabel, marginTop: 2 }}>
+                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Extra gestures</span>
+                    <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>
+                      pinch · point · spread · height
+                    </span>
+                  </span>
+                </div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+                  <button onClick={() => setHandExtras(false)} style={pillBtn(!handExtras)}>Off</button>
+                  <button onClick={() => setHandExtras(true)}  style={pillBtn(handExtras)}>On</button>
+                </div>
+              </>
+            )}
+
+            {/* Playground — fullscreen orbs-only vibe. ESC to exit. */}
+            <div style={sectionLabel}>Playground</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+              <button
+                onClick={() => {
+                  setShowcaseMode(true);
+                  dropAllOrbsRef.current(60);
+                }}
+                style={{ ...pillBtn(true), width: '100%' }}
+              >Launch</button>
             </div>
 
             {/* Joystick sound — pick one of three synths; tap to preview */}
@@ -2535,6 +2586,81 @@ function App() {
 
       </section>
       {/* End hero section */}
+
+      {/* Playground chrome — visible only when in showcase/playground mode.
+          A floating glass "Exit" pill bottom-center plus a small bottom-left
+          gesture cheatsheet so users know what their hands can do. */}
+      {showcaseMode && (
+        <>
+          <button
+            type="button"
+            onClick={() => setShowcaseMode(false)}
+            style={{
+              position: 'fixed',
+              bottom: 24,
+              left: '50%',
+              transform: 'translateX(-50%)',
+              padding: '10px 18px',
+              border: '1px solid rgba(255,255,255,0.55)',
+              borderRadius: 999,
+              background: 'rgba(255,255,255,0.42)',
+              backdropFilter: 'blur(28px) saturate(180%)',
+              WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+              boxShadow: '0 18px 40px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06)',
+              color: '#1e1e1e',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: 0.3,
+              cursor: 'pointer',
+              zIndex: 110,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+            }}
+          >
+            <span style={{ opacity: 0.6, fontSize: 10, textTransform: 'uppercase', letterSpacing: 1.2 }}>esc</span>
+            Exit playground
+          </button>
+
+          {handControl && handExtras && (
+            <div
+              aria-hidden="true"
+              style={{
+                position: 'fixed',
+                bottom: 24,
+                left: 24,
+                padding: '12px 14px',
+                borderRadius: 14,
+                background: 'rgba(255,255,255,0.32)',
+                backdropFilter: 'blur(24px) saturate(180%)',
+                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+                border: '1px solid rgba(255,255,255,0.55)',
+                boxShadow: '0 10px 24px rgba(0,0,0,0.10)',
+                color: '#1e1e1e',
+                fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+                fontSize: 11,
+                lineHeight: 1.55,
+                zIndex: 105,
+                pointerEvents: 'none',
+                maxWidth: 220,
+              }}
+            >
+              <div style={{ fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', fontSize: 9, marginBottom: 6, opacity: 0.55 }}>
+                Hand gestures
+              </div>
+              <div>✋ Open → cyclone</div>
+              <div>✊ Fist → drop</div>
+              <div>👆 Point → tractor beam</div>
+              <div>🤏 Pinch → spawn orb</div>
+              <div>👐 Spread → explode</div>
+              <div>🙌 Squeeze → cluster</div>
+              <div>👋 Clap → toggle lever</div>
+              <div>📏 Palm height → cyclone size</div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
       {!showcaseMode && showBento && (
@@ -3090,9 +3216,12 @@ function App() {
         />
       )}
 
-      {/* Hand-control mode — camera + MediaPipe. Mounting toggles the camera. */}
+      {/* Hand-control mode — camera + MediaPipe. Mounting toggles the camera.
+          Works in playground (showcase) mode too — the gestures are the whole
+          point there. */}
       <HandControl
-        enabled={handControl && !showcaseMode}
+        enabled={handControl}
+        extras={handExtras}
         onStatus={setHandStatus}
         onClap={() => {
           // Play the currently-selected joystick sound so it matches the lever.
@@ -3111,12 +3240,79 @@ function App() {
         }}
         onGesture={(g) => {
           // Open palm → cyclone (orbs reform). Closed fist → physics (drop).
-          // Subtle: don't churn modes if we're already there.
+          // 'point' is handled by onIndexPoint, ignored here.
           if (g === 'open' && displayModeForToggleRef.current !== 'cyclone') {
             setMode('cyclone');
           } else if (g === 'fist' && displayModeForToggleRef.current !== 'physics') {
             setMode('physics');
           }
+        }}
+        onPinch={(pos) => {
+          // Spawn a fresh orb at the pinch point. Translate normalized → px.
+          const x = pos.x * window.innerWidth;
+          addOrb(x);
+        }}
+        onIndexPoint={(pos) => {
+          if (pos) {
+            tractorBeamRef.current = {
+              x: pos.x * window.innerWidth,
+              y: pos.y * window.innerHeight,
+              // Refreshed every frame while pointing — short expiry so the beam
+              // dies the moment the gesture is released.
+              expiresAt: performance.now() + 200,
+            };
+          } else {
+            tractorBeamRef.current = null;
+          }
+        }}
+        onPalmHeight={(y) => {
+          // y=0 (top) → wider cyclone (1.5x), y=1 (bottom) → tighter (0.6x).
+          // Released (null) → snap target back to neutral 1.0.
+          if (y == null) {
+            cycloneRadiusMulTargetRef.current = 1.0;
+          } else {
+            const mul = 1.5 - y * 0.9; // y=0 → 1.5, y=1 → 0.6
+            cycloneRadiusMulTargetRef.current = Math.max(0.55, Math.min(1.6, mul));
+          }
+        }}
+        onSpread={(magnitude) => {
+          // Push every orb radially outward from the screen center, once.
+          if (!engineRef.current) return;
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          const force = 0.012 * (0.4 + magnitude);
+          Matter.Composite.allBodies(engineRef.current.world)
+            .filter(b => b.label === 'orb')
+            .forEach(b => {
+              const dx = b.position.x - cx;
+              const dy = b.position.y - cy;
+              const len = Math.max(1, Math.hypot(dx, dy));
+              Matter.Body.applyForce(b, b.position, {
+                x: (dx / len) * force,
+                y: (dy / len) * force,
+              });
+            });
+          // Knock the cyclone into physics so the impulse is visible.
+          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
+        }}
+        onSqueeze={(magnitude) => {
+          // Pull orbs toward the screen center.
+          if (!engineRef.current) return;
+          const cx = window.innerWidth / 2;
+          const cy = window.innerHeight / 2;
+          const force = 0.008 * (0.4 + magnitude);
+          Matter.Composite.allBodies(engineRef.current.world)
+            .filter(b => b.label === 'orb')
+            .forEach(b => {
+              const dx = cx - b.position.x;
+              const dy = cy - b.position.y;
+              const len = Math.max(1, Math.hypot(dx, dy));
+              Matter.Body.applyForce(b, b.position, {
+                x: (dx / len) * force,
+                y: (dy / len) * force,
+              });
+            });
+          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
         }}
       />
 
