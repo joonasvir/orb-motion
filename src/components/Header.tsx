@@ -259,7 +259,9 @@ export default function Header() {
           transform: rotate3d(1, 0, 0, 25deg);
         }
 
-        /* Nav header variant (matches Figma 29:5313 — wider with proper padding) */
+        /* Nav header variant — matches Figma 53:5741:
+           bright translucent-white pill with a strong top highlight, 1px
+           white edge, and a long soft drop shadow that sells the lift. */
         .glass-btn-wrap--header { width: 200px; }
         .glass-btn-wrap--header .glass-btn {
           width: 200px;
@@ -267,13 +269,22 @@ export default function Header() {
           background:
             linear-gradient(
               -75deg,
-              rgba(255, 255, 255, 0.05),
-              rgba(255, 255, 255, 0.2),
-              rgba(255, 255, 255, 0.05)
+              rgba(255, 255, 255, 0.10),
+              rgba(255, 255, 255, 0.30),
+              rgba(255, 255, 255, 0.10)
             ),
-            rgba(240, 240, 240, 0.7);
-          backdrop-filter: blur(clamp(2px, 0.25em, 8px));
-          -webkit-backdrop-filter: blur(clamp(2px, 0.25em, 8px));
+            rgba(255, 255, 255, 0.55);
+          border: 1px solid rgba(255, 255, 255, 0.9);
+          /* Stack: top highlight + bottom highlight + soft inner glow +
+             long soft drop shadow for the floating glass-pill feel. */
+          box-shadow:
+            inset 0 1px 4px rgba(255, 255, 255, 0.95),
+            inset 0 -4px 4px rgba(255, 255, 255, 0.85),
+            inset 0 0 14px rgba(229, 229, 229, 0.55),
+            0 11px 28px rgba(0, 0, 0, 0.07),
+            0 23px 31px rgba(0, 0, 0, 0.05);
+          backdrop-filter: blur(clamp(4px, 0.5em, 14px));
+          -webkit-backdrop-filter: blur(clamp(4px, 0.5em, 14px));
         }
         .glass-btn-wrap--header .glass-btn span {
           font-family: 'Selecta', system-ui, -apple-system, sans-serif;
@@ -284,18 +295,19 @@ export default function Header() {
           padding-inline: 1.4em;
           display: inline-flex;
           align-items: center;
-          gap: 4px;
+          gap: 5px;
         }
         @media (min-width: 768px) {
-          .glass-btn-wrap--header { width: 240px; }
+          .glass-btn-wrap--header { width: 252px; }
           .glass-btn-wrap--header .glass-btn {
-            width: 240px;
-            height: 60px;
+            width: 252px;
+            height: 56px;
           }
           .glass-btn-wrap--header .glass-btn span {
-            font-size: 18px;
-            padding-inline: 1.6em;
-            gap: 5px;
+            font-size: 19px;
+            letter-spacing: -0.19px;
+            padding-inline: 1.5em;
+            gap: 7px;
           }
         }
       `}</style>
