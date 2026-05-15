@@ -1791,9 +1791,11 @@ function App() {
         }}>
           <h1 className="blur-in" style={{
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
+            // Bumped to match the Figma 53:5760 ratio — center max 50 → 60,
+            // side max 40 → 48; min/vw raised proportionally.
             fontSize: layout === 'center'
-              ? 'clamp(24px, 3.5vw, 50px)'
-              : 'clamp(22px, 2.8vw, 40px)',
+              ? 'clamp(28px, 4.0vw, 60px)'
+              : 'clamp(24px, 3.2vw, 48px)',
             lineHeight: 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
@@ -1940,7 +1942,9 @@ function App() {
             // Animated start state has opacity:0; the .blur-in `both` fill
             // keeps the end opacity at 1, so use color alpha (not opacity)
             // to keep the dim look without fighting the keyframes.
-            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.95)',
+            // Figma 53:5758 reads ~#7F7F7F effective (#636363 @ 0.8 alpha on
+            // #f0f0f0). Was rgba(99,99,99,0.95) ≈ #6A6A6A — too dark.
+            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.7)',
             margin: 0,
             maxWidth: 400,
             marginLeft: 'auto',
