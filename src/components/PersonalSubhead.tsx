@@ -17,41 +17,46 @@ interface Props {
 }
 
 // Every word here must read as a clean adjective in:
-//   "Wabis are [WORD] mini-apps for you and your friends"
-// No nouns with leading articles ("a memory", "a game"), no phrases that
-// drop a verb in the middle ("made together"). Curated for grammar.
-const WORDS = [
-  'useful',
-  'fun',
-  'powerful',
-  'ephemeral',
-  'AI-powered',
-  'health-conscious',
-  'silly',
-  'beautiful',
-  'one-of-a-kind',
-  'private',
-  'wabi-sabi',
-  'nostalgic',
-  'intimate',
-  'playful',
-  'ridiculous',
-  'chaotic',
-  'delightful',
-  'handmade',
-  'bespoke',
-  'hilarious',
-  'gentle',
-  'soulful',
-  'weird',
-  'magical',
-  'loving',
-  'collaborative',
-  'quirky',
-  'thoughtful',
-  'joyful',
-  'secret',
+//   "Wabis are [icon] [WORD] mini-apps for you and your friends"
+// Each entry pairs a word with a contextual 3D icon (in /public/word-icons/).
+// Both rotate together every 2s.
+const WORD_ITEMS: Array<{ word: string; icon: string; alt: string }> = [
+  { word: 'useful',           icon: '/word-icons/toolbox.png',          alt: 'toolbox' },
+  { word: 'fun',              icon: '/word-icons/balloon.png',          alt: 'balloon' },
+  { word: 'powerful',         icon: '/word-icons/lightning.png',        alt: 'lightning bolt' },
+  { word: 'ephemeral',        icon: '/word-icons/cloud.png',            alt: 'cloud' },
+  { word: 'AI-powered',       icon: '/word-icons/robot.png',            alt: 'robot' },
+  { word: 'health-conscious', icon: '/word-icons/apple.png',            alt: 'apple' },
+  { word: 'silly',            icon: '/word-icons/clown.png',            alt: 'clown' },
+  { word: 'beautiful',        icon: '/word-icons/rose.png',             alt: 'rose' },
+  { word: 'one-of-a-kind',    icon: '/word-icons/unicorn.png',          alt: 'unicorn' },
+  { word: 'private',          icon: '/word-icons/safe.png',             alt: 'safe' },
+  { word: 'wabi-sabi',        icon: '/word-icons/tea.png',              alt: 'tea cup' },
+  { word: 'nostalgic',        icon: '/word-icons/polaroid-camera.png',  alt: 'polaroid camera' },
+  { word: 'intimate',         icon: '/word-icons/candle.png',           alt: 'candle' },
+  { word: 'playful',          icon: '/word-icons/dice.png',             alt: 'dice' },
+  { word: 'ridiculous',       icon: '/word-icons/banana.png',           alt: 'banana' },
+  { word: 'chaotic',          icon: '/word-icons/tornado.png',          alt: 'tornado' },
+  { word: 'delightful',       icon: '/word-icons/gift.png',             alt: 'gift' },
+  { word: 'handmade',         icon: '/word-icons/scissors.png',         alt: 'scissors' },
+  { word: 'bespoke',          icon: '/word-icons/suit.png',             alt: 'suit' },
+  { word: 'hilarious',        icon: '/word-icons/mask.png',             alt: 'comedy mask' },
+  { word: 'gentle',           icon: '/word-icons/feather.png',          alt: 'feather' },
+  { word: 'soulful',          icon: '/word-icons/guitar.png',           alt: 'guitar' },
+  { word: 'weird',            icon: '/word-icons/alien.png',            alt: 'alien' },
+  { word: 'magical',          icon: '/word-icons/star.png',             alt: 'star' },
+  { word: 'loving',           icon: '/word-icons/heart.png',            alt: 'heart' },
+  { word: 'collaborative',    icon: '/word-icons/handshake.png',        alt: 'handshake' },
+  { word: 'quirky',           icon: '/word-icons/pineapple.png',        alt: 'pineapple' },
+  { word: 'thoughtful',       icon: '/word-icons/lightbulb.png',        alt: 'lightbulb' },
+  { word: 'joyful',           icon: '/word-icons/sun.png',              alt: 'sun' },
+  { word: 'secret',           icon: '/word-icons/key.png',              alt: 'key' },
 ];
+const WORDS = WORD_ITEMS.map(i => i.word);
+const ICONS = WORD_ITEMS.reduce<Record<string, { icon: string; alt: string }>>(
+  (acc, i) => { acc[i.word] = { icon: i.icon, alt: i.alt }; return acc; },
+  {},
+);
 
 // Lift-on-hover spring: same recipe as the headline facepile. When a sibling
 // is hovered we set CSS variables on every avatar in the group so the row
@@ -140,6 +145,32 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
           onHoverChange={onHoverChange}
           // Inherit the subhead's color + weight — no darker treatment so
           // the cycling word reads as part of the line, not pulled forward.
+          renderPrefix={(w) => {
+            const meta = ICONS[w];
+            if (!meta) return null;
+            return (
+              <img
+                src={meta.icon}
+                alt={meta.alt}
+                draggable={false}
+                style={{
+                  // Sit on the baseline of the surrounding text. Sized to
+                  // about the cap-height of the subhead so it reads inline.
+                  display: 'inline-block',
+                  width: '1.1em',
+                  height: '1.1em',
+                  objectFit: 'contain',
+                  verticalAlign: '-0.2em',
+                  marginRight: '0.18em',
+                  // Soft contact shadow so it feels lifted off the page.
+                  filter:
+                    'drop-shadow(0 4px 6px rgba(0,0,0,0.10)) drop-shadow(0 1px 2px rgba(0,0,0,0.06))',
+                  pointerEvents: 'none',
+                  userSelect: 'none',
+                }}
+              />
+            );
+          }}
         />
       </span>
       <span style={{ display: 'block' }}>mini-apps for you</span>

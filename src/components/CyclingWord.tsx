@@ -21,6 +21,9 @@ interface Props {
   className?: string;
   /** Inline style for color / weight overrides. */
   style?: React.CSSProperties;
+  /** Optional inline element rendered immediately before the word — gets the
+      same enter animation so the icon and word swap together. */
+  renderPrefix?: (currentWord: string) => React.ReactNode;
 }
 
 export default function CyclingWord({
@@ -29,6 +32,7 @@ export default function CyclingWord({
   onHoverChange,
   className,
   style,
+  renderPrefix,
 }: Props) {
   const [idx, setIdx] = useState(0);
   const [paused, setPaused] = useState(false);
@@ -120,10 +124,17 @@ export default function CyclingWord({
         onPointerEnter={handleEnter}
         onPointerLeave={handleLeave}
       >
-        {/* Hidden measurer for the current word — drives the wrap width */}
-        <span ref={measureRef} className="cw-measure">{current}</span>
+        {/* Hidden measurer for the current word — drives the wrap width.
+            Includes the prefix so width animates correctly when icons swap. */}
+        <span ref={measureRef} className="cw-measure">
+          {renderPrefix?.(current)}
+          {current}
+        </span>
         {/* Visible animated word — re-keyed so the keyframe replays each cycle */}
-        <span key={`${idx}-${current}`} className="cw-current">{current}</span>
+        <span key={`${idx}-${current}`} className="cw-current">
+          {renderPrefix?.(current)}
+          {current}
+        </span>
       </span>
     </>
   );

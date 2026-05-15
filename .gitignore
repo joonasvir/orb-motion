@@ -29,3 +29,6 @@ dist-ssr
 
 # Local working refs (video, frames) — not for distribution
 reference/
+
+# Local 3D icon library — only the picked subset lives in public/word-icons/
+3d icons/
