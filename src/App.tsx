@@ -136,6 +136,11 @@ function App() {
   // larger left-positioned headline and a cycling-word subhead.
   // Default ON (per the latest direction).
   const [personalMode, setPersonalMode] = useState(true);
+  // Ref-sync so the rAF render loop can read the latest value cheaply —
+  // used to keep the cyclone center anchored to the phone's tighter
+  // personalMode position.
+  const personalModeRef = useRef(personalMode);
+  useEffect(() => { personalModeRef.current = personalMode; }, [personalMode]);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1020,14 +1025,28 @@ function App() {
         // cyclone into the OTHER half so the orbs aren't behind the video.
         const _splitting = handLayoutModeRef.current === 'split';
         const _splitSide = handSplitSideRef.current;
+        // PersonalMode pulls the phone toward the viewport center (66% / 34%
+        // vs 72% / 28% in default mode, with 40px vs 60px corrective offset).
+        // Mirror those values here so the cyclone center always coincides
+        // with the phone center — otherwise the orbit visibly drifts off the
+        // phone in personalMode.
+        const _pm = personalModeRef.current;
         const _phoneXFrac = _splitting
           ? (_splitSide === 'right' ? 0.25 : 0.75)
           : _orbsOnly
             ? 0.5
-            : _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
+            : _layout === 'left'
+              ? (_pm ? 0.34 : 0.28)
+              : _layout === 'right'
+                ? (_pm ? 0.66 : 0.72)
+                : 0.5;
         const _phoneXOffset = _orbsOnly || _splitting
           ? 0
-          : _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
+          : _layout === 'left'
+            ? (_pm ? 40 : 60)
+            : _layout === 'right'
+              ? (_pm ? -40 : -60)
+              : 0;
         const centerX = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
