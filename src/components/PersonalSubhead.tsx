@@ -30,7 +30,7 @@ const WORD_ITEMS: Array<{ word: string; icon: string; alt: string }> = [
   { word: 'silly',            icon: '/word-icons/clown.png',            alt: 'clown' },
   { word: 'beautiful',        icon: '/word-icons/rose.png',             alt: 'rose' },
   { word: 'one-of-a-kind',    icon: '/word-icons/unicorn.png',          alt: 'unicorn' },
-  { word: 'private',          icon: '/word-icons/safe.png',             alt: 'safe' },
+  { word: 'private',          icon: '/word-icons/lock.png',             alt: 'lock' },
   { word: 'wabi-sabi',        icon: '/word-icons/tea.png',              alt: 'tea cup' },
   { word: 'nostalgic',        icon: '/word-icons/polaroid-camera.png',  alt: 'polaroid camera' },
   { word: 'intimate',         icon: '/word-icons/candle.png',           alt: 'candle' },
@@ -154,17 +154,20 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
                 alt={meta.alt}
                 draggable={false}
                 style={{
-                  // Sit on the baseline of the surrounding text. Sized to
-                  // about the cap-height of the subhead so it reads inline.
+                  // Sit on the baseline of the surrounding text. 25% larger
+                  // than before (1.1em → 1.375em) so the icon registers as
+                  // a deliberate inline visual, not a tiny accent.
                   display: 'inline-block',
-                  width: '1.1em',
-                  height: '1.1em',
+                  width: '1.375em',
+                  height: '1.375em',
                   objectFit: 'contain',
-                  verticalAlign: '-0.2em',
-                  marginRight: '0.18em',
-                  // Soft contact shadow so it feels lifted off the page.
+                  verticalAlign: '-0.32em',
+                  marginRight: '0.2em',
+                  // Same drop-shadow recipe as the facepile next to it —
+                  // tight near-shadow anchors the icon to the baseline, wide
+                  // soft fall-off matches the pile's atmosphere.
                   filter:
-                    'drop-shadow(0 4px 6px rgba(0,0,0,0.10)) drop-shadow(0 1px 2px rgba(0,0,0,0.06))',
+                    'drop-shadow(0 6px 14px rgba(0,0,0,0.12)) drop-shadow(0 24px 50px rgba(0,0,0,0.22))',
                   pointerEvents: 'none',
                   userSelect: 'none',
                 }}
