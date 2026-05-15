@@ -67,13 +67,20 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
           width: 100%; height: 100%; object-fit: cover; display: block;
         }
       `}</style>
-      {/* Each line is a separate block so the cycling word sits at the END
-          of its own line — when the word changes, only THIS line resizes;
-          the lines below stay anchored and don't bounce. */}
+      {/* Exact lines per spec. The cycling word ends line 1 so that when it
+          changes width only that line resizes — lines 2 and 3 stay anchored
+          and the facepile never bounces. */}
       <span style={{ display: 'block' }}>
-        Mini-apps for you and your
+        Wabis are{' '}
+        <CyclingWord
+          words={WORDS}
+          onHoverChange={onHoverChange}
+          style={{ color: '#1c1c1c', fontWeight: 500 }}
+        />
       </span>
+      <span style={{ display: 'block' }}>mini-apps for you</span>
       <span style={{ display: 'block' }}>
+        and your friends{' '}
         <span className="ps-pile" aria-hidden="true">
           {[1, 2, 3, 4].map(i => (
             <span key={i} className="ps-avatar" style={{ zIndex: 5 - i }}>
@@ -81,14 +88,6 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
             </span>
           ))}
         </span>
-        {' '}friends, that are
-      </span>
-      <span style={{ display: 'block' }}>
-        <CyclingWord
-          words={WORDS}
-          onHoverChange={onHoverChange}
-          style={{ fontStyle: 'italic', color: '#1c1c1c' }}
-        />
       </span>
     </>
   );
