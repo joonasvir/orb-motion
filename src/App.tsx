@@ -137,6 +137,10 @@ function App() {
   const tractorBeamRef = useRef<{ x: number; y: number; expiresAt: number } | null>(null);
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
+  // Focus mode = orbs-only-but-keep-controls. Hides the headline, phone,
+  // persona props, header, footer, etc. — but the controls panel and the
+  // hand-control webcam stay visible. Cyclone re-centers to viewport middle.
+  const [focusMode, setFocusMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
   const [orbSize, setOrbSize] = useState(1.0);
 
@@ -249,6 +253,12 @@ function App() {
   useEffect(() => { enableOrbTapRef.current = enableOrbTap; }, [enableOrbTap]);
   useEffect(() => { layoutRef.current = layout; }, [layout]);
   useEffect(() => { currentShapeRef.current = currentShape; }, [currentShape]);
+  // Ref-sync focusMode + showcaseMode so the rAF render loop sees the latest
+  // value cheaply (they switch the orb cyclone's center point).
+  const focusModeRef = useRef(focusMode);
+  useEffect(() => { focusModeRef.current = focusMode; }, [focusMode]);
+  const showcaseModeRef = useRef(showcaseMode);
+  useEffect(() => { showcaseModeRef.current = showcaseMode; }, [showcaseMode]);
 
   const showcaseOrbCountRef = useRef(showcaseOrbCount);
   const orbSizeRef = useRef(orbSize);
@@ -899,20 +909,29 @@ function App() {
         const mode = displayModeRef.current;
         const style = renderStyleRef.current;
         // Orb play area is constrained to the left half — motion modes center on that
-        // Orbital motion centers on the phone for the current layout.
+        // Orbital motion centers on the phone for the current layout — except
+        // in focus/showcase modes, where there's no phone and we re-center the
+        // cyclone to the actual viewport middle.
         const _layout = layoutRef.current;
-        const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
-        const _phoneXOffset = _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
+        const _orbsOnly = focusModeRef.current || showcaseModeRef.current;
+        const _phoneXFrac = _orbsOnly
+          ? 0.5
+          : _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
+        const _phoneXOffset = _orbsOnly
+          ? 0
+          : _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
         const centerX = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        const centerY = _layout === 'center'
-          // Phone bottom is at viewport-bottom + 6% (overflows), so its center
-          // is (windowH + windowH*0.06) - phoneH/2 from the top.
-          ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneHcalc / 2
-          // Side layouts: phone is vertically centered.
-          : window.innerHeight / 2;
+        const centerY = _orbsOnly
+          ? window.innerHeight / 2
+          : _layout === 'center'
+            // Phone bottom is at viewport-bottom + 6% (overflows), so its center
+            // is (windowH + windowH*0.06) - phoneH/2 from the top.
+            ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneHcalc / 2
+            // Side layouts: phone is vertically centered.
+            : window.innerHeight / 2;
 
         // Background: light gray (#f0f0f0) for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -1449,6 +1468,12 @@ function App() {
 
   const appLink = selectedOrb?.data.appId ? `https://wabi.ai/app/${selectedOrb.data.appId}` : '';
 
+  // Anything hidden in BOTH showcase and focus modes uses this flag. The
+  // controls panel and the hand-control webcam are special-cased: they stay
+  // visible in focus mode (the whole point of focus is "orbs only but I can
+  // still tweak them"), and the joystick stays so you can still drop orbs.
+  const minimalUI = showcaseMode || focusMode;
+
   return (
     <div style={{ width: '100%', minHeight: '100%', position: 'relative' }}>
       <style>{`
@@ -1618,10 +1643,10 @@ function App() {
       />
 
       {/* Header (fixed top) */}
-      {!showcaseMode && <Header />}
+      {!minimalUI && <Header />}
 
       {/* Headline + subhead (positioned per layout) */}
-      {!showcaseMode && (
+      {!minimalUI && (
         <div style={{
           position: 'absolute',
           ...(layout === 'center'
@@ -1844,7 +1869,7 @@ function App() {
       )}
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}
-      {!showcaseMode && (() => {
+      {!minimalUI && (() => {
         const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-3.png'];
         // Slot 0 = front, 1 = back-right, 2 = back-left
         const slotForIdentity = (id: number) => (id - activePhone + 3) % 3;
@@ -1962,7 +1987,7 @@ function App() {
       {/* Persona props — themed 3D objects floating around the phone, swapping
           with the active persona. Coordinates are % of the phone container
           (negative values intentionally spill outside the phone bounds). */}
-      {!showcaseMode && (() => {
+      {!minimalUI && (() => {
         // Position fields are percentages of the phone container (the same
         // box the dashboard PNG fills). Negative values are allowed and will
         // render outside the phone outline.
@@ -2065,7 +2090,7 @@ function App() {
       })()}
 
       {/* Floating notifications — one at a time on a calm rotation */}
-      {!showcaseMode && (() => {
+      {!minimalUI && (() => {
         const phoneCx =
           layout === 'left' ? 'calc(28% + 60px)' :
           layout === 'right' ? 'calc(72% - 60px)' :
@@ -2204,7 +2229,7 @@ function App() {
       })()}
 
       {/* Floating QR — only in center layout; side layouts render it inside the text column */}
-      {!showcaseMode && layout === 'center' && (
+      {!minimalUI && layout === 'center' && (
         <div
           className="orb-qr-card blur-in"
           style={{
@@ -2453,7 +2478,16 @@ function App() {
               </>
             )}
 
-            {/* Playground — fullscreen orbs-only vibe. ESC to exit. */}
+            {/* Focus — orbs in the middle, everything else hidden, BUT keep
+                this control panel and the hand-control webcam. Different from
+                Playground (below) which hides the panel too. */}
+            <div style={sectionLabel}>Focus</div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+              <button onClick={() => setFocusMode(false)} style={pillBtn(!focusMode)}>Off</button>
+              <button onClick={() => setFocusMode(true)}  style={pillBtn(focusMode)}>On</button>
+            </div>
+
+            {/* Playground — fullscreen orbs-only vibe (hides this panel too). */}
             <div style={sectionLabel}>Playground</div>
             <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
               <button
@@ -2559,7 +2593,7 @@ function App() {
       })()}
 
       {/* Instructions */}
-      {!showcaseMode && (
+      {!minimalUI && (
         <div style={{
           position: 'absolute', top: 96, left: '50%', transform: 'translateX(-50%)',
           color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)',
@@ -2574,7 +2608,7 @@ function App() {
       {/* Scroll-down chevron — visible only when bento is enabled so users
           know there's more content below the hero. Sits just above the footer
           and gently bobs. */}
-      {!showcaseMode && showBento && (
+      {!minimalUI && showBento && (
         <button
           type="button"
           onClick={() => bentoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
@@ -2682,7 +2716,7 @@ function App() {
       )}
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
-      {!showcaseMode && showBento && (
+      {!minimalUI && showBento && (
         <section ref={bentoSectionRef} style={{
           width: '100%',
           padding: 'clamp(48px, 6vw, 96px) clamp(20px, 4vw, 64px) clamp(120px, 12vw, 180px)',
@@ -3338,7 +3372,7 @@ function App() {
       />
 
       {/* Footer (fixed bottom) */}
-      {!showcaseMode && <Footer />}
+      {!minimalUI && <Footer />}
     </div>
   );
 }
