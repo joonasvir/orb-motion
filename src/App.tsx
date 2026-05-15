@@ -8,6 +8,7 @@ import Joystick, {
   playWhooshSound,
   type JoystickSound,
 } from './components/Joystick';
+import HandControl from './components/HandControl';
 
 interface OrbData {
   id: string;
@@ -119,6 +120,11 @@ function App() {
   const [showBento, setShowBento] = useState(false);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
+  // Hand-control mode — camera + MediaPipe HandLandmarker, two-hand clap
+  // triggers the joystick toggle, gesture (open/fist) flips physics/cyclone,
+  // hand position drives the cyclone parallax tilt.
+  const [handControl, setHandControl] = useState(false);
+  const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
   const [currentShape, setCurrentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
@@ -400,6 +406,12 @@ function App() {
     saveOrbs();
   }, [damping, saveOrbs]);
 
+  // Bridge addOrb into toggleLever via a ref so toggleLever (declared earlier)
+  // can call it without a circular dependency.
+  useEffect(() => {
+    addOrbRefForToggle.current = (x?: number) => addOrb(x);
+  }, [addOrb]);
+
   // Ref to the prompt input + handler that hits /api/generate-orb. The endpoint
   // returns a data URL we push onto aiCoversRef so the next addOrb() picks it.
   const genPromptRef = useRef<HTMLInputElement>(null);
@@ -504,6 +516,24 @@ function App() {
     setMoonMode(false);
     setDisplayMode(mode);
   }, []);
+
+  // Shared "lever toggle" — flips physics ↔ cyclone exactly like the joystick.
+  // Lives at the top level so the joystick AND the hand-clap can both call it.
+  const displayModeForToggleRef = useRef(displayMode);
+  useEffect(() => { displayModeForToggleRef.current = displayMode; }, [displayMode]);
+  const addOrbRefForToggle = useRef<((x?: number) => void) | null>(null);
+  const toggleLever = useCallback(() => {
+    const goingToPhysics = displayModeForToggleRef.current !== 'physics';
+    setMode(goingToPhysics ? 'physics' : 'cyclone');
+    if (goingToPhysics && addOrbRefForToggle.current) {
+      const newOrbCount = 5 + Math.floor(Math.random() * 3); // 5-7
+      for (let i = 0; i < newOrbCount; i++) {
+        const delay = i * 90 + Math.random() * 80;
+        const x = window.innerWidth * (0.12 + Math.random() * 0.76);
+        setTimeout(() => addOrbRefForToggle.current?.(x), delay);
+      }
+    }
+  }, [setMode]);
 
   // Close card and drop orb from where it was frozen
   const handleCloseCard = useCallback(() => {
@@ -2339,6 +2369,32 @@ function App() {
               >On</button>
             </div>
 
+            {/* Hand control — camera + MediaPipe HandLandmarker. Move your
+                hand, open palm restores the cyclone, fist drops to physics,
+                CLAP triggers the same lever as the joystick. */}
+            <div style={sectionLabel}>
+              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                <span>Hand control</span>
+                {handStatus !== 'off' && handStatus !== 'ready' && (
+                  <span style={{
+                    opacity: 0.7,
+                    textTransform: 'none',
+                    letterSpacing: 0,
+                    fontWeight: 500,
+                    color: handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : 'rgba(30,30,30,0.55)',
+                  }}>
+                    {handStatus === 'loading' && 'Loading…'}
+                    {handStatus === 'denied'  && 'Denied'}
+                    {handStatus === 'error'   && 'Error'}
+                  </span>
+                )}
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+              <button onClick={() => setHandControl(false)} style={pillBtn(!handControl)}>Off</button>
+              <button onClick={() => setHandControl(true)}  style={pillBtn(handControl)}>On</button>
+            </div>
+
             {/* Joystick sound — pick one of three synths; tap to preview */}
             <div style={sectionLabel}>Joystick sound</div>
             <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
@@ -3030,21 +3086,39 @@ function App() {
         <Joystick
           sound={joystickSound}
           pulled={displayMode === 'physics'}
-          onToggle={() => {
-            const goingToPhysics = displayMode !== 'physics';
-            setMode(goingToPhysics ? 'physics' : 'cyclone');
-            // When the lever drops the orbs, also rain a few fresh ones from above
-            if (goingToPhysics) {
-              const newOrbCount = 5 + Math.floor(Math.random() * 3); // 5-7
-              for (let i = 0; i < newOrbCount; i++) {
-                const delay = i * 90 + Math.random() * 80;
-                const x = window.innerWidth * (0.12 + Math.random() * 0.76);
-                setTimeout(() => addOrb(x), delay);
-              }
-            }
-          }}
+          onToggle={toggleLever}
         />
       )}
+
+      {/* Hand-control mode — camera + MediaPipe. Mounting toggles the camera. */}
+      <HandControl
+        enabled={handControl && !showcaseMode}
+        onStatus={setHandStatus}
+        onClap={() => {
+          // Play the currently-selected joystick sound so it matches the lever.
+          const sound = joystickSound === 'bubble' ? playBubbleSound
+                      : joystickSound === 'whoosh' ? playWhooshSound
+                      : playLeverSound;
+          const goingToPhysics = displayModeForToggleRef.current !== 'physics';
+          sound(!goingToPhysics);
+          toggleLever();
+        }}
+        onHandPosition={(pos) => {
+          if (!pos) return;
+          // Mirror what the cursor parallax does: map normalized 0..1 → -1..1.
+          mouseTiltTargetRef.current.x = Math.max(-1, Math.min(1, pos.x * 2 - 1));
+          mouseTiltTargetRef.current.y = Math.max(-1, Math.min(1, pos.y * 2 - 1));
+        }}
+        onGesture={(g) => {
+          // Open palm → cyclone (orbs reform). Closed fist → physics (drop).
+          // Subtle: don't churn modes if we're already there.
+          if (g === 'open' && displayModeForToggleRef.current !== 'cyclone') {
+            setMode('cyclone');
+          } else if (g === 'fist' && displayModeForToggleRef.current !== 'physics') {
+            setMode('physics');
+          }
+        }}
+      />
 
       {/* Footer (fixed bottom) */}
       {!showcaseMode && <Footer />}

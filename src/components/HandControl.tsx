@@ -1,0 +1,335 @@
+import { useEffect, useRef, useState } from 'react';
+import type { HandLandmarker } from '@mediapipe/tasks-vision';
+
+/**
+ * HandControl — laptop camera → orb gestures.
+ *
+ * What it does when `enabled` is true:
+ *  1. Asks the browser for camera permission (front-facing user camera).
+ *  2. Spins up MediaPipe HandLandmarker (WASM + GPU), tracking up to 2 hands.
+ *  3. Each frame, derives:
+ *      - hand center (normalized 0..1, x-flipped to feel like a mirror),
+ *      - open/fist gesture,
+ *      - inter-hand distance (for clap detection),
+ *      - hand center velocity.
+ *  4. Reports up via callbacks. The parent (App.tsx) wires those to the same
+ *     levers the joystick / mouse already drive: mouseTilt parallax, mode
+ *     switch (physics ↔ cyclone), and the lever toggle on clap.
+ *  5. Renders a small mirrored preview in the bottom-right corner.
+ *
+ * Gestures (simple-and-cheap, no separate gesture model):
+ *  - **fist**: every fingertip is closer to the wrist than the corresponding
+ *    knuckle is. Fingers are curled in.
+ *  - **open**: every fingertip is farther from the wrist than the corresponding
+ *    knuckle. Hand is splayed.
+ *  - anything else: `null` (transitional, partial — ignored to avoid flicker).
+ *
+ * Clap detection:
+ *  - Both hands must be visible.
+ *  - Inter-hand center distance crossed below CLAP_THRESHOLD in the last frame.
+ *  - Approach velocity (rate of distance decrease) above APPROACH_VEL.
+ *  - 700ms cooldown so a single clap fires once.
+ */
+
+export type HandGesture = 'open' | 'fist' | null;
+
+interface HandControlProps {
+  enabled: boolean;
+  /** Fires once per clap. */
+  onClap?: () => void;
+  /** Normalized 0..1 position of the dominant hand center (null when nothing seen). */
+  onHandPosition?: (pos: { x: number; y: number } | null) => void;
+  /** Current gesture of the dominant hand. Fires only when it changes. */
+  onGesture?: (g: HandGesture) => void;
+  /** Whether the small preview should be visible. */
+  showPreview?: boolean;
+  /** Reports loading/error state up so the panel can show "Loading…" / "Denied". */
+  onStatus?: (s: 'loading' | 'ready' | 'denied' | 'error' | 'off') => void;
+}
+
+// Use a CDN host for the WASM bundle so we don't have to bundle it ourselves.
+// Pinned major version to avoid surprise breakage.
+const WASM_BASE = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
+const MODEL_URL =
+  'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+
+// Tuning knobs ------------------------------------------------------------
+const CLAP_THRESHOLD = 0.18;   // hands "touching" in normalized units
+const APPROACH_VEL   = 0.35;   // distance decrease per frame to count as a clap
+const CLAP_COOLDOWN  = 700;    // ms — debounce so one clap fires once
+const POSITION_LERP  = 0.35;   // smoothing on hand center reports
+
+// Landmark indices that MediaPipe's hand model uses.
+// Reference: https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
+const WRIST = 0;
+const FINGERTIPS = [4, 8, 12, 16, 20];   // thumb, index, middle, ring, pinky
+const KNUCKLES   = [2, 5, 9, 13, 17];
+
+function dist(a: { x: number; y: number }, b: { x: number; y: number }) {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.hypot(dx, dy);
+}
+
+function classifyGesture(landmarks: Array<{ x: number; y: number }>): HandGesture {
+  const wrist = landmarks[WRIST];
+  let openCount = 0;
+  let fistCount = 0;
+  for (let i = 0; i < 5; i++) {
+    const tip = landmarks[FINGERTIPS[i]];
+    const knuckle = landmarks[KNUCKLES[i]];
+    if (!tip || !knuckle) return null;
+    const dTip = dist(tip, wrist);
+    const dKnuckle = dist(knuckle, wrist);
+    // Tip noticeably farther than knuckle → finger extended; closer → curled.
+    if (dTip > dKnuckle * 1.25) openCount += 1;
+    else if (dTip < dKnuckle * 0.95) fistCount += 1;
+  }
+  if (openCount >= 4) return 'open';
+  if (fistCount >= 4) return 'fist';
+  return null;
+}
+
+export default function HandControl({
+  enabled,
+  onClap,
+  onHandPosition,
+  onGesture,
+  showPreview = true,
+  onStatus,
+}: HandControlProps) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const landmarkerRef = useRef<HandLandmarker | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const lastVideoTimeRef = useRef(-1);
+
+  // Per-frame state held in refs so the rAF loop sees the latest values.
+  const lastHandsRef = useRef<{ centers: Array<{ x: number; y: number }> } | null>(null);
+  const lastClapAtRef = useRef(0);
+  const smoothedPosRef = useRef<{ x: number; y: number } | null>(null);
+  const lastGestureRef = useRef<HandGesture>(null);
+
+  const [status, setStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
+
+  // Keep latest callback refs so the rAF loop doesn't capture stale closures.
+  const cbsRef = useRef({ onClap, onHandPosition, onGesture });
+  cbsRef.current = { onClap, onHandPosition, onGesture };
+
+  useEffect(() => {
+    onStatus?.(status);
+  }, [status, onStatus]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function start() {
+      try {
+        setStatus('loading');
+
+        // 1) MediaPipe init (downloads WASM + the .task model first time only).
+        //    Dynamic import → MediaPipe lives in its own chunk and only ships
+        //    when the user actually flips Hand control on.
+        const { FilesetResolver, HandLandmarker: HL } = await import('@mediapipe/tasks-vision');
+        if (cancelled) return;
+        const fileset = await FilesetResolver.forVisionTasks(WASM_BASE);
+        if (cancelled) return;
+        const landmarker = await HL.createFromOptions(fileset, {
+          baseOptions: { modelAssetPath: MODEL_URL, delegate: 'GPU' },
+          runningMode: 'VIDEO',
+          numHands: 2,
+          minHandDetectionConfidence: 0.5,
+          minHandPresenceConfidence: 0.5,
+          minTrackingConfidence: 0.5,
+        });
+        if (cancelled) {
+          landmarker.close();
+          return;
+        }
+        landmarkerRef.current = landmarker;
+
+        // 2) Camera permission + stream.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 640, height: 480 },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach(t => t.stop());
+          return;
+        }
+        streamRef.current = stream;
+        const video = videoRef.current!;
+        video.srcObject = stream;
+        await video.play();
+
+        setStatus('ready');
+
+        // 3) rAF detect loop.
+        const detect = () => {
+          if (cancelled || !landmarkerRef.current || !videoRef.current) return;
+          const v = videoRef.current;
+          if (v.readyState >= 2 && v.currentTime !== lastVideoTimeRef.current) {
+            lastVideoTimeRef.current = v.currentTime;
+            const ts = performance.now();
+            const results = landmarkerRef.current.detectForVideo(v, ts);
+            handleResults(results);
+          }
+          rafRef.current = requestAnimationFrame(detect);
+        };
+        rafRef.current = requestAnimationFrame(detect);
+      } catch (err: any) {
+        if (cancelled) return;
+        const denied =
+          err?.name === 'NotAllowedError' || err?.name === 'PermissionDeniedError';
+        setStatus(denied ? 'denied' : 'error');
+        // eslint-disable-next-line no-console
+        console.warn('[HandControl] init failed:', err);
+      }
+    }
+
+    function handleResults(results: any) {
+      const handLandmarks = (results?.landmarks ?? []) as Array<Array<{ x: number; y: number }>>;
+
+      if (handLandmarks.length === 0) {
+        cbsRef.current.onHandPosition?.(null);
+        if (lastGestureRef.current !== null) {
+          lastGestureRef.current = null;
+          cbsRef.current.onGesture?.(null);
+        }
+        lastHandsRef.current = null;
+        return;
+      }
+
+      // Compute each hand's center (mean of all landmarks). Flip X so the
+      // preview behaves like a mirror — moving right on screen feels like
+      // moving right in the room.
+      const centers = handLandmarks.map(lm => {
+        let sx = 0, sy = 0;
+        for (const p of lm) { sx += p.x; sy += p.y; }
+        return { x: 1 - (sx / lm.length), y: sy / lm.length };
+      });
+
+      // Dominant hand = the one with the highest visibility (first by index
+      // works well enough in practice — MediaPipe orders by confidence).
+      const dominantIdx = 0;
+      const dominantCenter = centers[dominantIdx];
+
+      // Smoothed position report → mouseTilt
+      const prev = smoothedPosRef.current ?? dominantCenter;
+      const sm = {
+        x: prev.x + (dominantCenter.x - prev.x) * POSITION_LERP,
+        y: prev.y + (dominantCenter.y - prev.y) * POSITION_LERP,
+      };
+      smoothedPosRef.current = sm;
+      cbsRef.current.onHandPosition?.(sm);
+
+      // Gesture (only on the dominant hand). Edge-trigger so the consumer
+      // only handles transitions, not every frame.
+      const g = classifyGesture(handLandmarks[dominantIdx]);
+      if (g !== lastGestureRef.current) {
+        lastGestureRef.current = g;
+        cbsRef.current.onGesture?.(g);
+      }
+
+      // Clap detection — needs both hands.
+      if (centers.length === 2 && lastHandsRef.current && lastHandsRef.current.centers.length === 2) {
+        const d  = dist(centers[0], centers[1]);
+        const dPrev = dist(lastHandsRef.current.centers[0], lastHandsRef.current.centers[1]);
+        const approach = dPrev - d;
+        const now = performance.now();
+        if (d < CLAP_THRESHOLD && approach > APPROACH_VEL && now - lastClapAtRef.current > CLAP_COOLDOWN) {
+          lastClapAtRef.current = now;
+          cbsRef.current.onClap?.();
+        }
+      }
+      lastHandsRef.current = { centers };
+    }
+
+    if (enabled) start();
+
+    return () => {
+      cancelled = true;
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+      if (landmarkerRef.current) {
+        try { landmarkerRef.current.close(); } catch { /* ignore */ }
+        landmarkerRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current = null;
+      }
+      if (videoRef.current) videoRef.current.srcObject = null;
+      lastHandsRef.current = null;
+      smoothedPosRef.current = null;
+      lastGestureRef.current = null;
+      setStatus('off');
+    };
+  }, [enabled]);
+
+  // The <video> element must exist in the DOM whenever enabled so we can wire
+  // the stream to it. We hide it (display:none) when showPreview is off; the
+  // tracking loop still runs.
+  if (!enabled) return null;
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        bottom: 16,
+        right: 16,
+        width: 192,
+        height: 144,
+        borderRadius: 14,
+        overflow: 'hidden',
+        background: 'rgba(20,20,20,0.6)',
+        boxShadow: '0 14px 28px rgba(0,0,0,0.18), 0 4px 10px rgba(0,0,0,0.10)',
+        backdropFilter: 'blur(18px) saturate(150%)',
+        WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+        border: '1px solid rgba(255,255,255,0.55)',
+        zIndex: 95,
+        pointerEvents: 'none',
+        display: showPreview ? 'block' : 'none',
+        opacity: status === 'ready' ? 1 : 0.6,
+        transition: 'opacity 0.3s ease',
+      }}
+      aria-hidden="true"
+    >
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        autoPlay
+        // CSS mirror to match the natural "selfie" expectation.
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: 'scaleX(-1)',
+          display: 'block',
+        }}
+      />
+      {status !== 'ready' && (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(15,15,15,0.55)',
+            color: 'rgba(255,255,255,0.92)',
+            fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+            fontSize: 11,
+            letterSpacing: 0.6,
+            textTransform: 'uppercase',
+          }}
+        >
+          {status === 'loading' && 'Loading…'}
+          {status === 'denied'  && 'Camera denied'}
+          {status === 'error'   && 'Camera error'}
+        </div>
+      )}
+    </div>
+  );
+}
