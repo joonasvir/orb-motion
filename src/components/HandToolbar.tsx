@@ -20,10 +20,12 @@ interface Props {
 }
 
 const GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
-  { emoji: '✋', label: 'Open palm',  effect: 'cyclone' },
-  { emoji: '✊', label: 'Fist',       effect: 'drop' },
-  { emoji: '📏', label: 'Palm height', effect: 'cyclone size' },
-  { emoji: '👋', label: 'Clap',       effect: 'reset · rain fresh orbs' },
+  { emoji: '✋', label: 'Open palm',     effect: 'cyclone' },
+  { emoji: '✊', label: 'Fist',          effect: 'drop' },
+  { emoji: '🤏', label: 'Pinch',         effect: 'spawn orb' },
+  { emoji: '👐', label: 'Hand distance', effect: 'cyclone size' },
+  { emoji: '📏', label: 'Palm height',   effect: 'cyclone size · single hand' },
+  { emoji: '👋', label: 'Clap',          effect: 'reset · rain fresh orbs' },
 ];
 
 export default function HandToolbar({ enabled }: Props) {

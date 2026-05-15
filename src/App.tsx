@@ -3391,16 +3391,37 @@ function App() {
           }
         }}
         onPalmHeight={(y) => {
-          // Dramatic range: y=0 (hand at top) → 2.2x cyclone radius (orbs
-          // spread to fill the viewport). y=1 (hand at bottom) → 0.3x
-          // (orbs pinch tight into a small ring). y=0.5 → ~1.05x neutral.
+          // One-hand open palm height drives the cyclone radius.
+          // y=0 (hand at top) → 2.8x (wide). y=1 (hand at bottom) → 0.15x
+          // (orbs pinch into a tiny cluster). y=0.5 → ~1.4x.
           // Released (null) → snap back to 1.0.
           if (y == null) {
             cycloneRadiusMulTargetRef.current = 1.0;
           } else {
-            const mul = 2.2 - y * 1.9;
-            cycloneRadiusMulTargetRef.current = Math.max(0.3, Math.min(2.2, mul));
+            const mul = 2.8 - y * 2.65;
+            cycloneRadiusMulTargetRef.current = Math.max(0.15, Math.min(2.8, mul));
           }
+        }}
+        onHandsDistance={(d) => {
+          // BOTH hands visible: distance between them drives the cyclone size.
+          // Distance is normalized in MediaPipe's space; observed range is
+          // roughly 0.05 (hands touching) to ~1.0 (hands at the edges of frame).
+          // Map to a radius multiplier of 0.10x (barely visible) to 2.8x (huge).
+          if (d == null) {
+            // Released → only snap back if palm-height isn't also driving the
+            // value (palm-height handler will keep its own value alive).
+            cycloneRadiusMulTargetRef.current = 1.0;
+            return;
+          }
+          // Clamp + remap. Tight curve near 0 so "very close" gets very small.
+          const t = Math.max(0, Math.min(1, (d - 0.05) / 0.9));
+          const mul = 0.10 + Math.pow(t, 0.85) * (2.8 - 0.10);
+          cycloneRadiusMulTargetRef.current = mul;
+        }}
+        onPinch={(pos) => {
+          // Spawn a fresh orb at the pinch point (normalized 0..1 → pixels).
+          const x = pos.x * window.innerWidth;
+          addOrb(x);
         }}
       />
 

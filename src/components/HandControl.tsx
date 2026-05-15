@@ -41,9 +41,15 @@ interface HandControlProps {
   onHandPosition?: (pos: { x: number; y: number } | null) => void;
   /** Current gesture of the dominant hand. Fires only when it changes. */
   onGesture?: (g: HandGesture) => void;
-  /** Continuous palm height (0=top, 1=bottom) while an open palm is visible.
-      null when no open palm is detected. Drives the cyclone radius. */
+  /** Continuous palm height (0=top, 1=bottom) while an open palm is visible
+      AND only one hand is in frame. null otherwise. */
   onPalmHeight?: (y: number | null) => void;
+  /** Continuous inter-hand distance (normalized 0..~1.4) while BOTH hands are
+      visible. null when fewer than 2 hands. Takes priority over palm-height. */
+  onHandsDistance?: (d: number | null) => void;
+  /** One-shot per pinch (thumb tip + index tip touching). Position is the
+      pinch point (mirrored, normalized 0..1). */
+  onPinch?: (pos: { x: number; y: number }) => void;
   /** Whether the small preview should be visible. */
   showPreview?: boolean;
   /** Reports loading/error state up so the panel can show "Loading…" / "Denied". */
@@ -95,10 +101,14 @@ const CLAP_THRESHOLD = 0.18;   // hands "touching" in normalized units
 const APPROACH_VEL   = 0.35;   // distance decrease per frame to count as a clap
 const CLAP_COOLDOWN  = 700;    // ms — debounce so one clap fires once
 const POSITION_LERP  = 0.35;   // smoothing on hand center reports
+const PINCH_THRESHOLD = 0.055; // thumb+index tip distance below this counts as a pinch
+const PINCH_COOLDOWN  = 320;   // ms — debounce so a single touch fires once
 
 // Landmark indices that MediaPipe's hand model uses.
 // Reference: https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
 const WRIST = 0;
+const THUMB_TIP = 4;
+const INDEX_TIP = 8;
 const FINGERTIPS = [4, 8, 12, 16, 20];   // thumb, index, middle, ring, pinky
 const KNUCKLES   = [2, 5, 9, 13, 17];
 
@@ -132,6 +142,8 @@ export default function HandControl({
   onHandPosition,
   onGesture,
   onPalmHeight,
+  onHandsDistance,
+  onPinch,
   showPreview = true,
   onStatus,
   size = 'l',
@@ -152,19 +164,23 @@ export default function HandControl({
   // Per-frame state held in refs so the rAF loop sees the latest values.
   const lastHandsRef = useRef<{ centers: Array<{ x: number; y: number }>; distance: number } | null>(null);
   const lastClapAtRef = useRef(0);
+  const lastPinchAtRef = useRef(0);
   const smoothedPosRef = useRef<{ x: number; y: number } | null>(null);
   const lastGestureRef = useRef<HandGesture>(null);
   const lastPalmHeightReportedRef = useRef(false);
+  const lastHandsDistanceReportedRef = useRef(false);
 
   const [status, setStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
 
   // Keep latest callback refs so the rAF loop doesn't capture stale closures.
   const cbsRef = useRef({
-    onClap, onHandPosition, onGesture, onPalmHeight,
+    onClap, onHandPosition, onGesture,
+    onPalmHeight, onHandsDistance, onPinch,
     size, showSkeleton,
   });
   cbsRef.current = {
-    onClap, onHandPosition, onGesture, onPalmHeight,
+    onClap, onHandPosition, onGesture,
+    onPalmHeight, onHandsDistance, onPinch,
     size, showSkeleton,
   };
 
@@ -254,6 +270,10 @@ export default function HandControl({
           lastPalmHeightReportedRef.current = false;
           cbsRef.current.onPalmHeight?.(null);
         }
+        if (lastHandsDistanceReportedRef.current) {
+          lastHandsDistanceReportedRef.current = false;
+          cbsRef.current.onHandsDistance?.(null);
+        }
         lastHandsRef.current = null;
         return;
       }
@@ -305,14 +325,43 @@ export default function HandControl({
         twoHandDistance = dist(centers[0], centers[1]);
       }
 
-      // Palm height — always on (driven by the open-palm gesture). Drives the
-      // cyclone radius continuously. No 'extras' gate; this is core now.
-      if (g === 'open') {
+      // Hands distance — takes priority over palm-height when both hands are
+      // in frame. App.tsx maps this to cyclone radius (close = tight, far = wide).
+      if (twoHandDistance != null) {
+        lastHandsDistanceReportedRef.current = true;
+        cbsRef.current.onHandsDistance?.(twoHandDistance);
+      } else if (lastHandsDistanceReportedRef.current) {
+        lastHandsDistanceReportedRef.current = false;
+        cbsRef.current.onHandsDistance?.(null);
+      }
+
+      // Palm height — only fires when ONE hand is visible AND it's an open
+      // palm. Two-hand mode means the user is using inter-hand distance, so
+      // palm height yields to that to avoid two signals fighting each other.
+      const oneHandOpen = centers.length === 1 && g === 'open';
+      if (oneHandOpen) {
         lastPalmHeightReportedRef.current = true;
         cbsRef.current.onPalmHeight?.(dominantCenter.y);
       } else if (lastPalmHeightReportedRef.current) {
         lastPalmHeightReportedRef.current = false;
         cbsRef.current.onPalmHeight?.(null);
+      }
+
+      // Pinch — thumb tip + index tip touch. Spawns one orb per pinch (cool-
+      // down debounces a sustained touch). Reported in mirrored-normalized
+      // space so the spawn lands under the user's fingers as they see them.
+      const dom = handLandmarks[dominantIdx];
+      const thumb = dom[THUMB_TIP];
+      const idxTip = dom[INDEX_TIP];
+      if (thumb && idxTip) {
+        const pinchD = dist(thumb, idxTip);
+        if (pinchD < PINCH_THRESHOLD && now - lastPinchAtRef.current > PINCH_COOLDOWN) {
+          lastPinchAtRef.current = now;
+          cbsRef.current.onPinch?.({
+            x: 1 - (thumb.x + idxTip.x) / 2,
+            y: (thumb.y + idxTip.y) / 2,
+          });
+        }
       }
 
       lastHandsRef.current = { centers, distance: twoHandDistance ?? 0 };
