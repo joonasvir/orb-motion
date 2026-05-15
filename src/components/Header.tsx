@@ -1,7 +1,7 @@
 import WabiLogo from './WabiLogo';
-import { Link } from '../lib/router';
 
 const APP_STORE_URL = 'https://apps.apple.com/us/app/wabi-make-mini-apps/id6478775737';
+const MANIFESTO_URL = 'https://manifesto.joonasvirtanen.com';
 
 export default function Header() {
   return (
@@ -309,8 +309,8 @@ export default function Header() {
           <WabiLogo />
         </a>
         <div className="orb-nav-right blur-in" style={{ animationDelay: '180ms' }}>
-          <Link
-            href="/manifesto"
+          <a
+            href={MANIFESTO_URL}
             className="orb-nav-link"
             style={{
               color: 'rgba(30,30,30,0.78)',
@@ -326,7 +326,7 @@ export default function Header() {
             onMouseLeave={(e) => (e.currentTarget.style.color = 'rgba(30,30,30,0.78)')}
           >
             Manifesto
-          </Link>
+          </a>
           <a
             href={APP_STORE_URL}
             target="_blank"
