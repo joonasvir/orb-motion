@@ -56,7 +56,35 @@ interface HandControlProps {
   showPreview?: boolean;
   /** Reports loading/error state up so the panel can show "Loading…" / "Denied". */
   onStatus?: (s: 'loading' | 'ready' | 'denied' | 'error' | 'off') => void;
+  /** Preview size preset. Width × height: s=192×144, m=288×216, l=416×312, xl=576×432. */
+  size?: 's' | 'm' | 'l' | 'xl';
+  /** Render the live skeleton (landmarks + connections) on top of the video. */
+  showSkeleton?: boolean;
 }
+
+// MediaPipe's canonical hand-skeleton connections (21 landmarks).
+// See: https://developers.google.com/mediapipe/solutions/vision/hand_landmarker
+const HAND_CONNECTIONS: Array<[number, number]> = [
+  // thumb
+  [0, 1], [1, 2], [2, 3], [3, 4],
+  // index
+  [0, 5], [5, 6], [6, 7], [7, 8],
+  // middle
+  [5, 9], [9, 10], [10, 11], [11, 12],
+  // ring
+  [9, 13], [13, 14], [14, 15], [15, 16],
+  // pinky
+  [13, 17], [17, 18], [18, 19], [19, 20],
+  // palm baseline
+  [0, 17],
+];
+
+const PREVIEW_SIZES = {
+  s:  { w: 192, h: 144 },
+  m:  { w: 288, h: 216 },
+  l:  { w: 416, h: 312 },
+  xl: { w: 576, h: 432 },
+} as const;
 
 // Use a CDN host for the WASM bundle so we don't have to bundle it ourselves.
 // Pinned major version to avoid surprise breakage.
@@ -124,8 +152,12 @@ export default function HandControl({
   onSqueeze,
   showPreview = true,
   onStatus,
+  size = 'm',
+  showSkeleton = true,
 }: HandControlProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const overlayRef = useRef<HTMLCanvasElement | null>(null);
+  const lastResultsRef = useRef<any>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const landmarkerRef = useRef<HandLandmarker | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -148,11 +180,13 @@ export default function HandControl({
     onClap, onHandPosition, onGesture,
     onPinch, onIndexPoint, onPalmHeight, onSpread, onSqueeze,
     extras,
+    size, showSkeleton,
   });
   cbsRef.current = {
     onClap, onHandPosition, onGesture,
     onPinch, onIndexPoint, onPalmHeight, onSpread, onSqueeze,
     extras,
+    size, showSkeleton,
   };
 
   useEffect(() => {
@@ -211,8 +245,10 @@ export default function HandControl({
             lastVideoTimeRef.current = v.currentTime;
             const ts = performance.now();
             const results = landmarkerRef.current.detectForVideo(v, ts);
+            lastResultsRef.current = results;
             handleResults(results);
           }
+          drawOverlay();
           rafRef.current = requestAnimationFrame(detect);
         };
         rafRef.current = requestAnimationFrame(detect);
@@ -348,6 +384,70 @@ export default function HandControl({
       lastHandsRef.current = { centers, distance: twoHandDistance ?? 0 };
     }
 
+    function drawOverlay() {
+      const canvas = overlayRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      const { w, h } = PREVIEW_SIZES[cbsRef.current.size];
+      const dpr = window.devicePixelRatio || 1;
+      const targetW = Math.floor(w * dpr);
+      const targetH = Math.floor(h * dpr);
+      if (canvas.width !== targetW || canvas.height !== targetH) {
+        canvas.width = targetW;
+        canvas.height = targetH;
+      }
+      // Reset to identity then scale by dpr so we can think in CSS pixels.
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      if (!cbsRef.current.showSkeleton) return;
+      const results = lastResultsRef.current;
+      const handLandmarks: Array<Array<{ x: number; y: number }>> = results?.landmarks ?? [];
+      if (handLandmarks.length === 0) return;
+
+      // Two-hand palette: hand 0 cyan, hand 1 magenta. Stroke ~2px, fingertips
+      // brighter than knuckles. Drawn in raw (non-mirrored) coordinates — the
+      // canvas element itself is CSS-mirrored to match the video.
+      const COLORS = [
+        { line: 'rgba(80, 220, 255, 0.85)', dot: '#fff', tip: '#7cffaa' },
+        { line: 'rgba(255, 140, 220, 0.85)', dot: '#fff', tip: '#ffd07c' },
+      ];
+      const FINGERTIP_IDS = new Set([4, 8, 12, 16, 20]);
+
+      for (let hi = 0; hi < handLandmarks.length; hi++) {
+        const lm = handLandmarks[hi];
+        const c = COLORS[hi % COLORS.length];
+
+        // 1) connections — slightly transparent so dots punch through
+        ctx.strokeStyle = c.line;
+        ctx.lineWidth = 2.4;
+        ctx.lineCap = 'round';
+        for (const [a, b] of HAND_CONNECTIONS) {
+          const pa = lm[a]; const pb = lm[b];
+          if (!pa || !pb) continue;
+          ctx.beginPath();
+          ctx.moveTo(pa.x * w, pa.y * h);
+          ctx.lineTo(pb.x * w, pb.y * h);
+          ctx.stroke();
+        }
+        // 2) joint dots — fingertips brighter & larger
+        for (let i = 0; i < lm.length; i++) {
+          const p = lm[i];
+          const tip = FINGERTIP_IDS.has(i);
+          ctx.fillStyle = tip ? c.tip : c.dot;
+          ctx.beginPath();
+          ctx.arc(p.x * w, p.y * h, tip ? 5 : 3.4, 0, Math.PI * 2);
+          ctx.fill();
+          // dark outline for legibility on bright backgrounds
+          ctx.strokeStyle = 'rgba(0,0,0,0.45)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+        }
+      }
+    }
+
     if (enabled) start();
 
     return () => {
@@ -375,18 +475,20 @@ export default function HandControl({
   // tracking loop still runs.
   if (!enabled) return null;
 
+  const { w: previewW, h: previewH } = PREVIEW_SIZES[size];
+
   return (
     <div
       style={{
         position: 'fixed',
         bottom: 16,
         right: 16,
-        width: 192,
-        height: 144,
-        borderRadius: 14,
+        width: previewW,
+        height: previewH,
+        borderRadius: 16,
         overflow: 'hidden',
         background: 'rgba(20,20,20,0.6)',
-        boxShadow: '0 14px 28px rgba(0,0,0,0.18), 0 4px 10px rgba(0,0,0,0.10)',
+        boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
         backdropFilter: 'blur(18px) saturate(150%)',
         WebkitBackdropFilter: 'blur(18px) saturate(150%)',
         border: '1px solid rgba(255,255,255,0.55)',
@@ -394,7 +496,8 @@ export default function HandControl({
         pointerEvents: 'none',
         display: showPreview ? 'block' : 'none',
         opacity: status === 'ready' ? 1 : 0.6,
-        transition: 'opacity 0.3s ease',
+        // Smooth resize when the user toggles S/M/L/XL.
+        transition: 'opacity 0.3s ease, width 0.3s cubic-bezier(0.22, 1, 0.36, 1), height 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
       aria-hidden="true"
     >
@@ -403,13 +506,28 @@ export default function HandControl({
         muted
         playsInline
         autoPlay
-        // CSS mirror to match the natural "selfie" expectation.
+        // CSS mirror so it feels like a selfie.
         style={{
+          position: 'absolute',
+          inset: 0,
           width: '100%',
           height: '100%',
           objectFit: 'cover',
           transform: 'scaleX(-1)',
           display: 'block',
+        }}
+      />
+      {/* Skeleton overlay — mirrored to match the video. Drawn in raw landmark
+          coords; the scaleX(-1) on the canvas flips them to display space. */}
+      <canvas
+        ref={overlayRef}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          width: '100%',
+          height: '100%',
+          transform: 'scaleX(-1)',
+          pointerEvents: 'none',
         }}
       />
       {status !== 'ready' && (

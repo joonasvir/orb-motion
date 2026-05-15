@@ -126,6 +126,8 @@ function App() {
   const [handControl, setHandControl] = useState(false);
   const [handExtras, setHandExtras] = useState(false);
   const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
+  const [handCameraSize, setHandCameraSize] = useState<'s' | 'm' | 'l' | 'xl'>('m');
+  const [handShowSkeleton, setHandShowSkeleton] = useState(true);
   // Cyclone radius multiplier (1.0 = default). Pinned to 1 unless an open
   // palm is held, in which case palm height drives it (high → tight, low → wide).
   const cycloneRadiusMulRef = useRef(1.0);
@@ -2427,9 +2429,26 @@ function App() {
                     </span>
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
                   <button onClick={() => setHandExtras(false)} style={pillBtn(!handExtras)}>Off</button>
                   <button onClick={() => setHandExtras(true)}  style={pillBtn(handExtras)}>On</button>
+                </div>
+
+                {/* Camera size — S / M / L / XL segmented control */}
+                <div style={sectionLabel}>Camera size</div>
+                <div style={{ ...segGroup, marginBottom: 8 }}>
+                  {(['s', 'm', 'l', 'xl'] as const).map(s => (
+                    <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
+                      {s.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Tracking — show live hand skeleton on the feed */}
+                <div style={sectionLabel}>Tracking</div>
+                <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
+                  <button onClick={() => setHandShowSkeleton(false)} style={pillBtn(!handShowSkeleton)}>Off</button>
+                  <button onClick={() => setHandShowSkeleton(true)}  style={pillBtn(handShowSkeleton)}>On</button>
                 </div>
               </>
             )}
@@ -3222,6 +3241,8 @@ function App() {
       <HandControl
         enabled={handControl}
         extras={handExtras}
+        size={handCameraSize}
+        showSkeleton={handShowSkeleton}
         onStatus={setHandStatus}
         onClap={() => {
           // Play the currently-selected joystick sound so it matches the lever.
