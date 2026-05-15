@@ -104,7 +104,8 @@ function App() {
   const [damping, setDamping] = useState(0.005);
   const [moonMode, setMoonMode] = useState(false);
   const [showControls, setShowControls] = useState(true);
-  const [layout, setLayout] = useState<'left' | 'center' | 'right'>('center');
+  // Default 'right' — pairs with personalMode default (copy on left, phone on right).
+  const [layout, setLayout] = useState<'left' | 'center' | 'right'>('right');
   const [selectedOrb, setSelectedOrb] = useState<SelectedOrb | null>(null);
   const [isClosing, setIsClosing] = useState(false);
   const [lightMode, setLightMode] = useState(false);
@@ -132,7 +133,8 @@ function App() {
   useEffect(() => { showOrbsRef.current = showOrbs; }, [showOrbs]);
   // Alternate "Make it personal" layout — replaces headline + subhead with a
   // larger left-positioned headline and a cycling-word subhead.
-  const [personalMode, setPersonalMode] = useState(false);
+  // Default ON (per the latest direction).
+  const [personalMode, setPersonalMode] = useState(true);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1790,8 +1792,11 @@ function App() {
             ? {
                 top: '50%',
                 transform: 'translateY(-50%)',
-                left: 'clamp(48px, 6vw, 140px)',
-                width: 'min(620px, 46vw)',
+                // More breathing room on the left edge — pulls the copy a
+                // bit toward center so the whole composition feels less
+                // pinned to the page edges.
+                left: 'clamp(88px, 10vw, 220px)',
+                width: 'min(560px, 40vw)',
                 textAlign: 'left' as const,
               }
             : layout === 'center'
@@ -2012,9 +2017,10 @@ function App() {
                 padding: 'clamp(6px, 0.6vw, 9px)',
                 borderRadius: 'clamp(14px, 1.6vw, 22px)',
                 // Left-aligned with the copy in personalMode; centered in the
-                // text column otherwise.
+                // text column otherwise. Personal mode gets a bigger top
+                // gap so the QR doesn't feel pinned to the subhead.
                 margin: personalMode
-                  ? 'clamp(20px, 2.5vh, 36px) 0 0'
+                  ? 'clamp(44px, 5.5vh, 80px) 0 0'
                   : 'clamp(20px, 2.5vh, 36px) auto 0',
                 transformOrigin: personalMode ? 'top left' : 'top center',
                 background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
@@ -2071,10 +2077,12 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
+              // In personalMode pull the phone a touch toward center
+              // (66% vs 72%) so the whole composition reads tighter.
               left: layout === 'left'
-                ? 'calc(28% + 60px)'
+                ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
                 : layout === 'right'
-                ? 'calc(72% - 60px)'
+                ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
                 : '50%',
               ...(layout === 'center'
                 ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
@@ -2196,9 +2204,9 @@ function App() {
         const wrapperStyle: React.CSSProperties = {
           position: 'absolute',
           left: layout === 'left'
-            ? 'calc(28% + 60px)'
+            ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
             : layout === 'right'
-            ? 'calc(72% - 60px)'
+            ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
             : '50%',
           ...(layout === 'center'
             ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
