@@ -1772,11 +1772,22 @@ function App() {
       {/* Header (fixed top) */}
       {!minimalUI && <Header />}
 
-      {/* Headline + subhead (positioned per layout) */}
+      {/* Headline + subhead (positioned per layout). In personalMode the
+          text block stays in the left layout position but is LEFT-aligned
+          instead of centered (per the Figma 78:6384 spec), and the headline
+          + subhead both lean much bigger. */}
       {!minimalUI && (
         <div style={{
           position: 'absolute',
-          ...(layout === 'center'
+          ...(personalMode
+            ? {
+                top: '50%',
+                transform: 'translateY(-50%)',
+                left: 'clamp(48px, 6vw, 140px)',
+                width: 'min(620px, 46vw)',
+                textAlign: 'left' as const,
+              }
+            : layout === 'center'
             ? {
                 top: 'clamp(110px, 12vh, 140px)',
                 left: '50%',
@@ -1799,12 +1810,14 @@ function App() {
         }}>
           <h1 className="blur-in" style={{
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
-            // Bumped to match the Figma 53:5760 ratio — center max 50 → 60,
-            // side max 40 → 48; min/vw raised proportionally.
-            fontSize: layout === 'center'
+            // personalMode: much bigger Kalice display. Otherwise: match the
+            // Figma 53:5760 ratio (center max 50 → 60, side max 40 → 48).
+            fontSize: personalMode
+              ? 'clamp(48px, 7.5vw, 116px)'
+              : layout === 'center'
               ? 'clamp(28px, 4.0vw, 60px)'
               : 'clamp(24px, 3.2vw, 48px)',
-            lineHeight: 1.11,
+            lineHeight: personalMode ? 0.98 : 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
@@ -1926,7 +1939,7 @@ function App() {
                 return (
                   <>
                     <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Make it</span>
-                    <span style={{ display: 'block', whiteSpace: 'nowrap', fontStyle: 'italic' }}>personal</span>
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>personal</span>
                   </>
                 );
               }
@@ -1955,20 +1968,20 @@ function App() {
           <p className="blur-in" style={{
             fontFamily: 'inherit',
             fontSize: personalMode
-              ? 'clamp(16px, 1.7vw, 28px)'
+              ? 'clamp(18px, 1.9vw, 30px)'
               : 'clamp(13px, 1.3vw, 22px)',
-            lineHeight: personalMode ? 1.2 : 1.25,
+            lineHeight: personalMode ? 1.18 : 1.25,
             letterSpacing: '-0.01em',
-            // Animated start state has opacity:0; the .blur-in `both` fill
-            // keeps the end opacity at 1, so use color alpha (not opacity)
-            // to keep the dim look without fighting the keyframes.
             // Figma 53:5758 reads ~#7F7F7F effective (#636363 @ 0.8 alpha on
             // #f0f0f0). Was rgba(99,99,99,0.95) ≈ #6A6A6A — too dark.
             color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.7)',
             margin: 0,
-            maxWidth: personalMode ? 360 : 400,
-            marginLeft: 'auto',
-            marginRight: 'auto',
+            maxWidth: personalMode ? 'none' : 400,
+            // In personalMode the wrapper is already left-aligned and width-
+            // constrained; no auto-centering on this <p>.
+            marginLeft: personalMode ? 0 : 'auto',
+            marginRight: personalMode ? 0 : 'auto',
+            marginTop: personalMode ? 'clamp(20px, 2.2vh, 36px)' : 0,
             fontWeight: 400,
             fontFeatureSettings: '"dlig" 1',
             animationDelay: '300ms',
