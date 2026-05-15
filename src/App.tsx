@@ -119,18 +119,26 @@ function App() {
   const [hoveredFaceId, setHoveredFaceId] = useState<number | null>(null);
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [showProfiles, setShowProfiles] = useState(true);
+  const [showProfiles, setShowProfiles] = useState(false);
   const [showBento, setShowBento] = useState(false);
   // 3D persona props (heart / mobile / globe / atlas / controller / cursor / etc.)
   // that float around the phone, themed to the active persona. Off by default —
   // they're more of a flourish than a baseline.
   const [showPersonaProps, setShowPersonaProps] = useState(false);
+  // Master switch for the orb canvases. When off, the Matter physics loop
+  // keeps running (orbs still exist) but neither canvas paints them, so the
+  // landing reads as a clean text-only hero.
+  const [showOrbs, setShowOrbs] = useState(true);
+  const showOrbsRef = useRef(showOrbs);
+  useEffect(() => { showOrbsRef.current = showOrbs; }, [showOrbs]);
   // Alternate "Make it personal" layout — replaces headline + subhead with a
   // larger left-positioned headline and a cycling-word subhead. Hovering the
   // cycling word reveals an SVG overlay of handwritten phrases curving across
-  // the page. Toggled from the panel.
+  // the page. Toggled from the panel. Pressing P also toggles the overlay.
   const [personalMode, setPersonalMode] = useState(false);
   const [spiralVisible, setSpiralVisible] = useState(false);
+  const personalModeRef = useRef(personalMode);
+  useEffect(() => { personalModeRef.current = personalMode; }, [personalMode]);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1351,6 +1359,11 @@ function App() {
           ctxFront.clearRect(0, 0, window.innerWidth, window.innerHeight);
         }
 
+        // Master switch — when orbs are toggled off, skip the per-orb draw
+        // loop entirely. Physics + position math above still ran so toggling
+        // back on brings them in at the right places.
+        if (!showOrbsRef.current) return;
+
         // Render orbs (branches on render style); route to front/back canvas
         orbRenderData.forEach(({ orbData, drawX, drawY, drawAngle, radius, isFront, alpha }) => {
           const tctx = (isFront && ctxFront) ? ctxFront : ctx;
@@ -1505,6 +1518,9 @@ function App() {
           // Same as the clap gesture + Reset button: wipe, then rain.
           resetOrbsRef.current?.();
         }
+        // 'P' has two meanings: in personal mode it toggles the spiral
+        // overlay; otherwise it snaps to physics + exits showcase. The
+        // second handler is gated below so they don't both fire.
         if (e.key === 'm' || e.key === 'M') {
           const newMode = !moonModeRef.current;
           engine.gravity.y = newMode ? -0.4 : 1;
@@ -1532,11 +1548,24 @@ function App() {
           });
           setMoonMode(false);
         }
-        if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+        if (e.key === 'Escape') {
+          // Escape: hard exit any modal-y mode.
           setDisplayMode('physics');
           engine.gravity.y = 1;
           setMoonMode(false);
           setShowcaseMode(false);
+        }
+        if (e.key === 'p' || e.key === 'P') {
+          if (personalModeRef.current) {
+            // In personal mode, P toggles the curving-text overlay.
+            setSpiralVisible(v => !v);
+          } else {
+            // Otherwise, P keeps its old meaning: physics + exit showcase.
+            setDisplayMode('physics');
+            engine.gravity.y = 1;
+            setMoonMode(false);
+            setShowcaseMode(false);
+          }
         }
         if (e.key === 'f' || e.key === 'F') {
           setShowcaseMode(true);
@@ -1812,8 +1841,10 @@ function App() {
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
             // personalMode: much bigger Kalice display. Otherwise: match the
             // Figma 53:5760 ratio (center max 50 → 60, side max 40 → 48).
+            // personalMode size is 20% smaller than the previous draft
+            // (clamp 48→38, 7.5→6.0, 116→93) per the latest tweak.
             fontSize: personalMode
-              ? 'clamp(48px, 7.5vw, 116px)'
+              ? 'clamp(38px, 6.0vw, 93px)'
               : layout === 'center'
               ? 'clamp(28px, 4.0vw, 60px)'
               : 'clamp(24px, 3.2vw, 48px)',
@@ -2002,7 +2033,12 @@ function App() {
                 aspectRatio: '1 / 1',
                 padding: 'clamp(6px, 0.6vw, 9px)',
                 borderRadius: 'clamp(14px, 1.6vw, 22px)',
-                margin: 'clamp(20px, 2.5vh, 36px) auto 0',
+                // Left-aligned with the copy in personalMode; centered in the
+                // text column otherwise.
+                margin: personalMode
+                  ? 'clamp(20px, 2.5vh, 36px) 0 0'
+                  : 'clamp(20px, 2.5vh, 36px) auto 0',
+                transformOrigin: personalMode ? 'top left' : 'top center',
                 background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
@@ -2013,7 +2049,6 @@ function App() {
                   '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
                 cursor: 'pointer',
                 pointerEvents: 'auto',
-                transformOrigin: 'top center',
                 transform: 'scale(1)',
                 transition: 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
               }}
@@ -2624,6 +2659,7 @@ function App() {
             )}
 
             {/* Inline Apple-style switch rows for everything binary. */}
+            <SwitchRow label="Orbs"      on={showOrbs}          onChange={setShowOrbs} />
             <SwitchRow label="Profiles"  on={showProfiles}      onChange={setShowProfiles} />
             <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
             <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
@@ -2632,9 +2668,9 @@ function App() {
               on={personalMode}
               onChange={(v) => {
                 setPersonalMode(v);
-                // Snap to 'left' on enable — the new copy is designed for it.
-                // Disable doesn't restore; the user can pick whatever after.
-                if (v) setLayout('left');
+                // Snap to 'right' on enable so the phone sits on the right
+                // and the copy + QR live on the left — matches Figma 78:6384.
+                if (v) setLayout('right');
               }}
             />
             <SwitchRow

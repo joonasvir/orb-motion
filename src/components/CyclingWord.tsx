@@ -75,6 +75,9 @@ export default function CyclingWord({
           position: relative;
           overflow: visible;
           cursor: pointer;
+          /* Force pointer events even though the headline wrapper has
+             pointer-events: none — without this, hover never fires here. */
+          pointer-events: auto;
           transition: width 0.45s cubic-bezier(0.22, 1, 0.36, 1);
           padding-inline: 0.05em;
         }
