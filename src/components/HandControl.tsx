@@ -56,10 +56,16 @@ interface HandControlProps {
   showPreview?: boolean;
   /** Reports loading/error state up so the panel can show "Loading…" / "Denied". */
   onStatus?: (s: 'loading' | 'ready' | 'denied' | 'error' | 'off') => void;
-  /** Preview size preset. Width × height: s=192×144, m=288×216, l=416×312, xl=576×432. */
+  /** Preview size preset for "normal" mode. (Ignored in split/mini.) */
   size?: 's' | 'm' | 'l' | 'xl';
   /** Render the live skeleton (landmarks + connections) on top of the video. */
   showSkeleton?: boolean;
+  /** Layout mode for the preview. */
+  layoutMode?: 'normal' | 'split' | 'mini';
+  /** Which side the webcam occupies when in split mode. */
+  splitSide?: 'left' | 'right';
+  onChangeLayoutMode?: (m: 'normal' | 'split' | 'mini') => void;
+  onChangeSplitSide?: (s: 'left' | 'right') => void;
 }
 
 // MediaPipe's canonical hand-skeleton connections (21 landmarks).
@@ -152,8 +158,12 @@ export default function HandControl({
   onSqueeze,
   showPreview = true,
   onStatus,
-  size = 'm',
+  size = 'l',
   showSkeleton = true,
+  layoutMode = 'normal',
+  splitSide = 'right',
+  onChangeLayoutMode,
+  onChangeSplitSide,
 }: HandControlProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const overlayRef = useRef<HTMLCanvasElement | null>(null);
@@ -473,32 +483,164 @@ export default function HandControl({
   // The <video> element must exist in the DOM whenever enabled so we can wire
   // the stream to it. We hide it (display:none) when showPreview is off; the
   // tracking loop still runs.
-  if (!enabled) return null;
+  return enabled ? (
+    <PreviewShell
+      videoRef={videoRef}
+      overlayRef={overlayRef}
+      status={status}
+      showPreview={showPreview}
+      size={size}
+      layoutMode={layoutMode}
+      splitSide={splitSide}
+      onChangeLayoutMode={onChangeLayoutMode}
+      onChangeSplitSide={onChangeSplitSide}
+    />
+  ) : null;
+}
 
-  const { w: previewW, h: previewH } = PREVIEW_SIZES[size];
+// ─────────────────────────────────────────────────────────────────────────
+// PreviewShell — the rendered webcam tile. Pulled out so HandControl stays
+// focused on detection wiring; this component owns the three layout modes
+// (normal / split / mini), the drag in normal+mini modes, and the small
+// control icons in the top-right.
+// ─────────────────────────────────────────────────────────────────────────
+function PreviewShell({
+  videoRef, overlayRef, status, showPreview, size,
+  layoutMode, splitSide, onChangeLayoutMode, onChangeSplitSide,
+}: {
+  videoRef: React.MutableRefObject<HTMLVideoElement | null>;
+  overlayRef: React.MutableRefObject<HTMLCanvasElement | null>;
+  status: 'off' | 'loading' | 'ready' | 'denied' | 'error';
+  showPreview: boolean;
+  size: 's' | 'm' | 'l' | 'xl';
+  layoutMode: 'normal' | 'split' | 'mini';
+  splitSide: 'left' | 'right';
+  onChangeLayoutMode?: (m: 'normal' | 'split' | 'mini') => void;
+  onChangeSplitSide?: (s: 'left' | 'right') => void;
+}) {
+  // ── drag state (only used in normal/mini modes) ────────────────────────
+  const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
+  const dragStartRef = useRef<{ x: number; y: number; baseX: number; baseY: number } | null>(null);
+
+  const onPointerDown = (e: React.PointerEvent) => {
+    // Only drag from the body (not the icon buttons — those have their own handlers).
+    const target = e.target as HTMLElement;
+    if (target.closest('[data-hand-ctrl-btn]')) return;
+    if (layoutMode === 'split') return;
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    dragStartRef.current = {
+      x: e.clientX, y: e.clientY,
+      baseX: drag?.x ?? 0,
+      baseY: drag?.y ?? 0,
+    };
+  };
+  const onPointerMove = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    setDrag({ x: dragStartRef.current.baseX + dx, y: dragStartRef.current.baseY + dy });
+  };
+  const onPointerUp = (e: React.PointerEvent) => {
+    if (!dragStartRef.current) return;
+    (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    dragStartRef.current = null;
+  };
+
+  // ── geometry per mode ──────────────────────────────────────────────────
+  let containerStyle: React.CSSProperties = {
+    position: 'fixed',
+    borderRadius: 16,
+    overflow: 'hidden',
+    background: 'rgba(20,20,20,0.6)',
+    boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
+    backdropFilter: 'blur(18px) saturate(150%)',
+    WebkitBackdropFilter: 'blur(18px) saturate(150%)',
+    border: '1px solid rgba(255,255,255,0.55)',
+    zIndex: 95,
+    pointerEvents: 'auto',
+    display: showPreview ? 'block' : 'none',
+    opacity: status === 'ready' ? 1 : 0.7,
+    transition:
+      'opacity 0.3s ease, width 0.35s cubic-bezier(0.22, 1, 0.36, 1), height 0.35s cubic-bezier(0.22, 1, 0.36, 1), inset 0.35s cubic-bezier(0.22, 1, 0.36, 1), border-radius 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+    cursor: layoutMode === 'split' ? 'default' : (dragStartRef.current ? 'grabbing' : 'grab'),
+    userSelect: 'none',
+    touchAction: 'none',
+  };
+
+  if (layoutMode === 'split') {
+    // Half-screen, snapped to a side, no offset.
+    containerStyle = {
+      ...containerStyle,
+      top: 0,
+      [splitSide]: 0,
+      width: '50vw',
+      height: '100vh',
+      borderRadius: 0,
+      border: 0,
+      boxShadow: splitSide === 'right'
+        ? '-22px 0 60px rgba(0,0,0,0.18)'
+        : '22px 0 60px rgba(0,0,0,0.18)',
+    };
+  } else if (layoutMode === 'mini') {
+    // Tiny PiP. Drag offset shifts it from the bottom-right anchor.
+    containerStyle = {
+      ...containerStyle,
+      bottom: 16 - (drag?.y ?? 0),
+      right: 16 + (drag?.x ?? 0),
+      width: 144,
+      height: 108,
+    };
+  } else {
+    // Normal corner preview, sized via the preset.
+    const { w, h } = PREVIEW_SIZES[size];
+    containerStyle = {
+      ...containerStyle,
+      bottom: 16 - (drag?.y ?? 0),
+      right: 16 + (drag?.x ?? 0),
+      width: w,
+      height: h,
+    };
+  }
+
+  // ── icon buttons in the top-right ──────────────────────────────────────
+  const iconBtnStyle: React.CSSProperties = {
+    width: 26, height: 26,
+    border: 0,
+    borderRadius: 8,
+    background: 'rgba(20,20,20,0.55)',
+    color: '#fff',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    padding: 0,
+    transition: 'background 0.18s ease',
+  };
+  const Icon = ({ d, title, onClick }: { d: string; title: string; onClick: () => void }) => (
+    <button
+      type="button"
+      data-hand-ctrl-btn
+      title={title}
+      aria-label={title}
+      onClick={(e) => { e.stopPropagation(); onClick(); }}
+      onPointerDown={(e) => e.stopPropagation()}
+      style={iconBtnStyle}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(40,40,40,0.78)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(20,20,20,0.55)')}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d={d} />
+      </svg>
+    </button>
+  );
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        bottom: 16,
-        right: 16,
-        width: previewW,
-        height: previewH,
-        borderRadius: 16,
-        overflow: 'hidden',
-        background: 'rgba(20,20,20,0.6)',
-        boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
-        backdropFilter: 'blur(18px) saturate(150%)',
-        WebkitBackdropFilter: 'blur(18px) saturate(150%)',
-        border: '1px solid rgba(255,255,255,0.55)',
-        zIndex: 95,
-        pointerEvents: 'none',
-        display: showPreview ? 'block' : 'none',
-        opacity: status === 'ready' ? 1 : 0.6,
-        // Smooth resize when the user toggles S/M/L/XL.
-        transition: 'opacity 0.3s ease, width 0.3s cubic-bezier(0.22, 1, 0.36, 1), height 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
-      }}
+      style={containerStyle}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
       aria-hidden="true"
     >
       <video
@@ -506,7 +648,6 @@ export default function HandControl({
         muted
         playsInline
         autoPlay
-        // CSS mirror so it feels like a selfie.
         style={{
           position: 'absolute',
           inset: 0,
@@ -517,8 +658,6 @@ export default function HandControl({
           display: 'block',
         }}
       />
-      {/* Skeleton overlay — mirrored to match the video. Drawn in raw landmark
-          coords; the scaleX(-1) on the canvas flips them to display space. */}
       <canvas
         ref={overlayRef}
         style={{
@@ -530,6 +669,8 @@ export default function HandControl({
           pointerEvents: 'none',
         }}
       />
+
+      {/* Status overlay */}
       {status !== 'ready' && (
         <div
           style={{
@@ -551,6 +692,52 @@ export default function HandControl({
           {status === 'error'   && 'Camera error'}
         </div>
       )}
+
+      {/* Control icons (top-right) — visible always; in split mode they're a
+          touch larger and on the inner edge for reach. */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 8,
+          [splitSide === 'right' && layoutMode === 'split' ? 'left' : 'right']: 8,
+          display: 'flex',
+          gap: 6,
+          zIndex: 2,
+        }}
+      >
+        {layoutMode !== 'split' && (
+          <Icon
+            title="Split screen"
+            // square split icon
+            d="M4 5h16v14H4zM12 5v14"
+            onClick={() => onChangeLayoutMode?.('split')}
+          />
+        )}
+        {layoutMode === 'split' && (
+          <Icon
+            title={`Swap to ${splitSide === 'right' ? 'left' : 'right'}`}
+            // left/right arrows
+            d="M7 8l-4 4 4 4M17 8l4 4-4 4M3 12h18"
+            onClick={() => onChangeSplitSide?.(splitSide === 'right' ? 'left' : 'right')}
+          />
+        )}
+        {layoutMode !== 'mini' && (
+          <Icon
+            title="Picture in picture"
+            // PiP: outer frame + inner small frame bottom-right
+            d="M3 5h18v14H3zM13 13h7v5h-7z"
+            onClick={() => { onChangeLayoutMode?.('mini'); setDrag(null); }}
+          />
+        )}
+        {layoutMode !== 'normal' && (
+          <Icon
+            title="Restore"
+            // restore square
+            d="M4 14v6h6M20 10V4h-6M4 20l7-7M20 4l-7 7"
+            onClick={() => { onChangeLayoutMode?.('normal'); setDrag(null); }}
+          />
+        )}
+      </div>
     </div>
   );
 }

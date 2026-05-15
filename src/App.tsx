@@ -9,6 +9,7 @@ import Joystick, {
   type JoystickSound,
 } from './components/Joystick';
 import HandControl from './components/HandControl';
+import HandToolbar from './components/HandToolbar';
 
 interface OrbData {
   id: string;
@@ -126,12 +127,19 @@ function App() {
   const [handControl, setHandControl] = useState(false);
   const [handExtras, setHandExtras] = useState(false);
   const [handStatus, setHandStatus] = useState<'off' | 'loading' | 'ready' | 'denied' | 'error'>('off');
-  const [handCameraSize, setHandCameraSize] = useState<'s' | 'm' | 'l' | 'xl'>('m');
+  const [handCameraSize, setHandCameraSize] = useState<'s' | 'm' | 'l' | 'xl'>('l');
   const [handShowSkeleton, setHandShowSkeleton] = useState(true);
   // High-level "Hand mode" toggle — the one big lever at the bottom of the
   // panel. Flipping it on cascades into handControl + handExtras + focusMode
   // so the user gets the full webcam-driven experience in one click.
   const [handMode, setHandMode] = useState(false);
+  // Webcam preview layout — normal corner / split screen / mini PiP.
+  const [handLayoutMode, setHandLayoutMode] = useState<'normal' | 'split' | 'mini'>('normal');
+  const [handSplitSide, setHandSplitSide] = useState<'left' | 'right'>('right');
+  const handLayoutModeRef = useRef(handLayoutMode);
+  useEffect(() => { handLayoutModeRef.current = handLayoutMode; }, [handLayoutMode]);
+  const handSplitSideRef = useRef(handSplitSide);
+  useEffect(() => { handSplitSideRef.current = handSplitSide; }, [handSplitSide]);
   // Cyclone radius multiplier (1.0 = default). Pinned to 1 unless an open
   // palm is held, in which case palm height drives it (high → tight, low → wide).
   const cycloneRadiusMulRef = useRef(1.0);
@@ -918,10 +926,16 @@ function App() {
         // cyclone to the actual viewport middle.
         const _layout = layoutRef.current;
         const _orbsOnly = focusModeRef.current || showcaseModeRef.current;
-        const _phoneXFrac = _orbsOnly
-          ? 0.5
-          : _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
-        const _phoneXOffset = _orbsOnly
+        // Split mode: the webcam covers half the screen, so re-center the
+        // cyclone into the OTHER half so the orbs aren't behind the video.
+        const _splitting = handLayoutModeRef.current === 'split';
+        const _splitSide = handSplitSideRef.current;
+        const _phoneXFrac = _splitting
+          ? (_splitSide === 'right' ? 0.25 : 0.75)
+          : _orbsOnly
+            ? 0.5
+            : _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
+        const _phoneXOffset = _orbsOnly || _splitting
           ? 0
           : _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
         const centerX = window.innerWidth * _phoneXFrac + _phoneXOffset;
@@ -1059,7 +1073,10 @@ function App() {
             // Smooth radius multiplier (driven by hand height when extras on).
             cycloneRadiusMulRef.current +=
               (cycloneRadiusMulTargetRef.current - cycloneRadiusMulRef.current) * 0.06;
-            const radMul = cycloneRadiusMulRef.current;
+            // Split-mode squeeze — webcam owns half the viewport, so shrink the
+            // cyclone so orbs don't disappear behind the video tile.
+            const splitMul = handLayoutModeRef.current === 'split' ? 0.7 : 1;
+            const radMul = cycloneRadiusMulRef.current * splitMul;
             const radiusX = baseR * radMul * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
@@ -2711,44 +2728,12 @@ function App() {
             Exit playground
           </button>
 
-          {handControl && handExtras && (
-            <div
-              aria-hidden="true"
-              style={{
-                position: 'fixed',
-                bottom: 24,
-                left: 24,
-                padding: '12px 14px',
-                borderRadius: 14,
-                background: 'rgba(255,255,255,0.32)',
-                backdropFilter: 'blur(24px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-                border: '1px solid rgba(255,255,255,0.55)',
-                boxShadow: '0 10px 24px rgba(0,0,0,0.10)',
-                color: '#1e1e1e',
-                fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
-                fontSize: 11,
-                lineHeight: 1.55,
-                zIndex: 105,
-                pointerEvents: 'none',
-                maxWidth: 220,
-              }}
-            >
-              <div style={{ fontWeight: 600, letterSpacing: 0.6, textTransform: 'uppercase', fontSize: 9, marginBottom: 6, opacity: 0.55 }}>
-                Hand gestures
-              </div>
-              <div>✋ Open → cyclone</div>
-              <div>✊ Fist → drop</div>
-              <div>👆 Point → tractor beam</div>
-              <div>🤏 Pinch → spawn orb</div>
-              <div>👐 Spread → explode</div>
-              <div>🙌 Squeeze → cluster</div>
-              <div>👋 Clap → toggle lever</div>
-              <div>📏 Palm height → cyclone size</div>
-            </div>
-          )}
         </>
       )}
+
+      {/* Gesture toolbar — bottom-center, only when Hand mode is on. The
+          toolbar itself manages its own expanded/minimized/dismissed state. */}
+      <HandToolbar enabled={handMode} extras={handExtras} />
 
       {/* Bento — 4 cards in a wide/square grid below the hero */}
       {!minimalUI && showBento && (
@@ -3312,6 +3297,10 @@ function App() {
         extras={handExtras}
         size={handCameraSize}
         showSkeleton={handShowSkeleton}
+        layoutMode={handLayoutMode}
+        splitSide={handSplitSide}
+        onChangeLayoutMode={setHandLayoutMode}
+        onChangeSplitSide={setHandSplitSide}
         onStatus={setHandStatus}
         onClap={() => {
           // Play the currently-selected joystick sound so it matches the lever.
