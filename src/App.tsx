@@ -1990,7 +1990,7 @@ function App() {
             // constrained; no auto-centering on this <p>.
             marginLeft: personalMode ? 0 : 'auto',
             marginRight: personalMode ? 0 : 'auto',
-            marginTop: personalMode ? 'clamp(20px, 2.2vh, 36px)' : 0,
+            marginTop: personalMode ? 'clamp(36px, 4vh, 60px)' : 0,
             fontWeight: 400,
             fontFeatureSettings: '"dlig" 1',
             animationDelay: '300ms',
