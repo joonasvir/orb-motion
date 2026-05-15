@@ -9,10 +9,12 @@ import { useRef, useState } from 'react';
  *   - Tickets + folded map: bottom-left of the phone
  *   - Globe: bottom-right of the phone
  *
- * The wrapper takes the same positioning + size as the phone container so
- * each prop is sized as a % of the phone (and the defaults stay anchored
- * to the phone when the user changes layout). Drag offsets are applied as
- * translate(), so they compose with the default top/right/bottom/left.
+ * Entrance animation — each prop appears AFTER the phone has loaded in,
+ * sliding outward from behind the phone (initial position pulled toward
+ * wrapper center) and rotating from 0° to its rest tilt (3-10°). Opacity
+ * fades in alongside the move. Once the entrance finishes, each prop is
+ * fully draggable: pointer-events captured, translate offsets compose
+ * cleanly with the baseline rotate.
  */
 
 interface PropDef {
@@ -25,8 +27,15 @@ interface PropDef {
   bottom?: string;
   left?: string;
   width: string;   // as a % of the wrapper width
-  rotate?: number; // baseline rotation in degrees
+  rotate?: number; // rest rotation in degrees (3-10 range per spec)
   z?: number;      // sub-stacking within the props (all are below the phone)
+  // Entrance — translate from these offsets back to (0, 0) on mount.
+  // Pick a direction that points TOWARD the wrapper center, so the prop
+  // looks like it slides out from behind the phone.
+  enterX: string;
+  enterY: string;
+  /** ms delay before the entrance keyframe starts. */
+  enterDelay: number;
 }
 
 interface Props {
@@ -34,16 +43,23 @@ interface Props {
   wrapperStyle: React.CSSProperties;
 }
 
+// Phone has a 400ms blur-in delay + 1.05s duration. Props start staggered
+// after the phone has mostly settled.
+const ENTER_BASE_DELAY = 950;
+
 const PROPS: PropDef[] = [
-  // Atlas — top, peeks past the right edge of the phone. Big and tilted.
+  // Atlas — top, peeks past the right edge of the phone.
   {
     id: 'atlas',
     src: '/props/travel-atlas.png',
     top: '-12%',
     right: '-38%',
     width: '78%',
-    rotate: 12,
+    rotate: 8,
     z: 2,
+    enterX: '-22%',  // start displaced toward wrapper center (down-left from top-right rest)
+    enterY: '18%',
+    enterDelay: ENTER_BASE_DELAY,
   },
   // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
   {
@@ -52,37 +68,64 @@ const PROPS: PropDef[] = [
     bottom: '-2%',
     left: '-46%',
     width: '76%',
-    rotate: -10,
+    rotate: -7,
     z: 3,
+    enterX: '26%',   // start displaced toward wrapper center (up-right from bottom-left rest)
+    enterY: '-14%',
+    enterDelay: ENTER_BASE_DELAY + 180,
   },
-  // Globe — bottom-right, peeks past the right edge. Large + slight tilt.
+  // Globe — bottom-right, peeks past the right edge.
   {
     id: 'globe',
     src: '/props/travel-globe.png',
     bottom: '-2%',
     right: '-42%',
     width: '58%',
-    rotate: -4,
+    rotate: -5,
     z: 1,
+    enterX: '-24%',  // start displaced toward wrapper center (up-left from bottom-right rest)
+    enterY: '-12%',
+    enterDelay: ENTER_BASE_DELAY + 360,
   },
 ];
 
 export default function DraggableProps({ wrapperStyle }: Props) {
-  // Match the phone position exactly. z-index 3 → behind phone (z=5) and
-  // behind the front canvas (z=6) but above the back canvas (z=1).
   return (
-    <div
-      style={{
-        ...wrapperStyle,
-        zIndex: 3,
-        pointerEvents: 'none', // wrapper itself doesn't intercept; children re-enable
-      }}
-      aria-hidden="true"
-    >
-      {PROPS.map(p => (
-        <DraggableProp key={p.id} def={p} />
-      ))}
-    </div>
+    <>
+      <style>{`
+        @keyframes dp-enter {
+          0% {
+            opacity: 0;
+            transform:
+              translate(var(--enter-x, 0), var(--enter-y, 0))
+              scale(0.86);
+          }
+          100% {
+            opacity: 1;
+            transform: translate(0, 0) scale(1);
+          }
+        }
+        .dp-enter {
+          animation: dp-enter 1.05s cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: opacity, transform;
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .dp-enter { animation: none !important; }
+        }
+      `}</style>
+      <div
+        style={{
+          ...wrapperStyle,
+          zIndex: 3,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        {PROPS.map(p => (
+          <DraggableProp key={p.id} def={p} />
+        ))}
+      </div>
+    </>
   );
 }
 
@@ -110,14 +153,8 @@ function DraggableProp({ def }: { def: PropDef }) {
   };
 
   return (
-    <img
-      src={def.src}
-      alt=""
-      draggable={false}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+    <div
+      className="dp-enter"
       style={{
         position: 'absolute',
         top: def.top,
@@ -125,24 +162,37 @@ function DraggableProp({ def }: { def: PropDef }) {
         bottom: def.bottom,
         left: def.left,
         width: def.width,
-        height: 'auto',
-        // translate first (drag offset), then rotate for baseline tilt.
-        // No animation while dragging so it feels physical; soft transition
-        // back to rest when released.
-        transform: `translate(${offset.x}px, ${offset.y}px) rotate(${def.rotate ?? 0}deg)`,
-        transition: dragging
-          ? 'none'
-          : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
-        cursor: dragging ? 'grabbing' : 'grab',
-        pointerEvents: 'auto',
-        touchAction: 'none',
-        userSelect: 'none',
+        ['--enter-x' as any]: def.enterX,
+        ['--enter-y' as any]: def.enterY,
+        animationDelay: `${def.enterDelay}ms`,
         zIndex: def.z ?? 1,
-        filter:
-          'drop-shadow(0 14px 24px rgba(0,0,0,0.18)) drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
-        // Tiny hover lift so it feels grabbable
-        willChange: 'transform',
       }}
-    />
+    >
+      <img
+        src={def.src}
+        alt=""
+        draggable={false}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: 'auto',
+          transform: `translate(${offset.x}px, ${offset.y}px) rotate(${def.rotate ?? 0}deg)`,
+          transition: dragging
+            ? 'none'
+            : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
+          cursor: dragging ? 'grabbing' : 'grab',
+          pointerEvents: 'auto',
+          touchAction: 'none',
+          userSelect: 'none',
+          filter:
+            'drop-shadow(0 14px 24px rgba(0,0,0,0.18)) drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
+          willChange: 'transform',
+        }}
+      />
+    </div>
   );
 }

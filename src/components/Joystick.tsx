@@ -4,6 +4,8 @@ export type JoystickSound = 'lever' | 'bubble' | 'whoosh';
 
 interface JoystickProps {
   pulled: boolean;
+  /** When true, lever tilts FURTHER (third state — physics drop). */
+  extraPull?: boolean;
   onToggle: () => void;
   sound?: JoystickSound;
 }
@@ -172,7 +174,7 @@ const SOUND_MAP: Record<JoystickSound, (reverse: boolean) => void> = {
   whoosh: playWhooshSound,
 };
 
-export default function Joystick({ pulled, onToggle, sound = 'lever' }: JoystickProps) {
+export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' }: JoystickProps) {
   const lastRef = useRef(pulled);
   const soundRef = useRef(sound);
   soundRef.current = sound;
@@ -227,9 +229,13 @@ export default function Joystick({ pulled, onToggle, sound = 'lever' }: Joystick
           display: 'block',
           objectFit: 'contain',
           transformOrigin: '50% 75%',
-          transform: pulled
-            ? 'rotate(-14deg) skewX(2deg)'
-            : 'rotate(0deg) skewX(0deg)',
+          // Three visual states matching the three lever states upstream:
+          //   neutral (0) → mid pull (1) → fully pulled (2)
+          transform: extraPull
+            ? 'rotate(-26deg) skewX(3deg)'
+            : pulled
+              ? 'rotate(-14deg) skewX(2deg)'
+              : 'rotate(0deg) skewX(0deg)',
           transition: 'transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1)',
           pointerEvents: 'none',
           userSelect: 'none',

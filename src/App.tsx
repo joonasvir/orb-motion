@@ -128,10 +128,16 @@ function App() {
   const [showPersonaProps, setShowPersonaProps] = useState(false);
   // Master switch for the orb canvases. When off, the Matter physics loop
   // keeps running (orbs still exist) but neither canvas paints them, so the
-  // landing reads as a clean text-only hero.
-  const [showOrbs, setShowOrbs] = useState(true);
+  // landing reads as a clean text-only hero. Default off — the lever
+  // reveals them on first pull.
+  const [showOrbs, setShowOrbs] = useState(false);
   const showOrbsRef = useRef(showOrbs);
   useEffect(() => { showOrbsRef.current = showOrbs; }, [showOrbs]);
+  // Three-state lever (0 = hidden, 1 = cyclone, 2 = physics). Cycles per
+  // pull. Drives the joystick's tilt + the orbs flow above.
+  const [leverState, setLeverState] = useState<0 | 1 | 2>(0);
+  const leverStateRef = useRef<0 | 1 | 2>(0);
+  useEffect(() => { leverStateRef.current = leverState; }, [leverState]);
   // Alternate "Make it personal" layout — replaces headline + subhead with a
   // larger left-positioned headline and a cycling-word subhead.
   // Default ON (per the latest direction).
@@ -145,6 +151,26 @@ function App() {
   // personalMode position.
   const personalModeRef = useRef(personalMode);
   useEffect(() => { personalModeRef.current = personalMode; }, [personalMode]);
+
+  // Mobile breakpoint — copy stacks above the phone, control panel boots
+  // collapsed, font sizes shift, etc.
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 640px)').matches;
+  });
+  const isMobileRef = useRef(isMobile);
+  useEffect(() => { isMobileRef.current = isMobile; }, [isMobile]);
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)');
+    const onChange = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+  // Control panel collapsed to a small pill — true by default on mobile.
+  const [panelCollapsed, setPanelCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(max-width: 640px)').matches;
+  });
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -653,15 +679,32 @@ function App() {
   // is bound once inside the main init useEffect — always calls the current
   // version without restarting the engine.
   const resetOrbsRef = useRef<(() => void) | null>(null);
+  // Three-state lever cycle:
+  //   0 → 1: orbs appear in cyclone formation
+  //   1 → 2: orbs drop (physics) + a few fresh ones rain in
+  //   2 → 0: orbs hide entirely (back to clean landing)
   const toggleLever = useCallback(() => {
-    const goingToPhysics = displayModeForToggleRef.current !== 'physics';
-    setMode(goingToPhysics ? 'physics' : 'cyclone');
-    if (goingToPhysics && addOrbRefForToggle.current) {
-      const newOrbCount = 5 + Math.floor(Math.random() * 3); // 5-7
-      for (let i = 0; i < newOrbCount; i++) {
-        const delay = i * 90 + Math.random() * 80;
-        const x = window.innerWidth * (0.12 + Math.random() * 0.76);
-        setTimeout(() => addOrbRefForToggle.current?.(x), delay);
+    const next = ((leverStateRef.current + 1) % 3) as 0 | 1 | 2;
+    leverStateRef.current = next;
+    setLeverState(next);
+    if (next === 0) {
+      // Hide orbs entirely. setMode optional — leaving as physics so the
+      // engine stays calm beneath the hidden canvas.
+      setShowOrbs(false);
+    } else if (next === 1) {
+      setShowOrbs(true);
+      setMode('cyclone');
+    } else {
+      // next === 2 — drop them, rain in a few fresh
+      setShowOrbs(true);
+      setMode('physics');
+      if (addOrbRefForToggle.current) {
+        const newOrbCount = 5 + Math.floor(Math.random() * 3);
+        for (let i = 0; i < newOrbCount; i++) {
+          const delay = i * 90 + Math.random() * 80;
+          const x = window.innerWidth * (0.12 + Math.random() * 0.76);
+          setTimeout(() => addOrbRefForToggle.current?.(x), delay);
+        }
       }
     }
   }, [setMode]);
@@ -1035,16 +1078,22 @@ function App() {
         // with the phone center — otherwise the orbit visibly drifts off the
         // phone in personalMode.
         const _pm = personalModeRef.current;
-        const _phoneXFrac = _splitting
-          ? (_splitSide === 'right' ? 0.25 : 0.75)
-          : _orbsOnly
-            ? 0.5
-            : _layout === 'left'
-              ? (_pm ? 0.34 : 0.28)
-              : _layout === 'right'
-                ? (_pm ? 0.66 : 0.72)
-                : 0.5;
-        const _phoneXOffset = _orbsOnly || _splitting
+        const _mobile = isMobileRef.current;
+        // Mobile + personalMode: phone is centered horizontally near the
+        // bottom of the viewport. Cyclone center must match.
+        const _mobilePersonal = _mobile && _pm;
+        const _phoneXFrac = _mobilePersonal
+          ? 0.5
+          : _splitting
+            ? (_splitSide === 'right' ? 0.25 : 0.75)
+            : _orbsOnly
+              ? 0.5
+              : _layout === 'left'
+                ? (_pm ? 0.34 : 0.28)
+                : _layout === 'right'
+                  ? (_pm ? 0.66 : 0.72)
+                  : 0.5;
+        const _phoneXOffset = _mobilePersonal || _orbsOnly || _splitting
           ? 0
           : _layout === 'left'
             ? (_pm ? 40 : 60)
@@ -1055,14 +1104,20 @@ function App() {
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        const centerY = _orbsOnly
-          ? window.innerHeight / 2
-          : _layout === 'center'
-            // Phone bottom is at viewport-bottom + 6% (overflows), so its center
-            // is (windowH + windowH*0.06) - phoneH/2 from the top.
-            ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneHcalc / 2
-            // Side layouts: phone is vertically centered.
-            : window.innerHeight / 2;
+        // Mobile personalMode: phone is height clamp(280, 46vh, 380)
+        // anchored bottom: clamp(40, 6vh, 90). Center = innerHeight - bottom - height/2.
+        const _mobilePhoneH = Math.max(280, Math.min(380, window.innerHeight * 0.46));
+        const _mobilePhoneBottom = Math.max(40, Math.min(90, window.innerHeight * 0.06));
+        const centerY = _mobilePersonal
+          ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH / 2
+          : _orbsOnly
+            ? window.innerHeight / 2
+            : _layout === 'center'
+              // Phone bottom is at viewport-bottom + 6% (overflows), so its center
+              // is (windowH + windowH*0.06) - phoneH/2 from the top.
+              ? window.innerHeight + window.innerHeight * 0.1 - 80 - _phoneHcalc / 2
+              // Side layouts: phone is vertically centered.
+              : window.innerHeight / 2;
 
         // Background: light gray (#f0f0f0) for simple/glass, deep blue gradient for shaders
         if (style === 'shaders') {
@@ -1820,16 +1875,25 @@ function App() {
         <div style={{
           position: 'absolute',
           ...(personalMode
-            ? {
-                top: '50%',
-                transform: 'translateY(-50%)',
-                // More breathing room on the left edge — pulls the copy a
-                // bit toward center so the whole composition feels less
-                // pinned to the page edges.
-                left: 'clamp(88px, 10vw, 220px)',
-                width: 'min(560px, 40vw)',
-                textAlign: 'left' as const,
-              }
+            ? (isMobile
+              ? {
+                  // Mobile: stack copy at the top, centered.
+                  top: 'clamp(96px, 14vh, 140px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 'min(420px, 88vw)',
+                  textAlign: 'center' as const,
+                }
+              : {
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  // More breathing room on the left edge — pulls the copy a
+                  // bit toward center so the whole composition feels less
+                  // pinned to the page edges.
+                  left: 'clamp(88px, 10vw, 220px)',
+                  width: 'min(560px, 40vw)',
+                  textAlign: 'left' as const,
+                })
             : layout === 'center'
             ? {
                 top: 'clamp(110px, 12vh, 140px)',
@@ -1855,10 +1919,9 @@ function App() {
             fontFamily: '"Kalice", "Selecta", system-ui, -apple-system, sans-serif',
             // personalMode: much bigger Kalice display. Otherwise: match the
             // Figma 53:5760 ratio (center max 50 → 60, side max 40 → 48).
-            // personalMode size is 20% smaller than the previous draft
-            // (clamp 48→38, 7.5→6.0, 116→93) per the latest tweak.
+            // personalMode size shrinks on mobile to fit narrow screens.
             fontSize: personalMode
-              ? 'clamp(38px, 6.0vw, 93px)'
+              ? (isMobile ? 'clamp(40px, 13vw, 64px)' : 'clamp(38px, 6.0vw, 93px)')
               : layout === 'center'
               ? 'clamp(28px, 4.0vw, 60px)'
               : 'clamp(24px, 3.2vw, 48px)',
@@ -2047,13 +2110,14 @@ function App() {
                 aspectRatio: '1 / 1',
                 padding: 'clamp(6px, 0.6vw, 9px)',
                 borderRadius: 'clamp(14px, 1.6vw, 22px)',
-                // Left-aligned with the copy in personalMode; centered in the
-                // text column otherwise. Personal mode gets a bigger top
-                // gap so the QR doesn't feel pinned to the subhead.
+                // Left-aligned with the copy in personalMode (desktop);
+                // centered when the copy is centered (default or mobile-personal).
                 margin: personalMode
-                  ? 'clamp(44px, 5.5vh, 80px) 0 0'
+                  ? (isMobile
+                      ? 'clamp(28px, 3.5vh, 48px) auto 0'
+                      : 'clamp(44px, 5.5vh, 80px) 0 0')
                   : 'clamp(20px, 2.5vh, 36px) auto 0',
-                transformOrigin: personalMode ? 'top left' : 'top center',
+                transformOrigin: personalMode && !isMobile ? 'top left' : 'top center',
                 background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
@@ -2082,24 +2146,34 @@ function App() {
           personalMode. Sits below the phone in stacking order so the assets
           peek out from behind it; each prop is individually drag-and-drop. */}
       {!minimalUI && personalMode && (() => {
-        const wrapperStyle: React.CSSProperties = {
-          position: 'absolute',
-          left: layout === 'left'
-            ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
-            : layout === 'right'
-            ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
-            : '50%',
-          ...(layout === 'center'
-            ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
-            : {
-                top: '50%',
-                transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
-              }),
-          height: layout === 'center'
-            ? 'clamp(390px, 63vh, 700px)'
-            : 'clamp(420px, 72vh, 720px)',
-          aspectRatio: '402 / 834',
-        };
+        const wrapperStyle: React.CSSProperties = isMobile
+          ? {
+              // Mobile: phone sits BELOW the copy, centered, smaller.
+              position: 'absolute',
+              left: '50%',
+              bottom: 'clamp(40px, 6vh, 90px)',
+              transform: 'translateX(-50%)',
+              height: 'clamp(280px, 46vh, 380px)',
+              aspectRatio: '402 / 834',
+            }
+          : {
+              position: 'absolute',
+              left: layout === 'left'
+                ? 'calc(34% + 40px)'
+                : layout === 'right'
+                ? 'calc(66% - 40px)'
+                : '50%',
+              ...(layout === 'center'
+                ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+                : {
+                    top: '50%',
+                    transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+                  }),
+              height: layout === 'center'
+                ? 'clamp(390px, 63vh, 700px)'
+                : 'clamp(420px, 72vh, 720px)',
+              aspectRatio: '402 / 834',
+            };
         return <DraggableProps wrapperStyle={wrapperStyle} />;
       })()}
 
@@ -2133,22 +2207,30 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
-              // In personalMode pull the phone a touch toward center
-              // (66% vs 72%) so the whole composition reads tighter.
-              left: layout === 'left'
-                ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
-                : layout === 'right'
-                ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
-                : '50%',
-              ...(layout === 'center'
-                ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+              // Mobile + personalMode: phone sits below copy, centered, smaller.
+              ...(isMobile && personalMode
+                ? {
+                    left: '50%',
+                    bottom: 'clamp(40px, 6vh, 90px)',
+                    transform: 'translateX(-50%)',
+                    height: 'clamp(280px, 46vh, 380px)',
+                  }
                 : {
-                    top: '50%',
-                    transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+                    left: layout === 'left'
+                      ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
+                      : layout === 'right'
+                      ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
+                      : '50%',
+                    ...(layout === 'center'
+                      ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
+                      : {
+                          top: '50%',
+                          transform: `translate(-50%, -50%) rotate(${layout === 'left' ? -4 : 4}deg)`,
+                        }),
+                    height: layout === 'center'
+                      ? 'clamp(390px, 63vh, 700px)'
+                      : 'clamp(420px, 72vh, 720px)',
                   }),
-              height: layout === 'center'
-                ? 'clamp(390px, 63vh, 700px)'
-                : 'clamp(420px, 72vh, 720px)',
               aspectRatio: '402 / 834',
               zIndex: 5,
               cursor: showProfiles ? 'pointer' : 'default',
@@ -2501,8 +2583,49 @@ function App() {
         </div>
       )}
 
+      {/* Collapsed panel — small glass settings pill in the top-left. Click
+          to expand into the full panel. Default true on mobile, false on
+          desktop; toggleable from the panel's collapse button. */}
+      {showControls && !showcaseMode && panelCollapsed && (
+        <button
+          type="button"
+          onClick={() => setPanelCollapsed(false)}
+          aria-label="Expand controls"
+          title="Controls"
+          style={{
+            position: 'absolute',
+            top: 16,
+            left: 16,
+            width: 44,
+            height: 44,
+            border: '1px solid rgba(255,255,255,0.55)',
+            borderRadius: 14,
+            background: 'rgba(255,255,255,0.42)',
+            backdropFilter: 'blur(28px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+            boxShadow: '0 10px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            zIndex: 95,
+            padding: 0,
+          }}
+        >
+          {/* Sliders icon (matches the controls metaphor) */}
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <line x1="4"  y1="6"  x2="20" y2="6" />
+            <line x1="4"  y1="12" x2="20" y2="12" />
+            <line x1="4"  y1="18" x2="20" y2="18" />
+            <circle cx="9"  cy="6"  r="2.2" fill="#1e1e1e" />
+            <circle cx="15" cy="12" r="2.2" fill="#1e1e1e" />
+            <circle cx="7"  cy="18" r="2.2" fill="#1e1e1e" />
+          </svg>
+        </button>
+      )}
+
       {/* Combined glassy control panel */}
-      {showControls && !showcaseMode && (() => {
+      {showControls && !showcaseMode && !panelCollapsed && (() => {
         // ~30% more compact, ~40% more transparent. Tightened spacing,
         // smaller text, and stronger blur for the "frosted pane" feel.
         const sectionLabel: React.CSSProperties = {
@@ -2663,6 +2786,38 @@ function App() {
             zIndex: 90,
             animationDelay: '500ms',
           }}>
+            {/* Collapse button — top-right of the panel. Mirrors the pill
+                that appears when collapsed. */}
+            <button
+              type="button"
+              onClick={() => setPanelCollapsed(true)}
+              aria-label="Collapse controls"
+              title="Collapse"
+              style={{
+                position: 'absolute',
+                top: 6,
+                right: 6,
+                width: 26,
+                height: 26,
+                border: 0,
+                borderRadius: 8,
+                background: 'rgba(0,0,0,0.05)',
+                color: 'rgba(30,30,30,0.7)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                padding: 0,
+                transition: 'background 0.18s ease',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.10)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14" />
+              </svg>
+            </button>
+
             {/* Layout */}
             <div style={sectionLabel}>Layout</div>
             <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
@@ -3547,7 +3702,9 @@ function App() {
       {!showcaseMode && (
         <Joystick
           sound={joystickSound}
-          pulled={displayMode === 'physics'}
+          // Lever visual progression: state 0 neutral, 1 mid-pull, 2 fully pulled.
+          pulled={leverState > 0}
+          extraPull={leverState === 2}
           onToggle={toggleLever}
         />
       )}
