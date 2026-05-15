@@ -10,7 +10,6 @@ import Joystick, {
 } from './components/Joystick';
 import HandControl from './components/HandControl';
 import HandToolbar from './components/HandToolbar';
-import HoverSpiral from './components/HoverSpiral';
 import PersonalSubhead from './components/PersonalSubhead';
 
 interface OrbData {
@@ -132,13 +131,8 @@ function App() {
   const showOrbsRef = useRef(showOrbs);
   useEffect(() => { showOrbsRef.current = showOrbs; }, [showOrbs]);
   // Alternate "Make it personal" layout — replaces headline + subhead with a
-  // larger left-positioned headline and a cycling-word subhead. Hovering the
-  // cycling word reveals an SVG overlay of handwritten phrases curving across
-  // the page. Toggled from the panel. Pressing P also toggles the overlay.
+  // larger left-positioned headline and a cycling-word subhead.
   const [personalMode, setPersonalMode] = useState(false);
-  const [spiralVisible, setSpiralVisible] = useState(false);
-  const personalModeRef = useRef(personalMode);
-  useEffect(() => { personalModeRef.current = personalMode; }, [personalMode]);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1518,9 +1512,6 @@ function App() {
           // Same as the clap gesture + Reset button: wipe, then rain.
           resetOrbsRef.current?.();
         }
-        // 'P' has two meanings: in personal mode it toggles the spiral
-        // overlay; otherwise it snaps to physics + exits showcase. The
-        // second handler is gated below so they don't both fire.
         if (e.key === 'm' || e.key === 'M') {
           const newMode = !moonModeRef.current;
           engine.gravity.y = newMode ? -0.4 : 1;
@@ -1548,24 +1539,11 @@ function App() {
           });
           setMoonMode(false);
         }
-        if (e.key === 'Escape') {
-          // Escape: hard exit any modal-y mode.
+        if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
           setDisplayMode('physics');
           engine.gravity.y = 1;
           setMoonMode(false);
           setShowcaseMode(false);
-        }
-        if (e.key === 'p' || e.key === 'P') {
-          if (personalModeRef.current) {
-            // In personal mode, P toggles the curving-text overlay.
-            setSpiralVisible(v => !v);
-          } else {
-            // Otherwise, P keeps its old meaning: physics + exit showcase.
-            setDisplayMode('physics');
-            engine.gravity.y = 1;
-            setMoonMode(false);
-            setShowcaseMode(false);
-          }
         }
         if (e.key === 'f' || e.key === 'F') {
           setShowcaseMode(true);
@@ -2018,7 +1996,7 @@ function App() {
             animationDelay: '300ms',
           }}>
             {personalMode ? (
-              <PersonalSubhead onHoverChange={setSpiralVisible} />
+              <PersonalSubhead />
             ) : (
               'Describe what you want. Customize the vibe. Share instantly.'
             )}
@@ -2458,10 +2436,6 @@ function App() {
           />
         </div>
       )}
-
-      {/* Curving handwritten phrases that reveal when the user hovers the
-          cycling word in "Make it personal" mode. Pointer-events: none. */}
-      {!minimalUI && personalMode && <HoverSpiral visible={spiralVisible} />}
 
       {/* Combined glassy control panel */}
       {showControls && !showcaseMode && (() => {
