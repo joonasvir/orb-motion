@@ -3303,13 +3303,39 @@ function App() {
         onChangeSplitSide={setHandSplitSide}
         onStatus={setHandStatus}
         onClap={() => {
-          // Play the currently-selected joystick sound so it matches the lever.
+          // Play the currently-selected joystick sound — the "engage"
+          // direction so it always sounds like the lever pulling down.
           const sound = joystickSound === 'bubble' ? playBubbleSound
                       : joystickSound === 'whoosh' ? playWhooshSound
                       : playLeverSound;
-          const goingToPhysics = displayModeForToggleRef.current !== 'physics';
-          sound(!goingToPhysics);
-          toggleLever();
+          sound(false);
+
+          // Clap = "snowglobe shake": clear every orb, then rain a fresh
+          // handful from the top. (The joystick still does the simpler
+          // toggle-and-add-a-few; clap is the dramatic reset.)
+          if (!engineRef.current) return;
+          Matter.Composite.allBodies(engineRef.current.world)
+            .filter(b => b.label === 'orb')
+            .forEach(orb => {
+              orbDataRef.current.delete(orb.id);
+              orbAnimDataRef.current.delete(orb.id);
+              Matter.Composite.remove(engineRef.current!.world, orb);
+            });
+          setOrbCount(0);
+          localStorage.removeItem(ORBS_STORAGE_KEY);
+
+          // Force physics so the new orbs fall instead of joining a cyclone.
+          if (displayModeForToggleRef.current !== 'physics') setMode('physics');
+
+          // Drop 6-8 fresh orbs from the top across the full width, staggered.
+          const count = 6 + Math.floor(Math.random() * 3);
+          for (let i = 0; i < count; i++) {
+            const delay = i * 130 + Math.random() * 80;
+            setTimeout(() => {
+              const x = Math.random() * (window.innerWidth - 100) + 50;
+              addOrbRefForToggle.current?.(x);
+            }, delay);
+          }
         }}
         onHandPosition={(pos) => {
           if (!pos) return;

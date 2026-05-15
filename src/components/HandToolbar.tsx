@@ -24,7 +24,7 @@ interface Props {
 const CORE_GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
   { emoji: '✋', label: 'Open palm',  effect: 'cyclone' },
   { emoji: '✊', label: 'Fist',       effect: 'drop' },
-  { emoji: '👋', label: 'Clap',       effect: 'toggle' },
+  { emoji: '👋', label: 'Clap',       effect: 'reset · rain fresh orbs' },
 ];
 
 const EXTRA_GESTURES: Array<{ emoji: string; label: string; effect: string }> = [
