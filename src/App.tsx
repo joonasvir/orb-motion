@@ -2078,10 +2078,13 @@ function App() {
           </h1>
           <p className="blur-in" style={{
             fontFamily: 'inherit',
+            // personalMode size bumped 20% (was 18-1.9vw-30 → now 22-2.28vw-36)
             fontSize: personalMode
-              ? 'clamp(18px, 1.9vw, 30px)'
+              ? 'clamp(22px, 2.28vw, 36px)'
               : 'clamp(13px, 1.3vw, 22px)',
-            lineHeight: personalMode ? 1.18 : 1.25,
+            // Line height bumped 25% in personalMode (1.18 → 1.475) so the
+            // three lines breathe alongside the larger type.
+            lineHeight: personalMode ? 1.475 : 1.25,
             letterSpacing: '-0.01em',
             // Figma 53:5758 reads ~#7F7F7F effective (#636363 @ 0.8 alpha on
             // #f0f0f0). Was rgba(99,99,99,0.95) ≈ #6A6A6A — too dark.
@@ -2093,7 +2096,9 @@ function App() {
             marginLeft: personalMode ? 0 : 'auto',
             marginRight: personalMode ? 0 : 'auto',
             marginTop: personalMode ? 'clamp(36px, 4vh, 60px)' : 0,
-            fontWeight: 400,
+            // One step lighter in personalMode so the bigger size doesn't
+            // read as overweight (400 → 300).
+            fontWeight: personalMode ? 300 : 400,
             fontFeatureSettings: '"dlig" 1',
             animationDelay: '300ms',
           }}>

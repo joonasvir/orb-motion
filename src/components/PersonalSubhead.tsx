@@ -162,7 +162,13 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
                   height: '1.7875em',
                   objectFit: 'contain',
                   verticalAlign: '-0.42em',
-                  marginRight: '0.22em',
+                  // Tightened gutters around the icon: was 0.22em right + the
+                  // word-space before "are " supplied the left side. Pull
+                  // both in with a negative left margin (offsets the inherited
+                  // space) and a smaller right margin so the icon hugs the
+                  // surrounding word more closely.
+                  marginLeft: '-0.1em',
+                  marginRight: '0.08em',
                   // Same drop-shadow recipe as the facepile next to it —
                   // tight near-shadow anchors the icon to the baseline, wide
                   // soft fall-off matches the pile's atmosphere.
