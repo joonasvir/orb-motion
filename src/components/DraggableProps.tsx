@@ -41,6 +41,10 @@ interface PropDef {
 interface Props {
   /** Pass the phone container's positioning so this wrapper matches. */
   wrapperStyle: React.CSSProperties;
+  /** When true, each prop reverses its entrance — fades out and slides back
+   *  toward the wrapper (phone) center. Used while orbs are on screen so the
+   *  composition stays clean. */
+  hidden?: boolean;
 }
 
 // Phone has a 400ms blur-in delay + 1.05s duration. Props start staggered
@@ -62,12 +66,13 @@ const PROPS: PropDef[] = [
     enterDelay: ENTER_BASE_DELAY,
   },
   // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
+  // 40% larger than the other props by request — reads as the hero prop.
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
     bottom: '-2%',
     left: '-46%',
-    width: '76%',
+    width: '106%',
     rotate: -7,
     z: 3,
     enterX: '26%',   // start displaced toward wrapper center (up-right from bottom-left rest)
@@ -89,7 +94,7 @@ const PROPS: PropDef[] = [
   },
 ];
 
-export default function DraggableProps({ wrapperStyle }: Props) {
+export default function DraggableProps({ wrapperStyle, hidden = false }: Props) {
   return (
     <>
       <style>{`
@@ -109,8 +114,22 @@ export default function DraggableProps({ wrapperStyle }: Props) {
           animation: dp-enter 1.05s cubic-bezier(0.22, 1, 0.36, 1) both;
           will-change: opacity, transform;
         }
+        /* Reverse-entrance: prop slides back toward the wrapper center and
+           fades out, mirroring the load-in. Used while the orbs are on
+           screen so the composition isn't crowded. */
+        .dp-wrap {
+          transition:
+            opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+            transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+        .dp-wrap.is-hidden {
+          opacity: 0;
+          transform: translate(var(--enter-x, 0), var(--enter-y, 0)) scale(0.86);
+          pointer-events: none;
+        }
         @media (prefers-reduced-motion: reduce) {
           .dp-enter { animation: none !important; }
+          .dp-wrap  { transition: none !important; }
         }
       `}</style>
       <div
@@ -122,17 +141,20 @@ export default function DraggableProps({ wrapperStyle }: Props) {
         aria-hidden="true"
       >
         {PROPS.map(p => (
-          <DraggableProp key={p.id} def={p} />
+          <DraggableProp key={p.id} def={p} hidden={hidden} />
         ))}
       </div>
     </>
   );
 }
 
-function DraggableProp({ def }: { def: PropDef }) {
+function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; base: { x: number; y: number } } | null>(null);
   const [dragging, setDragging] = useState(false);
+  // Hover state — only used to apply a 10% scale + small extra tilt when the
+  // cursor is on the prop and the user isn't currently dragging it.
+  const [hover, setHover] = useState(false);
 
   const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
     e.currentTarget.setPointerCapture(e.pointerId);
@@ -152,9 +174,17 @@ function DraggableProp({ def }: { def: PropDef }) {
     setDragging(false);
   };
 
+  // Compose transform: drag offset + base rotate + (on hover, +scale & nudge
+  // the rotation a few degrees in the OPPOSITE direction of the rest tilt so
+  // it reads as a playful "lift").
+  const baseRot = def.rotate ?? 0;
+  const hoverNudgeDeg = baseRot >= 0 ? -6 : 6; // counter-rotate by ~6deg on hover
+  const rot = hover && !dragging ? baseRot + hoverNudgeDeg : baseRot;
+  const scale = hover && !dragging ? 1.1 : 1;
+
   return (
     <div
-      className="dp-enter"
+      className={`dp-enter dp-wrap${hidden ? ' is-hidden' : ''}`}
       style={{
         position: 'absolute',
         top: def.top,
@@ -176,11 +206,14 @@ function DraggableProp({ def }: { def: PropDef }) {
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
         onPointerCancel={onPointerUp}
+        onPointerEnter={() => setHover(true)}
+        onPointerLeave={() => setHover(false)}
         style={{
           display: 'block',
           width: '100%',
           height: 'auto',
-          transform: `translate(${offset.x}px, ${offset.y}px) rotate(${def.rotate ?? 0}deg)`,
+          transform: `translate(${offset.x}px, ${offset.y}px) rotate(${rot}deg) scale(${scale})`,
+          transformOrigin: 'center center',
           transition: dragging
             ? 'none'
             : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',

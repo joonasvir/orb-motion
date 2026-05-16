@@ -2181,7 +2181,10 @@ function App() {
                 : 'clamp(420px, 72vh, 720px)',
               aspectRatio: '402 / 834',
             };
-        return <DraggableProps wrapperStyle={wrapperStyle} />;
+        // When the lever is pulled (showOrbs = true), the travel props fade
+        // out and slide back toward the phone — mirroring their entrance —
+        // so the orbs have the stage to themselves.
+        return <DraggableProps wrapperStyle={wrapperStyle} hidden={showOrbs} />;
       })()}
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}

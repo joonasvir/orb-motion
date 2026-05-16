@@ -113,8 +113,8 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
             drop-shadow(0 24px 50px rgba(0,0,0,0.22));
         }
         .ps-avatar {
-          width: 0.95em;
-          height: 0.95em;
+          width: 1.235em;
+          height: 1.235em;
           border-radius: 50%;
           overflow: hidden;
           box-shadow: 0 0 0 2px #fff;
@@ -154,15 +154,15 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
                 alt={meta.alt}
                 draggable={false}
                 style={{
-                  // Sit on the baseline of the surrounding text. 25% larger
-                  // than before (1.1em → 1.375em) so the icon registers as
-                  // a deliberate inline visual, not a tiny accent.
+                  // Sit on the baseline of the surrounding text. Bumped to
+                  // 1.7875em (30% larger than 1.375em) so the icon registers
+                  // as a deliberate inline visual, not a tiny accent.
                   display: 'inline-block',
-                  width: '1.375em',
-                  height: '1.375em',
+                  width: '1.7875em',
+                  height: '1.7875em',
                   objectFit: 'contain',
-                  verticalAlign: '-0.32em',
-                  marginRight: '0.2em',
+                  verticalAlign: '-0.42em',
+                  marginRight: '0.22em',
                   // Same drop-shadow recipe as the facepile next to it —
                   // tight near-shadow anchors the icon to the baseline, wide
                   // soft fall-off matches the pile's atmosphere.
