@@ -221,8 +221,10 @@ function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
           pointerEvents: 'auto',
           touchAction: 'none',
           userSelect: 'none',
+          // 30% lighter than before (0.18 → 0.126, 0.12 → 0.084) so the
+          // shadows still anchor the props but don't feel heavy.
           filter:
-            'drop-shadow(0 14px 24px rgba(0,0,0,0.18)) drop-shadow(0 4px 8px rgba(0,0,0,0.12))',
+            'drop-shadow(0 14px 24px rgba(0,0,0,0.126)) drop-shadow(0 4px 8px rgba(0,0,0,0.084))',
           willChange: 'transform',
         }}
       />
