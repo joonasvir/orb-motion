@@ -1058,6 +1058,11 @@ function App() {
       };
 
       const render = () => {
+        // CRITICAL: schedule the next frame *first*. Any early-return below
+        // (e.g. when orbs are hidden) must NOT kill the loop — otherwise
+        // toggling orbs back on later finds a dead rAF chain.
+        animationId = requestAnimationFrame(render);
+
         if (!ctx || !engineRef.current) return;
 
         const mode = displayModeRef.current;
@@ -1512,8 +1517,6 @@ function App() {
         if (mode === 'physics') {
           Matter.Engine.update(engineRef.current, 1000 / 60);
         }
-
-        animationId = requestAnimationFrame(render);
       };
 
       render();
@@ -2101,11 +2104,15 @@ function App() {
             )}
           </p>
 
-          {/* QR inside the text column on side layouts */}
-          {layout !== 'center' && (
+          {/* QR inside the text column on side layouts. Hidden on mobile
+              personal mode (no room next to the phone). */}
+          {layout !== 'center' && !(isMobile && personalMode) && (
             <div
-              className="orb-qr-card"
+              className="orb-qr-card blur-in"
               style={{
+                // Cascade after the subhead so it lands as the last visual
+                // beat in the copy column.
+                animationDelay: '440ms',
                 width: 'clamp(96px, 9vw, 132px)',
                 aspectRatio: '1 / 1',
                 padding: 'clamp(6px, 0.6vw, 9px)',
@@ -2547,8 +2554,9 @@ function App() {
         );
       })()}
 
-      {/* Floating QR — only in center layout; side layouts render it inside the text column */}
-      {!minimalUI && layout === 'center' && (
+      {/* Floating QR — only in center layout; side layouts render it inside the text column.
+          Hidden on mobile entirely (no real-world use case for scanning your own phone). */}
+      {!minimalUI && layout === 'center' && !isMobile && (
         <div
           className="orb-qr-card blur-in"
           style={{
@@ -2583,45 +2591,13 @@ function App() {
         </div>
       )}
 
-      {/* Collapsed panel — small glass settings pill in the top-left. Click
-          to expand into the full panel. Default true on mobile, false on
-          desktop; toggleable from the panel's collapse button. */}
+      {/* Collapsed panel — small glass settings pill in the BOTTOM-RIGHT.
+          Click to expand into the full panel. Default true on mobile, false on
+          desktop; toggleable from the panel's collapse button.
+          Also DRAGGABLE — pointer-capture pattern, click vs drag disambiguated
+          by total movement distance (<4px counts as click). */}
       {showControls && !showcaseMode && panelCollapsed && (
-        <button
-          type="button"
-          onClick={() => setPanelCollapsed(false)}
-          aria-label="Expand controls"
-          title="Controls"
-          style={{
-            position: 'absolute',
-            top: 16,
-            left: 16,
-            width: 44,
-            height: 44,
-            border: '1px solid rgba(255,255,255,0.55)',
-            borderRadius: 14,
-            background: 'rgba(255,255,255,0.42)',
-            backdropFilter: 'blur(28px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-            boxShadow: '0 10px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 95,
-            padding: 0,
-          }}
-        >
-          {/* Sliders icon (matches the controls metaphor) */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <line x1="4"  y1="6"  x2="20" y2="6" />
-            <line x1="4"  y1="12" x2="20" y2="12" />
-            <line x1="4"  y1="18" x2="20" y2="18" />
-            <circle cx="9"  cy="6"  r="2.2" fill="#1e1e1e" />
-            <circle cx="15" cy="12" r="2.2" fill="#1e1e1e" />
-            <circle cx="7"  cy="18" r="2.2" fill="#1e1e1e" />
-          </svg>
-        </button>
+        <DraggableSettingsPill onClick={() => setPanelCollapsed(false)} />
       )}
 
       {/* Combined glassy control panel */}
@@ -3828,6 +3804,102 @@ function App() {
       {/* Footer (fixed bottom) */}
       {!minimalUI && <Footer />}
     </div>
+  );
+}
+
+/* ---------------------------------------------------------------------------
+ * DraggableSettingsPill — collapsed-controls launcher.
+ *   - Anchored to the bottom-right corner by default so it never collides with
+ *     the wabi logo (top-left) or the joystick (bottom-left).
+ *   - Click to expand; drag to reposition. Click vs drag is disambiguated by
+ *     total pointer movement: under 4px counts as a click and fires onClick.
+ *   - Pointer capture keeps the drag alive even if the cursor leaves the pill.
+ * ------------------------------------------------------------------------- */
+function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
+  // Offset stored as delta from the bottom-right anchor (so it survives a
+  // window resize by staying near that corner).
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    base: { x: number; y: number };
+    moved: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  const onPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      base: offset,
+      moved: 0,
+    };
+    setDragging(true);
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const dx = e.clientX - d.startX;
+    const dy = e.clientY - d.startY;
+    d.moved = Math.max(d.moved, Math.hypot(dx, dy));
+    setOffset({ x: d.base.x + dx, y: d.base.y + dy });
+  };
+  const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const d = dragRef.current;
+    if (!d) return;
+    e.currentTarget.releasePointerCapture(e.pointerId);
+    const wasClick = d.moved < 4;
+    dragRef.current = null;
+    setDragging(false);
+    if (wasClick) onClick();
+  };
+
+  return (
+    <button
+      type="button"
+      aria-label="Expand controls"
+      title="Controls"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerUp}
+      style={{
+        position: 'fixed',
+        right: 16,
+        bottom: 16,
+        width: 44,
+        height: 44,
+        border: '1px solid rgba(255,255,255,0.55)',
+        borderRadius: 14,
+        background: 'rgba(255,255,255,0.42)',
+        backdropFilter: 'blur(28px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(28px) saturate(180%)',
+        boxShadow: '0 10px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)',
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: dragging ? 'grabbing' : 'grab',
+        zIndex: 95,
+        padding: 0,
+        // x grows right (so negative pushes it left from the corner); y grows
+        // down (so negative pushes it up from the corner). Translate handles it.
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        transition: dragging ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        touchAction: 'none',
+        userSelect: 'none',
+      }}
+    >
+      {/* Sliders icon (matches the controls metaphor) */}
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <line x1="4"  y1="6"  x2="20" y2="6" />
+        <line x1="4"  y1="12" x2="20" y2="12" />
+        <line x1="4"  y1="18" x2="20" y2="18" />
+        <circle cx="9"  cy="6"  r="2.2" fill="#1e1e1e" />
+        <circle cx="15" cy="12" r="2.2" fill="#1e1e1e" />
+        <circle cx="7"  cy="18" r="2.2" fill="#1e1e1e" />
+      </svg>
+    </button>
   );
 }
 
