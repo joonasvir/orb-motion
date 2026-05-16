@@ -176,9 +176,9 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
           }}
         />
       </span>
-      <span style={{ display: 'block' }}>mini-apps for you</span>
+      <span style={{ display: 'block' }}>mini-apps for you and</span>
       <span style={{ display: 'block' }}>
-        and your friends{' '}
+        your friends{' '}
         <span
           className="ps-pile"
           aria-hidden="true"
