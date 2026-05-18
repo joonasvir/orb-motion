@@ -128,48 +128,51 @@ interface Props {
 const ENTER_BASE_DELAY = 950;
 
 const PROPS: PropDef[] = [
-  // Atlas — top, peeks past the right edge of the phone.
+  // Atlas — top-right corner, just peeks past the upper-right of the phone.
+  // Tuned to the reference: smaller width, less off-edge than before so it
+  // reads as a vintage book lying just behind the phone, not a giant prop.
   {
     id: 'atlas',
     src: '/props/travel-atlas.png',
-    top: '-12%',
-    right: '-38%',
-    width: '78%',
-    rotate: 8,
+    top: '-8%',
+    right: '-22%',
+    width: '50%',
+    rotate: 14,
     z: 2,
-    enterX: '-22%',  // start displaced toward wrapper center (down-left from top-right rest)
-    enterY: '18%',
+    enterX: '-18%',  // start displaced toward wrapper center (down-left from top-right rest)
+    enterY: '14%',
     enterDelay: ENTER_BASE_DELAY,
   },
-  // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
-  // Hero prop — another +30% bump (138% → 179%) makes it dominate the
-  // composition as the main eye-catch behind the phone.
+  // Tickets + folded map — bottom-left, dominant prop that extends FAR
+  // below the phone bottom and FAR past the left edge (matches reference).
+  // Top edge of the bundle starts around the midpoint of the phone and the
+  // bottom of the bundle hangs ~30% below the phone bottom; a heavier CCW
+  // rotation reads as "stack of paper tumbled out."
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
-    bottom: '-2%',
-    left: '-46%',
-    width: '179%',
-    rotate: -7,
+    bottom: '-32%',
+    left: '-58%',
+    width: '95%',
+    rotate: -22,
     z: 3,
-    enterX: '26%',   // start displaced toward wrapper center (up-right from bottom-left rest)
-    enterY: '-14%',
+    enterX: '24%',   // start displaced toward wrapper center (up-right from bottom-left rest)
+    enterY: '-16%',
     enterDelay: ENTER_BASE_DELAY + 180,
   },
-  // Globe — bottom-right, peeks past the right edge. Renders IN FRONT of
-  // the phone so it visually overlaps the screen content. Shrunk -30%
-  // (58% → 40.6%) so it reads as a subtle 3D object rather than competing
-  // with the tickets hero behind the phone.
+  // Globe — bottom-right corner, sits IN FRONT of the phone and hugs the
+  // lower-right edge. Smaller than before so it reads as a 3D accent on
+  // the corner, not a competing visual with the tickets.
   {
     id: 'globe',
     src: '/props/travel-globe.png',
-    bottom: '-2%',
-    right: '-42%',
-    width: '40.6%',
-    rotate: -5,
+    bottom: '-10%',
+    right: '-30%',
+    width: '36%',
+    rotate: -4,
     z: 1,
     front: true,
-    enterX: '-24%',  // start displaced toward wrapper center (up-left from bottom-right rest)
+    enterX: '-20%',  // start displaced toward wrapper center (up-left from bottom-right rest)
     enterY: '-12%',
     enterDelay: ENTER_BASE_DELAY + 360,
   },
