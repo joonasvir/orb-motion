@@ -1929,7 +1929,9 @@ function App() {
             // Another -20% pass on top of the previous reduction so the
             // headline reads as confident display type, not a banner.
             fontSize: personalMode
-              ? (isMobile ? 'clamp(26px, 8.32vw, 41px)' : 'clamp(24px, 3.84vw, 59px)')
+              // +20% on the personal headline (was clamp(24,3.84vw,59)
+              // desktop / clamp(26,8.32vw,41) mobile).
+              ? (isMobile ? 'clamp(31px, 9.98vw, 49px)' : 'clamp(29px, 4.61vw, 71px)')
               : layout === 'center'
               ? 'clamp(18px, 2.56vw, 38px)'
               : 'clamp(15px, 2.05vw, 30px)',
