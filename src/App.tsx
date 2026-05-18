@@ -1933,9 +1933,11 @@ function App() {
               // +20% on the personal headline (was clamp(24,3.84vw,59)
               // desktop / clamp(26,8.32vw,41) mobile).
               ? (isMobile ? 'clamp(31px, 9.98vw, 49px)' : 'clamp(29px, 4.61vw, 71px)')
+              // Non-personal headlines bumped +25% (center was
+              // clamp(18,2.56vw,38), side was clamp(15,2.05vw,30)).
               : layout === 'center'
-              ? 'clamp(18px, 2.56vw, 38px)'
-              : 'clamp(15px, 2.05vw, 30px)',
+              ? 'clamp(23px, 3.2vw, 48px)'
+              : 'clamp(19px, 2.56vw, 38px)',
             lineHeight: personalMode ? 0.98 : 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
