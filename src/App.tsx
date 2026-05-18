@@ -1064,8 +1064,11 @@ function App() {
         const _mobile = isMobileRef.current;
         // Mobile + personalMode: phone is centered horizontally near the
         // bottom of the viewport. Cyclone center must match.
-        const _mobilePersonal = _mobile && _pm;
-        const _phoneXFrac = _mobilePersonal
+        // ANY mobile case (short OR long) uses the same centered-bottom
+        // phone-stack layout — short and long should look identical on
+        // narrow screens.
+        const _mobileAny = _mobile && !_orbsOnly && !_splitting;
+        const _phoneXFrac = _mobileAny
           ? 0.5
           : _splitting
             ? (_splitSide === 'right' ? 0.25 : 0.75)
@@ -1079,7 +1082,7 @@ function App() {
                 : _layout === 'right'
                   ? 0.66
                   : 0.5;
-        const _phoneXOffset = _mobilePersonal || _orbsOnly || _splitting
+        const _phoneXOffset = _mobileAny || _orbsOnly || _splitting
           ? 0
           : _layout === 'left'
             ? 40
@@ -1090,12 +1093,15 @@ function App() {
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        // Mobile personalMode: phone bottom inset 56px from viewport
-        // bottom so its drop-shadow has room. Center = (innerHeight - 56) -
-        // 0.5 * phoneHeight.
-        const _mobilePhoneH = Math.max(364, Math.min(494, window.innerHeight * 0.598));
+        // Mobile: phone bottom inset 56px from viewport bottom so its
+        // drop-shadow has room. Center = (innerHeight - 56) - 0.5 * H.
+        // Personal uses the larger phone clamp (364-494); non-personal
+        // mobile uses 320-440 (matches the wrapper rules in JSX).
+        const _mobilePhoneH = _pm
+          ? Math.max(364, Math.min(494, window.innerHeight * 0.598))
+          : Math.max(320, Math.min(440, window.innerHeight * 0.52));
         const _mobilePhoneBottom = 56;
-        const centerY = _mobilePersonal
+        const centerY = _mobileAny
           ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH * 0.5
           : _orbsOnly
             ? window.innerHeight / 2
@@ -1229,11 +1235,11 @@ function App() {
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 50;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
-            // Mobile personalMode scales the phone 30% larger — bump cyclone
-            // radius the same so the orbital cloud still hugs the device.
-            const mobilePersonalBump = _mobilePersonal ? 1.3 : 1;
-            // Final -10% pass so the cloud feels snug around the phone.
-            const baseR = Math.min(minR, maxR) * mobilePersonalBump * 0.9;
+            // Any mobile case scales the phone larger than the cyclone math
+            // assumes, so bump the radius +30% to match. Final -10% pass
+            // keeps the cloud snug around the phone.
+            const mobileBump = _mobileAny ? 1.3 : 1;
+            const baseR = Math.min(minR, maxR) * mobileBump * 0.9;
             // Smooth radius multiplier (driven by hand height / hand distance).
             // 0.045 settles in ~1s — silky but still responsive.
             cycloneRadiusMulRef.current +=
@@ -1902,6 +1908,18 @@ function App() {
                   width: 'min(560px, 40vw)',
                   textAlign: 'left' as const,
                 })
+            // ── Long-headline (non-personal) variants ──
+            : isMobile
+            ? {
+                // Mobile non-personal: same centered-top-stack as mobile
+                // personal so the two variants render identically on
+                // narrow screens.
+                top: 'clamp(96px, 14vh, 140px)',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                width: 'min(420px, 88vw)',
+                textAlign: 'center' as const,
+              }
             : layout === 'center'
             ? {
                 top: 'clamp(110px, 12vh, 140px)',
@@ -2260,26 +2278,18 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
-              // Mobile + personalMode: phone bottom inset 56px so its
-              // drop-shadow has room to render (was bottom: 0 which
-              // clipped the shadow against the hero's overflow:hidden).
-              ...(isMobile && personalMode
+              // ANY mobile case (short OR long, any layout) uses the
+              // same centered-bottom-stack: copy stacks at the top of
+              // the viewport, phone sits below it, centered, with 56px
+              // bottom inset so the phone drop-shadow has room.
+              ...(isMobile
                 ? {
                     left: '50%',
                     bottom: 56,
                     transform: 'translate(-50%, 0%)',
-                    height: 'clamp(364px, 59.8vh, 494px)',
-                  }
-                // Mobile + non-personal (centered) layout: same treatment —
-                // bottom-inset for shadow room. Slightly smaller height
-                // clamp than personal because the centered headline + CTA
-                // need more vertical room above the phone.
-                : isMobile && layout === 'center'
-                ? {
-                    left: '50%',
-                    bottom: 56,
-                    transform: 'translate(-50%, 0%)',
-                    height: 'clamp(320px, 52vh, 440px)',
+                    height: personalMode
+                      ? 'clamp(364px, 59.8vh, 494px)'
+                      : 'clamp(320px, 52vh, 440px)',
                   }
                 : {
                     // Phone position matches personal-mode geometry now
