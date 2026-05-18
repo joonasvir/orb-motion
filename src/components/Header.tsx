@@ -260,11 +260,13 @@ export default function Header() {
 
         /* Nav header variant — matches Figma 53:5741:
            bright translucent-white pill with a strong top highlight, 1px
-           white edge, and a long soft drop shadow that sells the lift. */
-        .glass-btn-wrap--header { width: 200px; }
+           white edge, and a long soft drop shadow that sells the lift.
+           Mobile default is compact (140×40); the apple icon is hidden
+           below the 768px breakpoint. Desktop bumps to 200×52 / 252×56. */
+        .glass-btn-wrap--header { width: 140px; }
         .glass-btn-wrap--header .glass-btn {
-          width: 200px;
-          height: 52px;
+          width: 140px;
+          height: 40px;
           background:
             linear-gradient(
               -75deg,
@@ -287,14 +289,19 @@ export default function Header() {
         }
         .glass-btn-wrap--header .glass-btn span {
           font-family: 'Selecta', system-ui, -apple-system, sans-serif;
-          font-size: 15px;
+          font-size: 13px;
           font-weight: 400;
-          letter-spacing: -0.16px;
+          letter-spacing: -0.14px;
           color: #363636;
-          padding-inline: 1.4em;
+          padding-inline: 1em;
           display: inline-flex;
           align-items: center;
           gap: 5px;
+        }
+        /* Hide the Apple/iOS icon on mobile — the pill is too tight to
+           accommodate it without crowding the label. */
+        .glass-btn-wrap--header .glass-btn span svg {
+          display: none;
         }
         @media (min-width: 768px) {
           .glass-btn-wrap--header { width: 252px; }
@@ -308,6 +315,7 @@ export default function Header() {
             padding-inline: 1.5em;
             gap: 7px;
           }
+          /* (Apple icon still hidden on desktop too — by request.) */
         }
       `}</style>
       <nav className="orb-nav">
