@@ -2632,13 +2632,17 @@ function App() {
         </div>
       )}
 
-      {/* Collapsed panel — small glass settings pill in the BOTTOM-RIGHT.
-          Click to expand into the full panel. Default true on mobile, false on
-          desktop; toggleable from the panel's collapse button.
-          Also DRAGGABLE — pointer-capture pattern, click vs drag disambiguated
-          by total movement distance (<4px counts as click). */}
+      {/* Collapsed panel — glass settings pill at the panel's CURRENT
+          position (anchor top:84 left:16 + the shared panelOffset). Click to
+          expand back into the full panel; drag to reposition. The pill and
+          the expanded panel share `panelOffset` state so expanding always
+          opens the panel in the exact spot it was last collapsed from. */}
       {showControls && !showcaseMode && panelCollapsed && (
-        <DraggableSettingsPill onClick={() => setPanelCollapsed(false)} />
+        <CollapsedPanelPill
+          panelOffset={panelOffset}
+          setPanelOffset={setPanelOffset}
+          onExpand={() => setPanelCollapsed(false)}
+        />
       )}
 
       {/* Combined glassy control panel */}
@@ -2920,6 +2924,24 @@ function App() {
               </svg>
             </button>
 
+            {/* Headline — segmented control for which copy variant runs.
+                'short' = personalMode ON ("Make it personal" hero).
+                'long'  = personalMode OFF ("Personal software for you and
+                          your friends" hero). */}
+            <div style={sectionLabel}>Headline</div>
+            <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
+              {([
+                ['short', personalMode],
+                ['long', !personalMode],
+              ] as const).map(([label, active]) => (
+                <button
+                  key={label}
+                  onClick={() => setPersonalMode(label === 'short')}
+                  style={segBtn(active)}
+                >{label}</button>
+              ))}
+            </div>
+
             {/* Layout */}
             <div style={sectionLabel}>Layout</div>
             <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
@@ -2942,11 +2964,8 @@ function App() {
             <SwitchRow label="Profiles"  on={showProfiles}      onChange={setShowProfiles} />
             <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
             <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
-            <SwitchRow
-              label="Make it personal"
-              on={personalMode}
-              onChange={setPersonalMode}
-            />
+            {/* ("Make it personal" toggle removed — replaced by the
+                Headline short/long segmented control at the top of the panel.) */}
             {/* Cycling-word icon — only meaningful in personalMode (it's the
                 little inline 3D icon before the rotating adjective). */}
             <SwitchRow
@@ -3547,17 +3566,23 @@ function App() {
 }
 
 /* ---------------------------------------------------------------------------
- * DraggableSettingsPill — collapsed-controls launcher.
- *   - Anchored to the bottom-right corner by default so it never collides with
- *     the wabi logo (top-left) or the joystick (bottom-left).
- *   - Click to expand; drag to reposition. Click vs drag is disambiguated by
- *     total pointer movement: under 4px counts as a click and fires onClick.
- *   - Pointer capture keeps the drag alive even if the cursor leaves the pill.
+ * CollapsedPanelPill — minimized-in-place version of the controls panel.
+ *   - Shares the parent's `panelOffset` state, so the pill sits at the SAME
+ *     screen position the panel was at when the user collapsed it (anchor
+ *     `top: 84; left: 16` + the shared delta). Expand → panel reopens in
+ *     the same spot.
+ *   - Click to expand; drag to reposition. Click vs drag disambiguated by
+ *     total pointer movement (<4px = click).
  * ------------------------------------------------------------------------- */
-function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
-  // Offset stored as delta from the bottom-right anchor (so it survives a
-  // window resize by staying near that corner).
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+function CollapsedPanelPill({
+  panelOffset,
+  setPanelOffset,
+  onExpand,
+}: {
+  panelOffset: { x: number; y: number };
+  setPanelOffset: React.Dispatch<React.SetStateAction<{ x: number; y: number }>>;
+  onExpand: () => void;
+}) {
   const dragRef = useRef<{
     startX: number;
     startY: number;
@@ -3571,7 +3596,7 @@ function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
     dragRef.current = {
       startX: e.clientX,
       startY: e.clientY,
-      base: offset,
+      base: panelOffset,
       moved: 0,
     };
     setDragging(true);
@@ -3582,16 +3607,16 @@ function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
     const dx = e.clientX - d.startX;
     const dy = e.clientY - d.startY;
     d.moved = Math.max(d.moved, Math.hypot(dx, dy));
-    setOffset({ x: d.base.x + dx, y: d.base.y + dy });
+    setPanelOffset({ x: d.base.x + dx, y: d.base.y + dy });
   };
   const onPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
     const d = dragRef.current;
     if (!d) return;
-    e.currentTarget.releasePointerCapture(e.pointerId);
+    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch {}
     const wasClick = d.moved < 4;
     dragRef.current = null;
     setDragging(false);
-    if (wasClick) onClick();
+    if (wasClick) onExpand();
   };
 
   return (
@@ -3604,9 +3629,10 @@ function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
       style={{
-        position: 'fixed',
-        right: 16,
-        bottom: 16,
+        // Same anchor as the expanded panel so the two share a position.
+        position: 'absolute',
+        top: 84,
+        left: 16,
         width: 44,
         height: 44,
         border: '1px solid rgba(255, 255, 255, 0.385)',
@@ -3621,9 +3647,7 @@ function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
         cursor: dragging ? 'grabbing' : 'grab',
         zIndex: 95,
         padding: 0,
-        // x grows right (so negative pushes it left from the corner); y grows
-        // down (so negative pushes it up from the corner). Translate handles it.
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
         transition: dragging ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
         touchAction: 'none',
         userSelect: 'none',
