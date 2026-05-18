@@ -90,8 +90,6 @@ function App() {
   // Tracks which cover URLs have already been handed out so we don't repeat
   // until the pool is exhausted (dedup-aware random picker below).
   const usedCoversRef = useRef<Set<string>>(new Set());
-  // Ref to the bento <section> so toggling it on can smooth-scroll into view.
-  const bentoSectionRef = useRef<HTMLElement | null>(null);
   // Holds AI-generated orb URLs (data: URLs from /api/generate-orb).
   // These are prioritized by the picker so freshly-made orbs show up next.
   const aiCoversRef = useRef<string[]>([]);
@@ -121,7 +119,8 @@ function App() {
   const [activeNotif, setActiveNotif] = useState<null | 'chat' | 'like'>(null);
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfiles, setShowProfiles] = useState(false);
-  const [showBento, setShowBento] = useState(false);
+  // (Bento section removed entirely — `showBento` state and the <section>
+  // below the hero are gone. Hand-mode cascade no longer touches it.)
   // 3D persona props (heart / mobile / globe / atlas / controller / cursor / etc.)
   // that float around the phone, themed to the active persona. Off by default —
   // they're more of a flourish than a baseline.
@@ -142,6 +141,10 @@ function App() {
   // larger left-positioned headline and a cycling-word subhead.
   // Default ON (per the latest direction).
   const [personalMode, setPersonalMode] = useState(true);
+  // Toggle for the inline 3D icon that sits in front of the cycling word in
+  // the personal subhead. Defaults OFF so the subhead reads as clean inline
+  // type; flipping it on re-introduces the icon-per-word treatment.
+  const [showCyclingIcon, setShowCyclingIcon] = useState(false);
   // "Manifesto unlocking..." toast — shown for 3s after the M key is
   // pressed, then the page navigates to manifesto.joonasvirtanen.com.
   const [manifestoUnlocking, setManifestoUnlocking] = useState(false);
@@ -171,6 +174,16 @@ function App() {
     if (typeof window === 'undefined') return false;
     return window.matchMedia('(max-width: 640px)').matches;
   });
+  // Drag offset applied to the expanded control panel (delta from its default
+  // top-left anchor). Lets the user shove the panel out of the way when it
+  // covers something they want to look at.
+  const [panelOffset, setPanelOffset] = useState({ x: 0, y: 0 });
+  const panelDragRef = useRef<{
+    startX: number;
+    startY: number;
+    base: { x: number; y: number };
+  } | null>(null);
+  const [panelDragging, setPanelDragging] = useState(false);
   // Which synthesized joystick sound to use ("lever" was the original).
   const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
@@ -1753,10 +1766,7 @@ function App() {
           from { opacity: 0; transform: translateY(20px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes scroll-hint-bounce {
-          0%, 100% { transform: translate(-50%, 0); }
-          50%      { transform: translate(-50%, 6px); }
-        }
+        /* (scroll-hint-bounce keyframe removed along with the bento section.) */
         /* Gentle floating motion for persona props. Each prop inlines its
            rotation as --rot, so the animation can compose translate + rotate
            without clobbering the rest of the transform. Three variants stagger
@@ -2115,7 +2125,7 @@ function App() {
             animationDelay: '300ms',
           }}>
             {personalMode ? (
-              <PersonalSubhead />
+              <PersonalSubhead showIcon={showCyclingIcon} />
             ) : (
               'Describe what you want. Customize the vibe. Share instantly.'
             )}
@@ -2767,13 +2777,41 @@ function App() {
             <Switch on={on} onChange={onChange} ariaLabel={label} />
           </div>
         );
+        // Drag handlers for the panel — only the grip strip at the top
+        // initiates a drag, so the controls underneath stay clickable.
+        const onPanelDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+          e.currentTarget.setPointerCapture(e.pointerId);
+          panelDragRef.current = {
+            startX: e.clientX,
+            startY: e.clientY,
+            base: panelOffset,
+          };
+          setPanelDragging(true);
+        };
+        const onPanelDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+          const d = panelDragRef.current;
+          if (!d) return;
+          setPanelOffset({
+            x: d.base.x + (e.clientX - d.startX),
+            y: d.base.y + (e.clientY - d.startY),
+          });
+        };
+        const onPanelDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+          if (!panelDragRef.current) return;
+          e.currentTarget.releasePointerCapture(e.pointerId);
+          panelDragRef.current = null;
+          setPanelDragging(false);
+        };
+
         return (
           <div className="blur-in" style={{
             position: 'absolute',
             top: 84,
             left: 16,
             width: 224,
-            padding: 14,
+            // Reserve a touch more top padding for the grip strip; the strip
+            // sits inside it so the inner controls don't shift.
+            padding: '20px 14px 14px',
             borderRadius: 18,
             background: 'rgba(255,255,255,0.36)',
             backdropFilter: 'blur(36px) saturate(190%)',
@@ -2786,7 +2824,49 @@ function App() {
             fontSize: 12,
             zIndex: 90,
             animationDelay: '500ms',
+            // Drag offset applied via transform so layout stays stable.
+            transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
+            transition: panelDragging
+              ? 'none'
+              : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
           }}>
+            {/* Drag handle — slim grip strip across the top of the panel.
+                Pointer-capture starts a drag; the controls below are
+                unaffected because the handle only covers the very top. */}
+            <div
+              onPointerDown={onPanelDragStart}
+              onPointerMove={onPanelDragMove}
+              onPointerUp={onPanelDragEnd}
+              onPointerCancel={onPanelDragEnd}
+              role="separator"
+              aria-label="Drag controls panel"
+              title="Drag to move"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                height: 18,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: panelDragging ? 'grabbing' : 'grab',
+                touchAction: 'none',
+                userSelect: 'none',
+                borderTopLeftRadius: 18,
+                borderTopRightRadius: 18,
+              }}
+            >
+              {/* Visible grip — small rounded bar centered in the strip,
+                  same charcoal as the panel text but very dim. */}
+              <span style={{
+                width: 32,
+                height: 4,
+                borderRadius: 999,
+                background: 'rgba(30,30,30,0.22)',
+                pointerEvents: 'none',
+              }} />
+            </div>
             {/* Collapse button — top-right of the panel. Mirrors the pill
                 that appears when collapsed. */}
             <button
@@ -2810,6 +2890,9 @@ function App() {
                 cursor: 'pointer',
                 padding: 0,
                 transition: 'background 0.18s ease',
+                // Ensure the collapse button sits ABOVE the drag handle so
+                // its click isn't swallowed by the grip strip.
+                zIndex: 2,
               }}
               onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.10)')}
               onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
@@ -2867,27 +2950,16 @@ function App() {
                 if (v) setLayout('right');
               }}
             />
+            {/* Cycling-word icon — only meaningful in personalMode (it's the
+                little inline 3D icon before the rotating adjective). */}
             <SwitchRow
-              label="Bento"
-              on={showBento}
-              onChange={(v) => {
-                setShowBento(v);
-                if (!v) {
-                  window.scrollTo({ top: 0, behavior: 'smooth' });
-                } else {
-                  // Wait a frame for the section to mount, then scroll to it.
-                  requestAnimationFrame(() => {
-                    setTimeout(() => {
-                      bentoSectionRef.current?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                      });
-                    }, 60);
-                  });
-                }
-              }}
+              label="Cycling icon"
+              on={showCyclingIcon}
+              onChange={setShowCyclingIcon}
             />
-            <SwitchRow label="Focus" on={focusMode} onChange={setFocusMode} />
+            {/* (Bento + Focus rows removed from the panel — bento section
+                deleted entirely; focus is still flipped internally by the
+                hand-mode cascade but no longer surfaced as a user switch.) */}
 
             {/* Playground — fullscreen orbs-only vibe (hides this panel too). */}
             <div style={sectionLabel}>Playground</div>
@@ -3063,50 +3135,13 @@ function App() {
         );
       })()}
 
-      {/* Instructions */}
-      {!minimalUI && (
-        <div style={{
-          position: 'absolute', top: 96, left: '50%', transform: 'translateX(-50%)',
-          color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.45)' : 'rgba(0,0,0,0.4)',
-          fontFamily: 'system-ui, sans-serif', fontSize: 12,
-          pointerEvents: 'none', userSelect: 'none',
-          textAlign: 'center',
-        }}>
-          Click to drop · Tap orb to view · Press D for controls
-        </div>
-      )}
+      {/* (Helper text "Click to drop · Tap orb to view · Press D for controls"
+          removed — the controls panel + joystick make the affordances
+          discoverable without it, and on small screens it competed with the
+          headline. Left the comment as a breadcrumb in case we ever want it
+          back behind a debug flag.) */}
 
-      {/* Scroll-down chevron — visible only when bento is enabled so users
-          know there's more content below the hero. Sits just above the footer
-          and gently bobs. */}
-      {!minimalUI && showBento && (
-        <button
-          type="button"
-          onClick={() => bentoSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-          aria-label="Scroll to bento"
-          style={{
-            position: 'absolute',
-            bottom: 96,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 40, height: 40,
-            border: 0,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,0.8)',
-            boxShadow: '0 6px 18px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)',
-            backdropFilter: 'blur(12px)',
-            WebkitBackdropFilter: 'blur(12px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            zIndex: 60,
-            animation: 'scroll-hint-bounce 1.8s ease-in-out infinite',
-          }}
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path d="M3 5l4 4 4-4" stroke="#1e1e1e" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-      )}
+      {/* (Scroll-down chevron removed along with the bento section.) */}
 
       </section>
       {/* End hero section */}
@@ -3154,259 +3189,6 @@ function App() {
           toolbar itself manages its own expanded/minimized/dismissed state. */}
       <HandToolbar enabled={handMode} />
 
-      {/* Bento — 4 cards in a wide/square grid below the hero */}
-      {!minimalUI && showBento && (
-        <section ref={bentoSectionRef} style={{
-          width: '100%',
-          padding: 'clamp(48px, 6vw, 96px) clamp(20px, 4vw, 64px) clamp(120px, 12vw, 180px)',
-          background: '#f0f0f0',
-          fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
-          position: 'relative',
-          zIndex: 0,
-        }}>
-          <div style={{
-            maxWidth: 1500,
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(3, 1fr)',
-            gridAutoRows: 'minmax(380px, 460px)',
-            gap: 24,
-          }}>
-            {/* 1 — Creation that feels like play (wide-left) */}
-            <article style={{
-              gridColumn: '1 / 3',
-              background: '#fff',
-              borderRadius: 24,
-              padding: 'clamp(28px, 3vw, 52px)',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              <h2 style={{
-                margin: 0,
-                fontSize: 'clamp(24px, 2.4vw, 34px)',
-                lineHeight: 1.1,
-                fontWeight: 400,
-                color: '#0a0a0a',
-                maxWidth: 280,
-                position: 'relative',
-                zIndex: 2,
-              }}>Creation that feels like play</h2>
-              {/* Decorative orb cluster on the right */}
-              <div style={{
-                position: 'absolute',
-                right: '-3%',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 'clamp(260px, 35%, 480px)',
-                aspectRatio: '1',
-                background:
-                  'radial-gradient(circle at 30% 30%, #ffd29a 0%, #f0a868 35%, #b3563a 75%, transparent 80%), radial-gradient(circle at 70% 70%, rgba(180, 130, 255, 0.5) 0%, transparent 40%)',
-                borderRadius: '50%',
-                filter: 'blur(4px)',
-                opacity: 0.85,
-              }} />
-            </article>
-
-            {/* 2 — Remix anything you see (square-right) */}
-            <article style={{
-              gridColumn: '3 / 4',
-              background: '#fff',
-              borderRadius: 24,
-              padding: 'clamp(28px, 3vw, 52px)',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-            }}>
-              {/* Mini "app card" preview at the top, peeking up */}
-              <div style={{
-                position: 'absolute',
-                top: -36,
-                left: '50%',
-                transform: 'translateX(-50%)',
-                width: '76%',
-                aspectRatio: '1 / 1.05',
-                borderRadius: 28,
-                background: 'rgba(255,255,255,0.78)',
-                backdropFilter: 'blur(20px) saturate(180%)',
-                WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-                boxShadow:
-                  '0 14px 70px rgba(0,0,0,0.20), inset 1px 1px 1px rgba(255,255,255,0.32), inset -1px -1px 1px rgba(0,0,0,0.06)',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                padding: 'clamp(20px, 2.5vw, 36px) 12px',
-                gap: 12,
-              }}>
-                <div style={{
-                  width: 76,
-                  height: 76,
-                  borderRadius: '50%',
-                  background: 'radial-gradient(circle at 30% 30%, #ffbe8a, #c2543f)',
-                  boxShadow: '0 8px 16px rgba(0,0,0,0.10), 0 0 0 2px rgba(0,0,0,0.06)',
-                }} />
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontWeight: 500, fontSize: 18, color: '#1e1e1e', marginBottom: 4 }}>London story creator</div>
-                  <div style={{ fontSize: 13, color: '#525252', maxWidth: 200, margin: '0 auto', lineHeight: 1.35 }}>
-                    Play a fast-paced card game with vibrant 80s anime vibes.
-                  </div>
-                </div>
-                <div style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '8px 16px',
-                  borderRadius: 999,
-                  background: 'linear-gradient(to top, #0a0a0a, #4a4a4a)',
-                  color: '#fff',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  boxShadow: 'inset -1px -1px 2px rgba(255,255,255,0.3), inset 1px 1px 1px rgba(255,255,255,0.12)',
-                }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                  Edit
-                </div>
-              </div>
-              <h2 style={{
-                marginTop: 'auto',
-                marginBottom: 8,
-                fontSize: 'clamp(24px, 2.4vw, 34px)',
-                lineHeight: 1.1,
-                fontWeight: 400,
-                color: '#0a0a0a',
-                textAlign: 'center',
-              }}>Remix anything you see</h2>
-            </article>
-
-            {/* 3 — Discover the best from the community (square-left) */}
-            <article style={{
-              gridColumn: '1 / 2',
-              background: '#fff',
-              borderRadius: 24,
-              padding: 'clamp(28px, 3vw, 52px)',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
-            }}>
-              <h2 style={{
-                margin: 0,
-                fontSize: 'clamp(24px, 2.4vw, 34px)',
-                lineHeight: 1.1,
-                fontWeight: 400,
-                color: '#0a0a0a',
-                maxWidth: 320,
-                position: 'relative',
-                zIndex: 2,
-              }}>Discover the best from the community</h2>
-              {/* Phone screenshot background, fading down */}
-              <img
-                src="/dash-1.png"
-                alt=""
-                style={{
-                  position: 'absolute',
-                  left: '50%',
-                  bottom: '-30%',
-                  transform: 'translateX(-50%) scale(1.05)',
-                  width: '85%',
-                  height: 'auto',
-                  borderRadius: 36,
-                  filter: 'drop-shadow(0 24px 40px rgba(0,0,0,0.10))',
-                  pointerEvents: 'none',
-                }}
-              />
-            </article>
-
-            {/* 4 — Apps built on your context (wide-right) */}
-            <article style={{
-              gridColumn: '2 / 4',
-              background: '#fff',
-              borderRadius: 24,
-              padding: 'clamp(28px, 3vw, 52px)',
-              position: 'relative',
-              overflow: 'hidden',
-              boxShadow: '0 40px 50px rgba(0,0,0,0.05), 0 1px 0 rgba(0,0,0,0.02)',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              <h2 style={{
-                margin: 0,
-                fontSize: 'clamp(24px, 2.4vw, 34px)',
-                lineHeight: 1.1,
-                fontWeight: 400,
-                color: '#0a0a0a',
-                maxWidth: 280,
-                position: 'relative',
-                zIndex: 2,
-              }}>Apps built on your context</h2>
-              {/* Stacked integration cards on the right */}
-              <div style={{
-                position: 'absolute',
-                right: 'clamp(28px, 4vw, 80px)',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: 'clamp(280px, 36%, 420px)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 12,
-              }}>
-                {[
-                  { name: 'Spotify', color: 'linear-gradient(135deg, #1ed760, #1aa34a)', emoji: '♪' },
-                  { name: 'Calendar', color: 'linear-gradient(135deg, #ff7a59, #d94a35)', emoji: '◷' },
-                  { name: 'Messages', color: 'linear-gradient(135deg, #64b5ff, #1e88e5)', emoji: '✉' },
-                ].map((svc) => (
-                  <div key={svc.name} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    padding: '16px 18px',
-                    borderRadius: 22,
-                    background: 'rgba(242,242,242,0.7)',
-                    backdropFilter: 'blur(20px) saturate(150%)',
-                    WebkitBackdropFilter: 'blur(20px) saturate(150%)',
-                    boxShadow: '0 1px 0 rgba(0,0,0,0.02), 0 6px 18px rgba(0,0,0,0.06)',
-                    border: '1px solid rgba(255,255,255,0.6)',
-                  }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: '50%',
-                      background: svc.color,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      color: '#fff', fontSize: 20, fontWeight: 700,
-                    }}>{svc.emoji}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 16, fontWeight: 500, color: '#0a0a0a' }}>{svc.name}</div>
-                      <div style={{ fontSize: 13, color: '#737373' }}>Connected</div>
-                    </div>
-                    {/* iOS-style green toggle */}
-                    <div style={{
-                      width: 44, height: 26, borderRadius: 999,
-                      background: 'linear-gradient(180deg, #72d390, #6bc687)',
-                      boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.18), inset 0 -1px 0 rgba(255,255,255,0.2)',
-                      position: 'relative',
-                    }}>
-                      <div style={{
-                        position: 'absolute',
-                        right: 2, top: 2,
-                        width: 22, height: 22,
-                        borderRadius: '50%',
-                        background: '#fff',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.18), 0 0 0 0.5px rgba(0,0,0,0.06)',
-                      }} />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </article>
-          </div>
-        </section>
-      )}
 
       {/* Card Modal — glassy "App card" style (matches Figma 30:6880) */}
       {selectedOrb && (

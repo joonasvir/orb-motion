@@ -14,6 +14,9 @@ import CyclingWord from './CyclingWord';
 interface Props {
   /** Fires true on cycling-word hover-enter, false on leave. */
   onHoverChange?: (hovered: boolean) => void;
+  /** When true, render the inline 3D icon in front of each cycling word.
+   *  Default false so the subhead reads as clean inline type. */
+  showIcon?: boolean;
 }
 
 // Every word here must read as a clean adjective in:
@@ -87,7 +90,7 @@ function updateSpring(root: HTMLElement | null, hoveredId: number | null) {
   });
 }
 
-export default function PersonalSubhead({ onHoverChange }: Props) {
+export default function PersonalSubhead({ onHoverChange, showIcon = false }: Props) {
   const handleLeave = useCallback((e: React.PointerEvent<HTMLElement>) => {
     updateSpring(e.currentTarget, null);
   }, []);
@@ -145,7 +148,9 @@ export default function PersonalSubhead({ onHoverChange }: Props) {
           onHoverChange={onHoverChange}
           // Inherit the subhead's color + weight — no darker treatment so
           // the cycling word reads as part of the line, not pulled forward.
-          renderPrefix={(w) => {
+          // renderPrefix is only wired in when the parent opts in via
+          // `showIcon` — otherwise the cycling word reads as plain inline type.
+          renderPrefix={!showIcon ? undefined : (w) => {
             const meta = ICONS[w];
             if (!meta) return null;
             return (

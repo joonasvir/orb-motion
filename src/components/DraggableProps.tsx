@@ -1,5 +1,78 @@
 import { useRef, useState } from 'react';
 
+/* ---------------------------------------------------------------------------
+ * Paper-shuffle sound — short noise burst put through a couple of bandpasses
+ * with a fast amplitude-envelope chatter so it reads as crinkling paper /
+ * map-folding rather than a static hiss. Pure Web Audio, no assets.
+ * Triggered on pointer-down of any prop so the click feels tactile.
+ * ------------------------------------------------------------------------- */
+function playPaperShuffle() {
+  try {
+    const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
+    const ctx = new AudioCtx();
+    const t0 = ctx.currentTime;
+    const dur = 0.32;
+
+    // Base noise buffer
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    // Crinkle chatter: random spikes mixed with mid-amplitude noise + a few
+    // sub-bursts so it reads as multiple sheets sliding rather than smooth hiss.
+    for (let i = 0; i < data.length; i++) {
+      const base = (Math.random() * 2 - 1) * 0.55;
+      const chatter = Math.random() > 0.92 ? (Math.random() * 2 - 1) * 0.9 : 0;
+      data[i] = base + chatter;
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+
+    // High-pass to drop the boomy low end (paper is bright).
+    const hp = ctx.createBiquadFilter();
+    hp.type = 'highpass';
+    hp.frequency.value = 900;
+    hp.Q.value = 0.6;
+
+    // Bandpass that sweeps slightly down to suggest "unfolding".
+    const bp = ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.Q.value = 1.2;
+    bp.frequency.setValueAtTime(3800, t0);
+    bp.frequency.exponentialRampToValueAtTime(1900, t0 + dur * 0.9);
+
+    // Amplitude envelope: fast attack, fast-ish decay so it's snappy.
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.34, t0 + 0.015);
+    gain.gain.exponentialRampToValueAtTime(0.07, t0 + 0.12);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+
+    src.connect(hp);
+    hp.connect(bp);
+    bp.connect(gain);
+    gain.connect(ctx.destination);
+    src.start(t0);
+    src.stop(t0 + dur);
+
+    // A very short "tap" tick on top — gives the gesture a tactile onset.
+    const tick = ctx.createOscillator();
+    tick.type = 'square';
+    tick.frequency.setValueAtTime(2400, t0);
+    tick.frequency.exponentialRampToValueAtTime(900, t0 + 0.04);
+    const tickGain = ctx.createGain();
+    tickGain.gain.setValueAtTime(0.0001, t0);
+    tickGain.gain.exponentialRampToValueAtTime(0.05, t0 + 0.005);
+    tickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
+    tick.connect(tickGain);
+    tickGain.connect(ctx.destination);
+    tick.start(t0);
+    tick.stop(t0 + 0.08);
+
+    setTimeout(() => ctx.close(), (dur + 0.1) * 1000);
+  } catch {
+    // Silent fail — audio just won't play.
+  }
+}
+
 /**
  * DraggableProps — three travel-themed 3D assets that sit BEHIND the phone
  * (z-index below it) and can be individually click-and-dragged anywhere on
@@ -165,6 +238,8 @@ function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = { x: e.clientX, y: e.clientY, base: offset };
     setDragging(true);
+    // Tactile crinkle on pickup — sounds like sliding a map or ticket.
+    playPaperShuffle();
   };
   const onPointerMove = (e: React.PointerEvent<HTMLImageElement>) => {
     if (!dragRef.current) return;
