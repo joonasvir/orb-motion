@@ -2834,10 +2834,16 @@ function App() {
           <div
             style={{
               position: 'absolute',
-              top: 84,
+              // Pushed below the header CTA so the panel doesn't sit
+              // directly under (and visually collide with) the Download
+              // for iOS pill on the right side of the header.
+              top: 132,
               right: 16,
               width: 224,
-              padding: '24px 14px 14px',
+              // Bigger top padding to reserve room for the larger drag-grip
+              // strip — gives the user a clear tap target above the
+              // headline segmented control.
+              padding: '34px 14px 14px',
               borderRadius: 18,
               background: 'rgba(255, 255, 255, 0.252)',
               backdropFilter: 'blur(36px) saturate(190%)',
@@ -2865,7 +2871,8 @@ function App() {
           >
             {/* Visible grip indicator — just a visual cue that the panel can
                 be dragged. This element IS the drag target — pointer
-                handlers live here directly, so click + drag are predictable. */}
+                handlers live here directly, so click + drag are predictable.
+                Beefed up to 34px tall + wide-pill grip so it's obvious. */}
             <div
               onPointerDown={onHandleDown}
               onPointerMove={onHandleMove}
@@ -2882,7 +2889,7 @@ function App() {
                 // the handle never overlaps it. Without this gap the grip's
                 // pointer-capture would steal mousedown from the X button.
                 right: 36,
-                height: 24,
+                height: 34,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -2890,15 +2897,20 @@ function App() {
                 touchAction: 'none',
                 userSelect: 'none',
                 borderTopLeftRadius: 18,
-                zIndex: 1,
+                // The handle sits ABOVE the inner controls so its
+                // pointer-capture wins over any element it visually overlaps.
+                zIndex: 3,
               }}
             >
               <span style={{
-                width: 36,
-                height: 4,
+                width: 48,
+                height: 5,
                 borderRadius: 999,
-                background: 'rgba(30, 30, 30, 0.32)',
+                background: panelDragging
+                  ? 'rgba(30, 30, 30, 0.55)'
+                  : 'rgba(30, 30, 30, 0.4)',
                 pointerEvents: 'none',
+                transition: 'background 0.2s ease',
               }} />
             </div>
             {/* Collapse button — top-right of the panel. Mirrors the pill
@@ -3633,9 +3645,10 @@ function CollapsedPanelPill({
       onPointerCancel={onPointerUp}
       style={{
         // Same anchor as the expanded panel so the two share a position.
-        // Panel default anchors to top-right; the pill matches.
+        // Panel default anchors to top-right below the header CTA; the
+        // pill matches so they collapse/expand in place.
         position: 'absolute',
-        top: 84,
+        top: 132,
         right: 16,
         width: 44,
         height: 44,
