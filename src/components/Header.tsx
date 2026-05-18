@@ -293,7 +293,8 @@ export default function Header() {
           font-weight: 400;
           letter-spacing: -0.14px;
           color: #363636;
-          padding-inline: 1em;
+          /* Tighter inset so the label doesn't float in a wide pill. */
+          padding-inline: 0.65em;
           display: inline-flex;
           align-items: center;
           gap: 5px;
@@ -304,15 +305,17 @@ export default function Header() {
           display: none;
         }
         @media (min-width: 768px) {
-          .glass-btn-wrap--header { width: 252px; }
+          /* Desktop pill narrowed (252 → 200) and inner padding pulled in
+             so the label sits closer to the edges instead of floating. */
+          .glass-btn-wrap--header { width: 200px; }
           .glass-btn-wrap--header .glass-btn {
-            width: 252px;
+            width: 200px;
             height: 56px;
           }
           .glass-btn-wrap--header .glass-btn span {
             font-size: 19px;
             letter-spacing: -0.19px;
-            padding-inline: 1.5em;
+            padding-inline: 0.7em;
             gap: 7px;
           }
           /* (Apple icon still hidden on desktop too — by request.) */
