@@ -1109,12 +1109,13 @@ function App() {
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        // Mobile personalMode: phone is now 30% larger AND pushed half below
-        // the viewport (50% above the fold). With CSS `bottom: 0;
-        // transform: translateY(50%)`, the phone CENTER lands exactly at the
-        // viewport bottom — so the cyclone center matches at window.innerHeight.
+        // Mobile personalMode: phone is 30% larger, with bottom ~20% tucked
+        // below the fold via `bottom: 0; transform: translateY(20%)`. That
+        // puts the phone CENTER at `viewport_bottom - 0.3 * phoneHeight`,
+        // so the cyclone center has to match exactly.
+        const _mobilePhoneH = Math.max(364, Math.min(494, window.innerHeight * 0.598));
         const centerY = _mobilePersonal
-          ? window.innerHeight
+          ? window.innerHeight - _mobilePhoneH * 0.3
           : _orbsOnly
             ? window.innerHeight / 2
             : _layout === 'center'
@@ -2169,13 +2170,14 @@ function App() {
       {!minimalUI && personalMode && (() => {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
-              // Mobile personal: phone is 30% bigger than before and half of
-              // it sits BELOW the fold (bottom: 0 + translateY(50%) drops the
-              // center to the viewport bottom edge, so exactly 50% is visible).
+              // Mobile personal: phone is 30% bigger than before, with only
+              // the bottom ~20% tucked below the fold (was 50%). Mobile
+              // Safari's bottom chrome eats a lot of viewport so we need
+              // most of the phone visible, not half.
               position: 'absolute',
               left: '50%',
               bottom: 0,
-              transform: 'translate(-50%, 50%)',
+              transform: 'translate(-50%, 20%)',
               height: 'clamp(364px, 59.8vh, 494px)',
               aspectRatio: '402 / 834',
             }
@@ -2233,14 +2235,14 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
-              // Mobile + personalMode: phone is 30% bigger and only 50% shows
-              // above the fold (center pinned to the viewport bottom edge via
-              // bottom: 0 + translateY(50%)).
+              // Mobile + personalMode: phone is 30% bigger; only the bottom
+              // ~20% tucks below the fold so the device reads close to the
+              // copy instead of being marooned at the bottom of the page.
               ...(isMobile && personalMode
                 ? {
                     left: '50%',
                     bottom: 0,
-                    transform: 'translate(-50%, 50%)',
+                    transform: 'translate(-50%, 20%)',
                     height: 'clamp(364px, 59.8vh, 494px)',
                   }
                 : {
