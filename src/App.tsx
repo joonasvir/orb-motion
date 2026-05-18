@@ -2043,9 +2043,17 @@ function App() {
                   })}
                 </span>
               );
-              // "Make it personal" — alternate layout. Two-line headline,
-              // facepile gets rendered inside the SUBHEAD instead.
+              // "Make it personal" — alternate layout. Facepile renders
+              // inside the SUBHEAD instead of the headline. In side layouts
+              // (left/right) the headline stacks on two lines so it doesn't
+              // sprawl; in the center layout it sits on one line for visual
+              // balance with the centered subhead below it.
               if (personalMode) {
+                if (layout === 'center') {
+                  return (
+                    <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Make it personal</span>
+                  );
+                }
                 return (
                   <>
                     <span style={{ display: 'block', whiteSpace: 'nowrap' }}>Make it</span>

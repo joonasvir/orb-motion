@@ -102,6 +102,9 @@ interface PropDef {
   width: string;   // as a % of the wrapper width
   rotate?: number; // rest rotation in degrees (3-10 range per spec)
   z?: number;      // sub-stacking within the props (all are below the phone)
+  /** When true, this prop renders IN FRONT of the phone instead of behind
+   *  it. Used for the globe so it overlaps the phone screen visually. */
+  front?: boolean;
   // Entrance — translate from these offsets back to (0, 0) on mount.
   // Pick a direction that points TOWARD the wrapper center, so the prop
   // looks like it slides out from behind the phone.
@@ -153,7 +156,8 @@ const PROPS: PropDef[] = [
     enterY: '-14%',
     enterDelay: ENTER_BASE_DELAY + 180,
   },
-  // Globe — bottom-right, peeks past the right edge.
+  // Globe — bottom-right, peeks past the right edge. Renders IN FRONT of
+  // the phone so it visually overlaps the screen content.
   {
     id: 'globe',
     src: '/props/travel-globe.png',
@@ -162,6 +166,7 @@ const PROPS: PropDef[] = [
     width: '58%',
     rotate: -5,
     z: 1,
+    front: true,
     enterX: '-24%',  // start displaced toward wrapper center (up-left from bottom-right rest)
     enterY: '-12%',
     enterDelay: ENTER_BASE_DELAY + 360,
@@ -210,6 +215,8 @@ export default function DraggableProps({ wrapperStyle, hidden = false }: Props) 
           .dp-wrap  { transition: none !important; }
         }
       `}</style>
+      {/* BACK layer — props that sit BEHIND the phone (zIndex 3, below the
+          phone at 5). Atlas + tickets+map live here. */}
       <div
         style={{
           ...wrapperStyle,
@@ -218,7 +225,22 @@ export default function DraggableProps({ wrapperStyle, hidden = false }: Props) 
         }}
         aria-hidden="true"
       >
-        {PROPS.map(p => (
+        {PROPS.filter(p => !p.front).map(p => (
+          <DraggableProp key={p.id} def={p} hidden={hidden} />
+        ))}
+      </div>
+      {/* FRONT layer — props that overlap the phone screen (zIndex 6, above
+          the phone at 5). Globe lives here so it reads as a 3D object
+          drifting over the device. */}
+      <div
+        style={{
+          ...wrapperStyle,
+          zIndex: 6,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        {PROPS.filter(p => p.front).map(p => (
           <DraggableProp key={p.id} def={p} hidden={hidden} />
         ))}
       </div>
