@@ -99,7 +99,8 @@ function App() {
 
   const [, setOrbCount] = useState(0);
   const [, setLatestUser] = useState<string | null>(null);
-  const [damping, setDamping] = useState(0.005);
+  // Damping slider was removed from the panel; setter is no longer used.
+  const [damping] = useState(0.005);
   const [moonMode, setMoonMode] = useState(false);
   const [showControls, setShowControls] = useState(true);
   // Default 'right' — pairs with personalMode default (copy on left, phone on right).
