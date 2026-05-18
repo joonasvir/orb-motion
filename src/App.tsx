@@ -3066,10 +3066,20 @@ function App() {
               onChange={(v) => {
                 if (v) {
                   // Enter Hand mode: turn EVERYTHING on in one click —
-                  // camera + core gestures + Focus.
+                  // camera + core gestures + Focus + orbs (otherwise
+                  // the user enters a mode that controls orbs but
+                  // can't see any). Lever also bumped to state 1
+                  // (cyclone) so there's a visible cyclone for the
+                  // gestures to act on.
                   setHandMode(true);
                   setHandControl(true);
                   setFocusMode(true);
+                  setShowOrbs(true);
+                  if (leverStateRef.current === 0) {
+                    leverStateRef.current = 1;
+                    setLeverState(1);
+                    setMode('cyclone');
+                  }
                 } else {
                   // Exit: kill camera + restore the landing. Skeleton +
                   // camera-size preferences are kept across cycles.
