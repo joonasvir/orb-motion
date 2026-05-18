@@ -822,8 +822,8 @@ function App() {
         // Compute tangential drag velocity around the phone-centered motion (per layout)
         const rect = canvas.getBoundingClientRect();
         const _layout = layoutRef.current;
-        const _phoneXFrac = _layout === 'left' ? 0.28 : _layout === 'right' ? 0.72 : 0.5;
-        const _phoneXOffset = _layout === 'left' ? 60 : _layout === 'right' ? -60 : 0;
+        const _phoneXFrac = _layout === 'left' ? 0.34 : _layout === 'right' ? 0.66 : 0.5;
+        const _phoneXOffset = _layout === 'left' ? 40 : _layout === 'right' ? -40 : 0;
         const cx = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneH = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
@@ -1072,16 +1072,19 @@ function App() {
             : _orbsOnly
               ? 0.5
               : _layout === 'left'
-                ? (_pm ? 0.34 : 0.28)
+                // Both personal and long now share the same phone X
+                // fraction (0.34 / 0.66) — keeps the cyclone center aligned
+                // with the phone in both variants.
+                ? 0.34
                 : _layout === 'right'
-                  ? (_pm ? 0.66 : 0.72)
+                  ? 0.66
                   : 0.5;
         const _phoneXOffset = _mobilePersonal || _orbsOnly || _splitting
           ? 0
           : _layout === 'left'
-            ? (_pm ? 40 : 60)
+            ? 40
             : _layout === 'right'
-              ? (_pm ? -40 : -60)
+              ? -40
               : 0;
         const centerX = window.innerWidth * _phoneXFrac + _phoneXOffset;
         const _phoneHcalc = _layout === 'center'
@@ -1908,11 +1911,15 @@ function App() {
                 textAlign: 'center' as const,
               }
             : {
+                // Long-headline side layouts — match the short-headline
+                // padding (clamp 188-320) so both variants have the same
+                // distance between copy and viewport edge. Width also
+                // matches so the column proportions are identical.
                 top: '50%',
                 transform: 'translateY(-50%)',
-                [layout === 'left' ? 'right' : 'left']: 'clamp(110px, 10vw, 200px)',
-                width: 'min(440px, 34vw)',
-                textAlign: 'center' as const,
+                [layout === 'left' ? 'right' : 'left']: 'clamp(188px, 17vw, 320px)',
+                width: 'min(560px, 40vw)',
+                textAlign: (layout === 'left' ? 'right' : 'left') as 'left' | 'right',
               }),
           color: renderStyle === 'shaders' ? '#ffffff' : '#222',
           fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
@@ -2274,10 +2281,13 @@ function App() {
                     height: 'clamp(320px, 52vh, 440px)',
                   }
                 : {
+                    // Phone position matches personal-mode geometry now
+                    // for BOTH variants (34%/66% + 40px) so short and long
+                    // headlines share the same phone-vs-copy spacing.
                     left: layout === 'left'
-                      ? (personalMode ? 'calc(34% + 40px)' : 'calc(28% + 60px)')
+                      ? 'calc(34% + 40px)'
                       : layout === 'right'
-                      ? (personalMode ? 'calc(66% - 40px)' : 'calc(72% - 60px)')
+                      ? 'calc(66% - 40px)'
                       : '50%',
                     ...(layout === 'center'
                       ? { bottom: 'calc(-10% + 80px)', transform: 'translateX(-50%)' }
@@ -2962,7 +2972,22 @@ function App() {
               ] as const).map(([label, active]) => (
                 <button
                   key={label}
-                  onClick={() => setPersonalMode(label === 'short')}
+                  onClick={() => {
+                    const isShort = label === 'short';
+                    setPersonalMode(isShort);
+                    // Switching to LONG headline auto-enables orbs +
+                    // bumps the lever to cyclone if it was at 0 — the
+                    // longer headline layout reads better with the
+                    // orbital cloud carrying the right side.
+                    if (!isShort) {
+                      setShowOrbs(true);
+                      if (leverStateRef.current === 0) {
+                        leverStateRef.current = 1;
+                        setLeverState(1);
+                        setMode('cyclone');
+                      }
+                    }
+                  }}
                   style={segBtn(active)}
                 >{label}</button>
               ))}

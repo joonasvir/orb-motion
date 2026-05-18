@@ -1,73 +1,99 @@
 import { useRef, useState } from 'react';
 
 /* ---------------------------------------------------------------------------
- * Paper-shuffle sound — short noise burst put through a couple of bandpasses
- * with a fast amplitude-envelope chatter so it reads as crinkling paper /
- * map-folding rather than a static hiss. Pure Web Audio, no assets.
- * Triggered on pointer-down of any prop so the click feels tactile.
+ * Paper-rustle sound — pure Web Audio synthesis of crinkling paper / tickets
+ * sliding. The trick to making this feel like *paper* and not "noise burst":
+ *
+ *   1. Real paper rustles are a TRAIN of discrete tiny crackles, each only a
+ *      few ms long, with random gaps between them. We schedule ~16 short
+ *      sub-bursts at randomized times within a 0.45s window instead of one
+ *      long continuous noise pulse.
+ *   2. Each sub-burst gets its own bandpass center frequency picked from
+ *      4–9kHz (paper has lots of high-frequency content; under ~2kHz it
+ *      starts sounding like fabric).
+ *   3. Per-sub-burst amplitudes are randomized so the listener perceives
+ *      multiple separate sheets moving rather than one smooth event.
+ *   4. A high-pass filter on the whole chain removes any rumble; a slight
+ *      stereo pan keeps consecutive bursts from stacking in the center.
  * ------------------------------------------------------------------------- */
 function playPaperShuffle() {
   try {
     const AudioCtx = (window.AudioContext || (window as any).webkitAudioContext) as typeof AudioContext;
     const ctx = new AudioCtx();
     const t0 = ctx.currentTime;
-    const dur = 0.32;
+    const totalDur = 0.45;
 
-    // Base noise buffer
-    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
-    const data = buf.getChannelData(0);
-    // Crinkle chatter: random spikes mixed with mid-amplitude noise + a few
-    // sub-bursts so it reads as multiple sheets sliding rather than smooth hiss.
-    for (let i = 0; i < data.length; i++) {
-      const base = (Math.random() * 2 - 1) * 0.55;
-      const chatter = Math.random() > 0.92 ? (Math.random() * 2 - 1) * 0.9 : 0;
-      data[i] = base + chatter;
+    // Master high-pass — kills sub-2kHz rumble so the whole event reads
+    // as paper instead of cloth.
+    const masterHP = ctx.createBiquadFilter();
+    masterHP.type = 'highpass';
+    masterHP.frequency.value = 2000;
+    masterHP.Q.value = 0.5;
+
+    const masterGain = ctx.createGain();
+    masterGain.gain.value = 0.32;
+    masterHP.connect(masterGain);
+    masterGain.connect(ctx.destination);
+
+    // One short noise buffer reused by every sub-burst. ~40ms is enough — we
+    // just need a chunk of randomness to slice envelopes out of.
+    const noiseDur = 0.04;
+    const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * noiseDur), ctx.sampleRate);
+    const noiseData = noiseBuf.getChannelData(0);
+    for (let i = 0; i < noiseData.length; i++) {
+      noiseData[i] = Math.random() * 2 - 1;
     }
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
 
-    // High-pass to drop the boomy low end (paper is bright).
-    const hp = ctx.createBiquadFilter();
-    hp.type = 'highpass';
-    hp.frequency.value = 900;
-    hp.Q.value = 0.6;
+    // Schedule ~16 short crackles within the window. Front-load slightly so
+    // the gesture has a strong onset, then taper.
+    const numCrackles = 16;
+    for (let i = 0; i < numCrackles; i++) {
+      // Pick a random time in [0, totalDur), but bias EARLY: time = u^1.6 * dur
+      const u = Math.random();
+      const tCrackle = t0 + Math.pow(u, 1.6) * totalDur;
 
-    // Bandpass that sweeps slightly down to suggest "unfolding".
-    const bp = ctx.createBiquadFilter();
-    bp.type = 'bandpass';
-    bp.Q.value = 1.2;
-    bp.frequency.setValueAtTime(3800, t0);
-    bp.frequency.exponentialRampToValueAtTime(1900, t0 + dur * 0.9);
+      const src = ctx.createBufferSource();
+      src.buffer = noiseBuf;
 
-    // Amplitude envelope: fast attack, fast-ish decay so it's snappy.
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.exponentialRampToValueAtTime(0.34, t0 + 0.015);
-    gain.gain.exponentialRampToValueAtTime(0.07, t0 + 0.12);
-    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      // Per-crackle bandpass — paper-bright band centered 4-9 kHz.
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.Q.value = 6 + Math.random() * 4; // tight Q reads as a discrete crackle
+      bp.frequency.value = 4000 + Math.random() * 5000;
 
-    src.connect(hp);
-    hp.connect(bp);
-    bp.connect(gain);
-    gain.connect(ctx.destination);
-    src.start(t0);
-    src.stop(t0 + dur);
+      // Tiny envelope: 1-3ms attack, 6-22ms decay. Each crackle is essentially
+      // a click with a high-frequency body.
+      const g = ctx.createGain();
+      const peak = 0.5 + Math.random() * 0.5; // 0.5-1.0
+      // Earlier crackles slightly louder for the onset emphasis.
+      const earlyBoost = 1 - (tCrackle - t0) / totalDur * 0.4;
+      const amp = peak * earlyBoost;
+      const attack = 0.001 + Math.random() * 0.002;
+      const decay  = 0.006 + Math.random() * 0.016;
+      g.gain.setValueAtTime(0.0001, tCrackle);
+      g.gain.exponentialRampToValueAtTime(amp, tCrackle + attack);
+      g.gain.exponentialRampToValueAtTime(0.0001, tCrackle + attack + decay);
 
-    // A very short "tap" tick on top — gives the gesture a tactile onset.
-    const tick = ctx.createOscillator();
-    tick.type = 'square';
-    tick.frequency.setValueAtTime(2400, t0);
-    tick.frequency.exponentialRampToValueAtTime(900, t0 + 0.04);
-    const tickGain = ctx.createGain();
-    tickGain.gain.setValueAtTime(0.0001, t0);
-    tickGain.gain.exponentialRampToValueAtTime(0.05, t0 + 0.005);
-    tickGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.06);
-    tick.connect(tickGain);
-    tickGain.connect(ctx.destination);
-    tick.start(t0);
-    tick.stop(t0 + 0.08);
+      // Slight stereo pan ([-0.4, +0.4]) so the crackles don't all collapse
+      // to mono and start sounding like white noise again.
+      const pan = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+      if (pan) pan.pan.value = (Math.random() * 2 - 1) * 0.4;
 
-    setTimeout(() => ctx.close(), (dur + 0.1) * 1000);
+      src.connect(bp);
+      bp.connect(g);
+      if (pan) {
+        g.connect(pan);
+        pan.connect(masterHP);
+      } else {
+        g.connect(masterHP);
+      }
+      // Start the noise source slightly before the envelope opens so the
+      // first cycle isn't truncated; stop after the envelope closes.
+      src.start(tCrackle);
+      src.stop(tCrackle + attack + decay + 0.005);
+    }
+
+    setTimeout(() => ctx.close(), (totalDur + 0.15) * 1000);
   } catch {
     // Silent fail — audio just won't play.
   }
