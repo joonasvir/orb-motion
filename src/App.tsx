@@ -93,8 +93,7 @@ function App() {
   // Holds AI-generated orb URLs (data: URLs from /api/generate-orb).
   // These are prioritized by the picker so freshly-made orbs show up next.
   const aiCoversRef = useRef<string[]>([]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [genError, setGenError] = useState<string | null>(null);
+  // (Generate-orb state removed along with the panel UI and callback.)
   const mouseConstraintRef = useRef<Matter.MouseConstraint | null>(null);
   const overlayImageRef = useRef<HTMLImageElement | null>(null);
 
@@ -520,47 +519,9 @@ function App() {
     addOrbRefForToggle.current = (x?: number) => addOrb(x);
   }, [addOrb]);
 
-  // Ref to the prompt input + handler that hits /api/generate-orb. The endpoint
-  // returns a data URL we push onto aiCoversRef so the next addOrb() picks it.
-  const genPromptRef = useRef<HTMLInputElement>(null);
-  const generateOrb = useCallback(async () => {
-    if (isGenerating) return;
-    setGenError(null);
-    setIsGenerating(true);
-    try {
-      const prompt = (genPromptRef.current?.value || '').trim();
-      const response = await fetch('/api/generate-orb', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(prompt ? { prompt } : {}),
-      });
-      const json = await response.json();
-      if (!response.ok) {
-        throw new Error(json.error || `HTTP ${response.status}`);
-      }
-      const images: string[] = json.images || [];
-      if (images.length === 0) throw new Error('No image returned');
-
-      // Pre-decode the image so the orb renders immediately on add.
-      await new Promise<void>((resolve) => {
-        const img = new Image();
-        img.onload = () => {
-          preloadedImagesRef.current.set(images[0], img);
-          resolve();
-        };
-        img.onerror = () => resolve();
-        img.src = images[0];
-      });
-
-      // Queue the URL for the next addOrb call, then spawn.
-      aiCoversRef.current.push(images[0]);
-      addOrb();
-    } catch (err: any) {
-      setGenError(err?.message || 'Generation failed');
-    } finally {
-      setIsGenerating(false);
-    }
-  }, [addOrb, isGenerating]);
+  // (generateOrb callback removed along with the panel UI. The
+  // /api/generate-orb endpoint still exists if we ever re-surface the
+  // feature; restore the useCallback from git history when needed.)
 
   // Drop all orbs at once for showcase mode
   const dropAllOrbs = useCallback((count: number) => {
@@ -1256,15 +1217,18 @@ function App() {
             // Single shared angular velocity so orbs keep their even spacing.
             const angularSpeed = 0.85;
 
-            // Ellipse sized to wrap the centered phone, capped to viewport
+            // Ellipse sized to wrap the centered phone, capped to viewport.
+            // Padding around the phone trimmed from +90 → +50 so the orbit
+            // hugs the device tighter (felt too broad before).
             const phoneH = Math.max(390, Math.min(700, window.innerHeight * 0.63));
             const phoneW = phoneH * (402 / 834);
-            const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
+            const minR = Math.max(phoneW / 2, phoneH / 2.6) + 50;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
             // Mobile personalMode scales the phone 30% larger — bump cyclone
             // radius the same so the orbital cloud still hugs the device.
             const mobilePersonalBump = _mobilePersonal ? 1.3 : 1;
-            const baseR = Math.min(minR, maxR) * mobilePersonalBump;
+            // Final -10% pass so the cloud feels snug around the phone.
+            const baseR = Math.min(minR, maxR) * mobilePersonalBump * 0.9;
             // Smooth radius multiplier (driven by hand height / hand distance).
             // 0.045 settles in ~1s — silky but still responsive.
             cycloneRadiusMulRef.current +=
@@ -2949,17 +2913,8 @@ function App() {
                 deleted entirely; focus is still flipped internally by the
                 hand-mode cascade but no longer surfaced as a user switch.) */}
 
-            {/* Playground — fullscreen orbs-only vibe (hides this panel too). */}
-            <div style={sectionLabel}>Playground</div>
-            <div style={{ display: 'flex', gap: 6, marginBottom: SECTION_GAP }}>
-              <button
-                onClick={() => {
-                  setShowcaseMode(true);
-                  dropAllOrbsRef.current(60);
-                }}
-                style={{ ...pillBtn(true), width: '100%' }}
-              >Launch</button>
-            </div>
+            {/* (Playground launcher removed from the panel — showcaseMode
+                is still wired up internally, just no UI to enter it.) */}
 
             {/* Joystick sound — pick one of three synths; tap to preview */}
             <div style={sectionLabel}>Joystick sound</div>
@@ -2980,50 +2935,9 @@ function App() {
               ))}
             </div>
 
-            {/* Generate — call OpenAI image API to spawn brand-new orb covers */}
-            <div style={sectionLabel}>Generate orb</div>
-            <input
-              ref={genPromptRef}
-              type="text"
-              placeholder="Prompt (optional)"
-              style={{
-                width: '100%',
-                padding: '6px 10px',
-                marginBottom: 5,
-                border: '1px solid rgba(0,0,0,0.06)',
-                borderRadius: 8,
-                background: 'rgba(255,255,255,0.55)',
-                fontSize: 11,
-                fontFamily: 'inherit',
-                color: '#1e1e1e',
-                outline: 'none',
-                boxSizing: 'border-box',
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') generateOrb();
-              }}
-            />
-            <button
-              onClick={generateOrb}
-              disabled={isGenerating}
-              style={{
-                ...pillBtn(true),
-                width: '100%',
-                opacity: isGenerating ? 0.7 : 1,
-                cursor: isGenerating ? 'progress' : 'pointer',
-                marginBottom: genError ? 4 : SECTION_GAP,
-              }}
-            >
-              {isGenerating ? 'Generating…' : 'Generate'}
-            </button>
-            {genError && (
-              <div style={{
-                marginBottom: SECTION_GAP,
-                fontSize: 10,
-                color: '#b91c1c',
-                lineHeight: 1.4,
-              }}>{genError}</div>
-            )}
+            {/* (Generate-orb UI removed from the panel — the /api/generate-orb
+                endpoint + generateOrb handler are still wired up, just no
+                input/button surfaced anymore.) */}
 
             {/* Damping */}
             <div style={sectionLabel}>
