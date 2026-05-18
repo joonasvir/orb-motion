@@ -1859,7 +1859,28 @@ function App() {
                   width: 'min(420px, 88vw)',
                   textAlign: 'center' as const,
                 }
+              // Desktop personal — mirror the non-personal layout switches:
+              //   right → phone on the right, copy on the LEFT (left:)
+              //   left  → phone on the left, copy on the RIGHT (right:)
+              //   center → copy stacked at top, phone bottom-anchored
+              : layout === 'center'
+              ? {
+                  top: 'clamp(110px, 12vh, 160px)',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  width: 'min(720px, 80vw)',
+                  textAlign: 'center' as const,
+                }
+              : layout === 'left'
+              ? {
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  right: 'clamp(188px, 17vw, 320px)',
+                  width: 'min(560px, 40vw)',
+                  textAlign: 'right' as const,
+                }
               : {
+                  // 'right' — original personal layout.
                   top: '50%',
                   transform: 'translateY(-50%)',
                   // +100px more breathing room on the left edge — pulls the
@@ -2102,14 +2123,22 @@ function App() {
                 aspectRatio: '1 / 1',
                 padding: 'clamp(6px, 0.6vw, 9px)',
                 borderRadius: 'clamp(14px, 1.6vw, 22px)',
-                // Left-aligned with the copy in personalMode (desktop);
-                // centered when the copy is centered (default or mobile-personal).
+                // QR follows the headline/subhead alignment. This branch only
+                // runs in side layouts (the gating on `layout !== 'center'`
+                // above), so we have just left vs right vs mobile here. The
+                // center-layout QR lives in its own floating block below.
                 margin: personalMode
                   ? (isMobile
                       ? 'clamp(28px, 3.5vh, 48px) auto 0'
+                      : layout === 'left'
+                      // Phone-on-left → copy on the right → QR right-aligned.
+                      ? 'clamp(44px, 5.5vh, 80px) 0 0 auto'
+                      // Phone-on-right (default) → copy on the left → QR left-aligned.
                       : 'clamp(44px, 5.5vh, 80px) 0 0')
                   : 'clamp(20px, 2.5vh, 36px) auto 0',
-                transformOrigin: personalMode && !isMobile ? 'top left' : 'top center',
+                transformOrigin: personalMode && !isMobile
+                  ? (layout === 'left' ? 'top right' : 'top left')
+                  : 'top center',
                 background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
@@ -2895,12 +2924,7 @@ function App() {
             <SwitchRow
               label="Make it personal"
               on={personalMode}
-              onChange={(v) => {
-                setPersonalMode(v);
-                // Snap to 'right' on enable so the phone sits on the right
-                // and the copy + QR live on the left — matches Figma 78:6384.
-                if (v) setLayout('right');
-              }}
+              onChange={setPersonalMode}
             />
             {/* Cycling-word icon — only meaningful in personalMode (it's the
                 little inline 3D icon before the rotating adjective). */}
