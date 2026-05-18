@@ -2999,18 +2999,9 @@ function App() {
                 endpoint + generateOrb handler are still wired up, just no
                 input/button surfaced anymore.) */}
 
-            {/* Damping */}
-            <div style={sectionLabel}>
-              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                <span>Damping</span>
-                <span style={{ opacity: 0.7 }}>{damping.toFixed(3)}</span>
-              </span>
-            </div>
-            <input
-              type="range" min="0.001" max="0.05" step="0.001"
-              value={damping} onChange={(e) => setDamping(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer', marginBottom: 8, accentColor: '#1e1e1e' }}
-            />
+            {/* (Damping slider removed from the panel — `damping` state is
+                still wired up internally so orbs feel correct, just no UI
+                to adjust it.) */}
 
             {/* Orb size */}
             <div style={sectionLabel}>

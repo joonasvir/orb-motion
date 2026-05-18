@@ -142,14 +142,14 @@ const PROPS: PropDef[] = [
     enterDelay: ENTER_BASE_DELAY,
   },
   // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
-  // Hero prop — sized large so it's clearly the focal piece (106% → 138%,
-  // another +30% bump on top of the original 40% upsize).
+  // Hero prop — another +30% bump (138% → 179%) makes it dominate the
+  // composition as the main eye-catch behind the phone.
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
     bottom: '-2%',
     left: '-46%',
-    width: '138%',
+    width: '179%',
     rotate: -7,
     z: 3,
     enterX: '26%',   // start displaced toward wrapper center (up-right from bottom-left rest)
@@ -157,13 +157,15 @@ const PROPS: PropDef[] = [
     enterDelay: ENTER_BASE_DELAY + 180,
   },
   // Globe — bottom-right, peeks past the right edge. Renders IN FRONT of
-  // the phone so it visually overlaps the screen content.
+  // the phone so it visually overlaps the screen content. Shrunk -30%
+  // (58% → 40.6%) so it reads as a subtle 3D object rather than competing
+  // with the tickets hero behind the phone.
   {
     id: 'globe',
     src: '/props/travel-globe.png',
     bottom: '-2%',
     right: '-42%',
-    width: '58%',
+    width: '40.6%',
     rotate: -5,
     z: 1,
     front: true,
