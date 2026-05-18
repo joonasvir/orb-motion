@@ -29,10 +29,10 @@ export default function Footer() {
     <>
       <style>{`
         .orb-footer {
-          position: fixed;
-          bottom: 0;
-          left: 0;
-          right: 0;
+          /* Mobile default: sits at the END of the document flow so the
+             hero gets the full viewport. Desktop bumps to fixed-bottom
+             via the media query below. */
+          position: static;
           z-index: 50;
           display: flex;
           align-items: center;
@@ -41,10 +41,19 @@ export default function Footer() {
           font-size: 12px;
           color: ${COLOR_GRAY};
           font-family: system-ui, -apple-system, sans-serif;
-          background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0.85) 100%);
-          backdrop-filter: blur(18px) saturate(140%);
-          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          background: #f0f0f0;
           border-top: 1px solid rgba(0,0,0,0.04);
+        }
+        @media (min-width: 768px) {
+          .orb-footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.75) 35%, rgba(255,255,255,0.85) 100%);
+            backdrop-filter: blur(18px) saturate(140%);
+            -webkit-backdrop-filter: blur(18px) saturate(140%);
+          }
         }
         .orb-footer > * { pointer-events: auto; }
         .orb-footer-links {

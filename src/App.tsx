@@ -1090,13 +1090,13 @@ function App() {
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        // Mobile personalMode: phone fully visible, bottom flush with the
-        // viewport bottom (`bottom: 0; translateY(0%)`). That puts the phone
-        // CENTER at `viewport_bottom - 0.5 * phoneHeight`, so the cyclone
-        // center has to match exactly.
+        // Mobile personalMode: phone bottom inset 56px from viewport
+        // bottom so its drop-shadow has room. Center = (innerHeight - 56) -
+        // 0.5 * phoneHeight.
         const _mobilePhoneH = Math.max(364, Math.min(494, window.innerHeight * 0.598));
+        const _mobilePhoneBottom = 56;
         const centerY = _mobilePersonal
-          ? window.innerHeight - _mobilePhoneH * 0.5
+          ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH * 0.5
           : _orbsOnly
             ? window.innerHeight / 2
             : _layout === 'center'
@@ -2195,13 +2195,13 @@ function App() {
       {!minimalUI && personalMode && (() => {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
-              // Mobile personal: phone is anchored to the viewport bottom
-              // fully visible (no translateY tuck-below). This is the
-              // highest position before it would start overlapping copy on
-              // a typical phone viewport.
+              // Mobile personal: phone is anchored near the viewport
+              // bottom with a 56px inset so its drop-shadow has room to
+              // render (was bottom: 0 which clipped the shadow against
+              // the hero's overflow:hidden).
               position: 'absolute',
               left: '50%',
-              bottom: 0,
+              bottom: 56,
               transform: 'translate(-50%, 0%)',
               height: 'clamp(364px, 59.8vh, 494px)',
               aspectRatio: '402 / 834',
@@ -2260,23 +2260,24 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
-              // Mobile + personalMode: phone bottom anchored to viewport
-              // bottom, fully visible (was translateY 20% tucked-below).
+              // Mobile + personalMode: phone bottom inset 56px so its
+              // drop-shadow has room to render (was bottom: 0 which
+              // clipped the shadow against the hero's overflow:hidden).
               ...(isMobile && personalMode
                 ? {
                     left: '50%',
-                    bottom: 0,
+                    bottom: 56,
                     transform: 'translate(-50%, 0%)',
                     height: 'clamp(364px, 59.8vh, 494px)',
                   }
                 // Mobile + non-personal (centered) layout: same treatment —
-                // bottom-anchored, fully visible. Slightly smaller height
+                // bottom-inset for shadow room. Slightly smaller height
                 // clamp than personal because the centered headline + CTA
                 // need more vertical room above the phone.
                 : isMobile && layout === 'center'
                 ? {
                     left: '50%',
-                    bottom: 0,
+                    bottom: 56,
                     transform: 'translate(-50%, 0%)',
                     height: 'clamp(320px, 52vh, 440px)',
                   }
