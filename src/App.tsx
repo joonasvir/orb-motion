@@ -221,7 +221,9 @@ function App() {
   // Smoothed via target so it eases instead of snapping.
   const handsTiltRef = useRef(0);
   const handsTiltTargetRef = useRef(0);
-  const [currentShape, setCurrentShape] = useState(0);
+  // `currentShape` kept around because the runtime shapes-mode code path
+  // still reads it; we just no longer expose a setter via the UI/keyboard.
+  const [currentShape] = useState(0);
   const [showcaseMode, setShowcaseMode] = useState(false);
   // Focus mode = orbs-only-but-keep-controls. Hides the headline, phone,
   // persona props, header, footer, etc. — but the controls panel and the
@@ -1636,17 +1638,9 @@ function App() {
           setMoonMode(false);
           engine.gravity.y = 1;
         }
-        if (e.key === 's' || e.key === 'S') {
-          setDisplayMode(prev => {
-            if (prev === 'shapes') {
-              // Cycle to next shape
-              setCurrentShape(curr => (curr + 1) % SHAPES.length);
-              return 'shapes';
-            }
-            return 'shapes';
-          });
-          setMoonMode(false);
-        }
+        // (S-key shapes shortcut removed along with the shapes panel
+        // option. Shapes mode is still in the runtime if we ever bring it
+        // back, but no longer reachable via keyboard.)
         if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
           setDisplayMode('physics');
           engine.gravity.y = 1;
@@ -2920,30 +2914,14 @@ function App() {
               ))}
             </div>
 
-            {/* Motion */}
+            {/* Motion — Orbit + Shapes options removed by request. Only
+                physics (drop) and cyclone (orbit-around-phone) remain. */}
             <div style={sectionLabel}>Motion</div>
             <div style={{ ...segGroup, marginBottom: SECTION_GAP, flexWrap: 'wrap' }}>
-              {(['physics', 'cyclone', 'orbit', 'shapes'] as const).map(m => (
+              {(['physics', 'cyclone'] as const).map(m => (
                 <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>{m}</button>
               ))}
             </div>
-
-            {displayMode === 'shapes' && (
-              <>
-                <div style={sectionLabel}>Shape</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: SECTION_GAP }}>
-                  <button onClick={() => setCurrentShape((c) => (c - 1 + SHAPES.length) % SHAPES.length)}
-                    style={{ ...pillBtn(false), flex: 0, padding: '5px 10px' }}>‹</button>
-                  <div style={{
-                    flex: 1, textAlign: 'center', padding: '5px 10px',
-                    background: 'rgba(0,0,0,0.04)', borderRadius: 999,
-                    color: '#1e1e1e', fontWeight: 600, textTransform: 'capitalize', fontSize: 11,
-                  }}>{SHAPES[currentShape]}</div>
-                  <button onClick={() => setCurrentShape((c) => (c + 1) % SHAPES.length)}
-                    style={{ ...pillBtn(false), flex: 0, padding: '5px 10px' }}>›</button>
-                </div>
-              </>
-            )}
 
             {/* Inline Apple-style switch rows for everything binary. */}
             <SwitchRow label="Orbs"      on={showOrbs}          onChange={setShowOrbs} />
