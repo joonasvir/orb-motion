@@ -326,7 +326,7 @@ function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
           // 30% lighter than before (0.18 → 0.126, 0.12 → 0.084) so the
           // shadows still anchor the props but don't feel heavy.
           filter:
-            'drop-shadow(0 14px 24px rgba(0,0,0,0.126)) drop-shadow(0 4px 8px rgba(0,0,0,0.084))',
+            'drop-shadow(0 14px 24px rgba(0, 0, 0, 0.0882)) drop-shadow(0 4px 8px rgba(0, 0, 0, 0.0588))',
           willChange: 'transform',
         }}
       />

@@ -146,7 +146,7 @@ export default function Header() {
           );
           border-radius: 999vw;
           box-shadow:
-            inset 0 0.125em 0.125em rgba(0, 0, 0, 0.05),
+            inset 0 0.125em 0.125em rgba(0, 0, 0, 0.035),
             inset 0 -0.125em 0.125em rgba(255, 255, 255, 0.5),
             0 0.25em 0.125em -0.125em rgba(0, 0, 0, 0.2),
             0 0 0.1em 0.25em inset rgba(255, 255, 255, 0.2),
@@ -163,7 +163,7 @@ export default function Header() {
         .glass-btn:hover {
           transform: scale(0.975);
           box-shadow:
-            inset 0 0.125em 0.125em rgba(0, 0, 0, 0.05),
+            inset 0 0.125em 0.125em rgba(0, 0, 0, 0.035),
             inset 0 -0.125em 0.125em rgba(255, 255, 255, 0.5),
             0 0.15em 0.05em -0.1em rgba(0, 0, 0, 0.25),
             0 0 0.05em 0.1em inset rgba(255, 255, 255, 0.5),
@@ -246,7 +246,7 @@ export default function Header() {
           transition:
             all 400ms cubic-bezier(0.25, 1, 0.5, 1),
             --angle-1 500ms ease;
-          box-shadow: inset 0 0 0 calc(clamp(1px, 0.0625em, 4px) / 2) rgba(255, 255, 255, 0.5);
+          box-shadow: inset 0 0 0 calc(clamp(1px, 0.0625em, 4px) / 2) rgba(255, 255, 255, 0.35);
         }
         .glass-btn:hover::after {
           --angle-1: -125deg;
@@ -279,7 +279,7 @@ export default function Header() {
           /* Stack: top highlight + bottom highlight + soft inner glow +
              long soft drop shadow for the floating glass-pill feel. */
           box-shadow:
-            inset 0 1px 4px rgba(255, 255, 255, 0.95),
+            inset 0 1px 4px rgba(255, 255, 255, 0.665),
             inset 0 -4px 4px rgba(255, 255, 255, 0.85),
             inset 0 0 14px rgba(229, 229, 229, 0.55),
             0 11px 28px rgba(0, 0, 0, 0.07),

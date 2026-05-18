@@ -1445,31 +1445,31 @@ function App() {
           } else if (style === 'shaders') {
             const halo = radius * 1.6;
             const haloGrad = tctx.createRadialGradient(0, 0, radius * 0.4, 0, 0, halo);
-            haloGrad.addColorStop(0, 'rgba(255,255,255,0.9)');
-            haloGrad.addColorStop(0.55, 'rgba(200,235,255,0.45)');
-            haloGrad.addColorStop(0.85, 'rgba(255,200,235,0.18)');
-            haloGrad.addColorStop(1, 'rgba(255,255,255,0)');
+            haloGrad.addColorStop(0, 'rgba(255, 255, 255, 0.63)');
+            haloGrad.addColorStop(0.55, 'rgba(200, 235, 255, 0.315)');
+            haloGrad.addColorStop(0.85, 'rgba(255, 200, 235, 0.126)');
+            haloGrad.addColorStop(1, 'rgba(255, 255, 255, 0)');
             tctx.fillStyle = haloGrad;
             tctx.beginPath();
             tctx.arc(0, 0, halo, 0, Math.PI * 2);
             tctx.fill();
 
             const coreGrad = tctx.createRadialGradient(-radius * 0.15, -radius * 0.2, 0, 0, 0, radius);
-            coreGrad.addColorStop(0, 'rgba(255,255,255,1)');
-            coreGrad.addColorStop(0.55, 'rgba(245,252,255,0.95)');
-            coreGrad.addColorStop(0.85, 'rgba(180,220,255,0.55)');
-            coreGrad.addColorStop(1, 'rgba(140,180,255,0)');
+            coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+            coreGrad.addColorStop(0.55, 'rgba(245, 252, 255, 0.665)');
+            coreGrad.addColorStop(0.85, 'rgba(180, 220, 255, 0.385)');
+            coreGrad.addColorStop(1, 'rgba(140, 180, 255, 0)');
             tctx.fillStyle = coreGrad;
             tctx.beginPath();
             tctx.arc(0, 0, radius, 0, Math.PI * 2);
             tctx.fill();
 
             tctx.lineWidth = Math.max(1, radius * 0.04);
-            tctx.strokeStyle = 'rgba(255,200,230,0.35)';
+            tctx.strokeStyle = 'rgba(255, 200, 230, 0.245)';
             tctx.beginPath();
             tctx.arc(0, 0, radius * 0.97, 0, Math.PI * 2);
             tctx.stroke();
-            tctx.strokeStyle = 'rgba(170,230,255,0.35)';
+            tctx.strokeStyle = 'rgba(170, 230, 255, 0.245)';
             tctx.beginPath();
             tctx.arc(0, 0, radius * 1.02, 0, Math.PI * 2);
             tctx.stroke();
@@ -1680,11 +1680,11 @@ function App() {
         .orb-qr-card:hover {
           transform: scale(1.65) !important;
           box-shadow:
-            0 30px 50px rgba(0,0,0,0.12),
-            0 12px 20px rgba(0,0,0,0.06),
-            inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05),
-            inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03),
-            inset 0 0 12px rgba(0,0,0,0.03) !important;
+            0 30px 50px rgba(0, 0, 0, 0.084),
+            0 12px 20px rgba(0, 0, 0, 0.042),
+            inset -1.8px -1.8px 1.8px rgba(0, 0, 0, 0.035),
+            inset 1.8px 1.8px 1.8px rgba(0, 0, 0, 0.021),
+            inset 0 0 12px rgba(0, 0, 0, 0.021) !important;
         }
         @keyframes card-enter {
           0% {
@@ -1991,7 +1991,7 @@ function App() {
                     // to the line) + the wide soft one (the long fall-off).
                     // Higher alpha because 80px of blur on #f0f0f0 dilutes fast.
                     filter:
-                      'drop-shadow(0 8px 14px rgba(0,0,0,0.12)) drop-shadow(0 40px 80px rgba(0,0,0,0.32))',
+                      'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.084)) drop-shadow(0 40px 80px rgba(0, 0, 0, 0.224))',
                   }}
                 >
                   {ids.map((i) => {
@@ -2096,8 +2096,8 @@ function App() {
             lineHeight: personalMode ? 1.475 : 1.25,
             letterSpacing: '-0.01em',
             // Figma 53:5758 reads ~#7F7F7F effective (#636363 @ 0.8 alpha on
-            // #f0f0f0). Was rgba(99,99,99,0.95) ≈ #6A6A6A — too dark.
-            color: renderStyle === 'shaders' ? 'rgba(255,255,255,0.75)' : 'rgba(99,99,99,0.7)',
+            // #f0f0f0). Was rgba(99, 99, 99, 0.665) ≈ #6A6A6A — too dark.
+            color: renderStyle === 'shaders' ? 'rgba(255, 255, 255, 0.525)' : 'rgba(99, 99, 99, 0.49)',
             margin: 0,
             maxWidth: personalMode ? 'none' : 400,
             // In personalMode the wrapper is already left-aligned and width-
@@ -2147,14 +2147,14 @@ function App() {
                 transformOrigin: personalMode && !isMobile
                   ? (layout === 'left' ? 'top right' : 'top left')
                   : 'top center',
-                background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+                background: renderStyle === 'shaders' ? 'rgba(255, 255, 255, 0.385)' : 'rgba(255, 255, 255, 0.56)',
                 backdropFilter: 'blur(24px)',
                 WebkitBackdropFilter: 'blur(24px)',
                 border: renderStyle === 'shaders'
-                  ? '1.5px solid rgba(255,255,255,0.85)'
-                  : '1.5px solid rgba(0,0,0,0.05)',
+                  ? '1.5px solid rgba(255, 255, 255, 0.595)'
+                  : '1.5px solid rgba(0, 0, 0, 0.035)',
                 boxShadow:
-                  '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
+                  '0 18px 17px rgba(0, 0, 0, 0.035), inset -1.8px -1.8px 1.8px rgba(0, 0, 0, 0.035), inset 1.8px 1.8px 1.8px rgba(0, 0, 0, 0.021), inset 0 0 12px rgba(0, 0, 0, 0.021)',
                 cursor: 'pointer',
                 pointerEvents: 'auto',
                 transform: 'scale(1)',
@@ -2305,8 +2305,8 @@ function App() {
                     pointerEvents: 'none',
                     transformOrigin: '50% 88%',
                     filter: slot === 0
-                      ? 'drop-shadow(0 24px 32px rgba(0,0,0,0.14)) drop-shadow(0 0 1px rgba(0,0,0,0.06))'
-                      : 'drop-shadow(0 18px 26px rgba(0,0,0,0.10))',
+                      ? 'drop-shadow(0 24px 32px rgba(0, 0, 0, 0.098)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.042))'
+                      : 'drop-shadow(0 18px 26px rgba(0, 0, 0, 0.07))',
                     transition:
                       'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, z-index 0s linear 0.35s',
                     ...st,
@@ -2339,7 +2339,7 @@ function App() {
                     objectFit: 'cover',
                     pointerEvents: 'none',
                     zIndex: 4,
-                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.12)',
+                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0, 0, 0, 0.084)',
                     transition: 'opacity 0.3s ease',
                     opacity: 1,
                   }}
@@ -2441,8 +2441,8 @@ function App() {
                       transition:
                         'opacity 0.65s cubic-bezier(0.22, 1, 0.36, 1), filter 0.65s ease',
                       filter: active
-                        ? 'drop-shadow(0 18px 28px rgba(0,0,0,0.18)) drop-shadow(0 4px 6px rgba(0,0,0,0.10))'
-                        : 'drop-shadow(0 8px 14px rgba(0,0,0,0.10))',
+                        ? 'drop-shadow(0 18px 28px rgba(0, 0, 0, 0.126)) drop-shadow(0 4px 6px rgba(0, 0, 0, 0.07))'
+                        : 'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.07))',
                       pointerEvents: 'none',
                       userSelect: 'none',
                       willChange: 'transform, opacity',
@@ -2499,7 +2499,7 @@ function App() {
                     height: 44,
                     borderRadius: '50%',
                     objectFit: 'cover',
-                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06)',
+                    boxShadow: '0 0 0 2px #fff, 0 6px 14px rgba(0, 0, 0, 0.07), 0 2px 4px rgba(0, 0, 0, 0.042)',
                     zIndex: 2,
                   }} />
                   <div style={{
@@ -2509,7 +2509,7 @@ function App() {
                     color: '#1e1e1e',
                     fontSize: 15,
                     lineHeight: 1.32,
-                    boxShadow: '0 10px 28px rgba(0,0,0,0.08), 0 2px 6px rgba(0,0,0,0.04)',
+                    boxShadow: '0 10px 28px rgba(0, 0, 0, 0.056), 0 2px 6px rgba(0, 0, 0, 0.028)',
                   }}>
                     I luv our new Barcelona trip planner mini-app <span aria-hidden="true">🫶🥺</span>
                   </div>
@@ -2538,7 +2538,7 @@ function App() {
                   padding: '8px 22px 8px 8px',
                   background: '#fff',
                   borderRadius: 999,
-                  boxShadow: '0 14px 36px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+                  boxShadow: '0 14px 36px rgba(0, 0, 0, 0.07), 0 2px 6px rgba(0, 0, 0, 0.042)',
                 }}>
                   <div style={{ position: 'relative', width: 38, height: 38, flexShrink: 0 }}>
                     <img src="/facepile/avatar-4.png" alt="" style={{
@@ -2554,7 +2554,7 @@ function App() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+                      boxShadow: '0 1px 2px rgba(0, 0, 0, 0.056)',
                     }}>
                       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#1e1e1e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -2582,7 +2582,7 @@ function App() {
                     width: 90,
                     height: 90,
                     transform: 'rotate(8deg)',
-                    filter: 'drop-shadow(0 10px 14px rgba(0,0,0,0.18))',
+                    filter: 'drop-shadow(0 10px 14px rgba(0, 0, 0, 0.126))',
                     animation: 'float-heart 5.6s ease-in-out infinite',
                     pointerEvents: 'none',
                     userSelect: 'none',
@@ -2608,14 +2608,14 @@ function App() {
             aspectRatio: '1 / 1',
             padding: 'clamp(6px, 0.6vw, 9px)',
             borderRadius: 'clamp(14px, 1.6vw, 22px)',
-            background: renderStyle === 'shaders' ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.8)',
+            background: renderStyle === 'shaders' ? 'rgba(255, 255, 255, 0.385)' : 'rgba(255, 255, 255, 0.56)',
             backdropFilter: 'blur(24px)',
             WebkitBackdropFilter: 'blur(24px)',
             border: renderStyle === 'shaders'
-              ? '1.5px solid rgba(255,255,255,0.85)'
-              : '1.5px solid rgba(0,0,0,0.05)',
+              ? '1.5px solid rgba(255, 255, 255, 0.595)'
+              : '1.5px solid rgba(0, 0, 0, 0.035)',
             boxShadow:
-              '0 18px 17px rgba(0,0,0,0.05), inset -1.8px -1.8px 1.8px rgba(0,0,0,0.05), inset 1.8px 1.8px 1.8px rgba(0,0,0,0.03), inset 0 0 12px rgba(0,0,0,0.03)',
+              '0 18px 17px rgba(0, 0, 0, 0.035), inset -1.8px -1.8px 1.8px rgba(0, 0, 0, 0.035), inset 1.8px 1.8px 1.8px rgba(0, 0, 0, 0.021), inset 0 0 12px rgba(0, 0, 0, 0.021)',
             zIndex: 20,
             cursor: 'pointer',
             transformOrigin: 'bottom right',
@@ -2650,7 +2650,7 @@ function App() {
           fontSize: 9,
           letterSpacing: 1.3,
           textTransform: 'uppercase',
-          color: 'rgba(30,30,30,0.42)',
+          color: 'rgba(30, 30, 30, 0.294)',
         };
         const SECTION_GAP = 10;
         // Apple Liquid Glass segmented control — glassy track, glassy
@@ -2658,23 +2658,23 @@ function App() {
         // shadow so the active option visually lifts off the track.
         const segGroup: React.CSSProperties = {
           display: 'flex',
-          background: 'rgba(255,255,255,0.45)',
+          background: 'rgba(255, 255, 255, 0.315)',
           borderRadius: 10,
           padding: 3,
           gap: 0,
-          border: '1px solid rgba(255,255,255,0.55)',
+          border: '1px solid rgba(255, 255, 255, 0.385)',
           boxShadow:
-            'inset 0 1px 2px rgba(0,0,0,0.05), 0 0.5px 0 rgba(255,255,255,0.6) inset',
+            'inset 0 1px 2px rgba(0, 0, 0, 0.035), 0 0.5px 0 rgba(255, 255, 255, 0.42) inset',
           backdropFilter: 'blur(10px) saturate(160%)',
           WebkitBackdropFilter: 'blur(10px) saturate(160%)',
         };
         const segBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
           padding: '5px 6px',
-          border: active ? '1px solid rgba(0,0,0,0.65)' : '1px solid transparent',
+          border: active ? '1px solid rgba(0, 0, 0, 0.455)' : '1px solid transparent',
           borderRadius: 7,
           background: active ? '#1e1e1e' : 'transparent',
-          color: active ? '#fff' : 'rgba(30,30,30,0.6)',
+          color: active ? '#fff' : 'rgba(30, 30, 30, 0.42)',
           fontSize: 11,
           fontWeight: active ? 600 : 500,
           textTransform: 'capitalize',
@@ -2683,16 +2683,16 @@ function App() {
             'background 0.22s cubic-bezier(0.5, 0, 0.2, 1), color 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease',
           fontFamily: 'inherit',
           boxShadow: active
-            ? '0 1px 2px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.4)'
+            ? '0 1px 2px rgba(0, 0, 0, 0.175), inset 0 1px 0 rgba(255, 255, 255, 0.056), inset 0 -1px 0 rgba(0, 0, 0, 0.28)'
             : 'none',
         });
         const pillBtn = (active: boolean): React.CSSProperties => ({
           flex: 1,
           padding: '6px 10px',
-          border: '1px solid rgba(0,0,0,0.05)',
+          border: '1px solid rgba(0, 0, 0, 0.035)',
           borderRadius: 999,
-          background: active ? '#1e1e1e' : 'rgba(255,255,255,0.45)',
-          color: active ? '#fff' : 'rgba(30,30,30,0.78)',
+          background: active ? '#1e1e1e' : 'rgba(255, 255, 255, 0.315)',
+          color: active ? '#fff' : 'rgba(30, 30, 30, 0.546)',
           fontSize: 11,
           fontWeight: 500,
           cursor: 'pointer',
@@ -2714,11 +2714,11 @@ function App() {
               height: 18,
               borderRadius: 999,
               padding: 0,
-              border: '1px solid rgba(0,0,0,0.06)',
-              background: on ? '#1e1e1e' : 'rgba(255,255,255,0.55)',
+              border: '1px solid rgba(0, 0, 0, 0.042)',
+              background: on ? '#1e1e1e' : 'rgba(255, 255, 255, 0.385)',
               boxShadow: on
-                ? 'inset 0 1px 2px rgba(0,0,0,0.35), 0 0.5px 0 rgba(255,255,255,0.55) inset'
-                : 'inset 0 1px 2px rgba(0,0,0,0.05), 0 0.5px 0 rgba(255,255,255,0.7) inset',
+                ? 'inset 0 1px 2px rgba(0, 0, 0, 0.245), 0 0.5px 0 rgba(255, 255, 255, 0.385) inset'
+                : 'inset 0 1px 2px rgba(0, 0, 0, 0.035), 0 0.5px 0 rgba(255, 255, 255, 0.49) inset',
               position: 'relative',
               cursor: 'pointer',
               transition: 'background 0.22s ease, border-color 0.22s ease, box-shadow 0.22s ease',
@@ -2734,7 +2734,7 @@ function App() {
               height: 14,
               borderRadius: '50%',
               background: '#fff',
-              boxShadow: '0 1px 2.5px rgba(0,0,0,0.28), 0 0.5px 0 rgba(0,0,0,0.08)',
+              boxShadow: '0 1px 2.5px rgba(0, 0, 0, 0.196), 0 0.5px 0 rgba(0, 0, 0, 0.056)',
               transition: 'left 0.22s cubic-bezier(0.5, 0, 0.2, 1)',
             }} />
           </button>
@@ -2766,7 +2766,7 @@ function App() {
               fontSize: 9,
               letterSpacing: 1.3,
               textTransform: 'uppercase',
-              color: 'rgba(30,30,30,0.55)',
+              color: 'rgba(30, 30, 30, 0.385)',
             }}>
               {label}
               {hint != null && (
@@ -2775,7 +2775,7 @@ function App() {
                   letterSpacing: 0,
                   fontWeight: 500,
                   fontSize: 10,
-                  color: hintColor ?? 'rgba(30,30,30,0.5)',
+                  color: hintColor ?? 'rgba(30, 30, 30, 0.35)',
                 }}>{hint}</span>
               )}
             </span>
@@ -2818,12 +2818,12 @@ function App() {
             // sits inside it so the inner controls don't shift.
             padding: '20px 14px 14px',
             borderRadius: 18,
-            background: 'rgba(255,255,255,0.36)',
+            background: 'rgba(255, 255, 255, 0.252)',
             backdropFilter: 'blur(36px) saturate(190%)',
             WebkitBackdropFilter: 'blur(36px) saturate(190%)',
-            border: '1px solid rgba(255,255,255,0.55)',
+            border: '1px solid rgba(255, 255, 255, 0.385)',
             boxShadow:
-              '0 1px 0 rgba(255,255,255,0.55) inset, 0 -1px 0 rgba(0,0,0,0.03) inset, 0 20px 44px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.05)',
+              '0 1px 0 rgba(255, 255, 255, 0.385) inset, 0 -1px 0 rgba(0, 0, 0, 0.021) inset, 0 20px 44px rgba(0, 0, 0, 0.07), 0 4px 12px rgba(0, 0, 0, 0.035)',
             color: '#1e1e1e',
             fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             fontSize: 12,
@@ -2868,7 +2868,7 @@ function App() {
                 width: 32,
                 height: 4,
                 borderRadius: 999,
-                background: 'rgba(30,30,30,0.22)',
+                background: 'rgba(30, 30, 30, 0.154)',
                 pointerEvents: 'none',
               }} />
             </div>
@@ -2887,8 +2887,8 @@ function App() {
                 height: 26,
                 border: 0,
                 borderRadius: 8,
-                background: 'rgba(0,0,0,0.05)',
-                color: 'rgba(30,30,30,0.7)',
+                background: 'rgba(0, 0, 0, 0.035)',
+                color: 'rgba(30, 30, 30, 0.49)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -2899,8 +2899,8 @@ function App() {
                 // its click isn't swallowed by the grip strip.
                 zIndex: 2,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.10)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0,0,0,0.05)')}
+              onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(0, 0, 0, 0.07)')}
+              onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(0, 0, 0, 0.035)')}
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 12h14" />
@@ -3019,7 +3019,7 @@ function App() {
               marginTop: SECTION_GAP + 4,
               marginBottom: SECTION_GAP,
               height: 1,
-              background: 'linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0.08) 20%, rgba(0,0,0,0.08) 80%, rgba(0,0,0,0) 100%)',
+              background: 'linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.056) 20%, rgba(0, 0, 0, 0.056) 80%, rgba(0, 0, 0, 0) 100%)',
             }} />
             <SwitchRow
               label="Hand mode"
@@ -3094,12 +3094,12 @@ function App() {
               left: '50%',
               transform: 'translateX(-50%)',
               padding: '10px 18px',
-              border: '1px solid rgba(255,255,255,0.55)',
+              border: '1px solid rgba(255, 255, 255, 0.385)',
               borderRadius: 999,
-              background: 'rgba(255,255,255,0.42)',
+              background: 'rgba(255, 255, 255, 0.294)',
               backdropFilter: 'blur(28px) saturate(180%)',
               WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-              boxShadow: '0 18px 40px rgba(0,0,0,0.12), 0 4px 10px rgba(0,0,0,0.06)',
+              boxShadow: '0 18px 40px rgba(0, 0, 0, 0.084), 0 4px 10px rgba(0, 0, 0, 0.042)',
               color: '#1e1e1e',
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
               fontSize: 12,
@@ -3135,7 +3135,7 @@ function App() {
             justifyContent: 'center',
             zIndex: 100,
             // Wider, semi-transparent white-ish blur (not dark)
-            background: 'rgba(255,255,255,0.35)',
+            background: 'rgba(255, 255, 255, 0.245)',
             backdropFilter: 'blur(40px) saturate(160%)',
             WebkitBackdropFilter: 'blur(40px) saturate(160%)',
             opacity: isClosing ? 0 : 1,
@@ -3156,11 +3156,11 @@ function App() {
               gap: 16,
               padding: '40px 24px 28px',
               borderRadius: 42,
-              background: 'rgba(255,255,255,0.78)',
+              background: 'rgba(255, 255, 255, 0.546)',
               backdropFilter: 'blur(20px) saturate(180%)',
               WebkitBackdropFilter: 'blur(20px) saturate(180%)',
               boxShadow:
-                '0 14px 70px rgba(0,0,0,0.20), inset 1px 1px 1px rgba(255,255,255,0.32), inset -1px -1px 1px rgba(0,0,0,0.06)',
+                '0 14px 70px rgba(0, 0, 0, 0.14), inset 1px 1px 1px rgba(255, 255, 255, 0.224), inset -1px -1px 1px rgba(0, 0, 0, 0.042)',
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             }}
           >
@@ -3175,7 +3175,7 @@ function App() {
                 width: 32,
                 height: 32,
                 borderRadius: '50%',
-                background: 'rgba(0,0,0,0.04)',
+                background: 'rgba(0, 0, 0, 0.028)',
                 border: 0,
                 cursor: 'pointer',
                 padding: 0,
@@ -3186,11 +3186,11 @@ function App() {
                 transition: 'background 0.2s ease, transform 0.2s ease',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = 'rgba(0,0,0,0.08)';
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.056)';
                 e.currentTarget.style.transform = 'scale(1.06)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = 'rgba(0,0,0,0.04)';
+                e.currentTarget.style.background = 'rgba(0, 0, 0, 0.028)';
                 e.currentTarget.style.transform = 'scale(1)';
               }}
             >
@@ -3234,9 +3234,9 @@ function App() {
                   height: 92,
                   borderRadius: '50%',
                   overflow: 'hidden',
-                  border: '2px solid rgba(0,0,0,0.08)',
+                  border: '2px solid rgba(0, 0, 0, 0.056)',
                   boxShadow:
-                    '0 8px 16px rgba(0,0,0,0.10), 0 4px 12px rgba(0,0,0,0.04), 0 0 0 1px rgba(0,0,0,0.02)',
+                    '0 8px 16px rgba(0, 0, 0, 0.07), 0 4px 12px rgba(0, 0, 0, 0.028), 0 0 0 1px rgba(0, 0, 0, 0.014)',
                   position: 'relative',
                 }}
               >
@@ -3269,10 +3269,10 @@ function App() {
                   gap: 5,
                   padding: '5px 10px 5px 5px',
                   borderRadius: 999,
-                  background: 'rgba(255,255,255,0.55)',
+                  background: 'rgba(255, 255, 255, 0.385)',
                   backdropFilter: 'blur(8px)',
                   WebkitBackdropFilter: 'blur(8px)',
-                  boxShadow: '0 5px 25px rgba(0,0,0,0.06), inset 0 0 0 0.5px rgba(255,255,255,0.6)',
+                  boxShadow: '0 5px 25px rgba(0, 0, 0, 0.042), inset 0 0 0 0.5px rgba(255, 255, 255, 0.42)',
                 }}
               >
                 <span
@@ -3362,7 +3362,7 @@ function App() {
                   textDecoration: 'none',
                   fontFamily: 'inherit',
                   boxShadow:
-                    'inset -1px -1px 2px rgba(255,255,255,0.32), inset 1px 1px 1px rgba(255,255,255,0.12), 0 4px 12px rgba(0,0,0,0.15)',
+                    'inset -1px -1px 2px rgba(255, 255, 255, 0.224), inset 1px 1px 1px rgba(255, 255, 255, 0.084), 0 4px 12px rgba(0, 0, 0, 0.105)',
                   transition: 'transform 0.2s ease',
                   cursor: 'pointer',
                 }}
@@ -3505,7 +3505,7 @@ function App() {
             transform: 'translateX(-50%)',
             padding: '12px 20px',
             borderRadius: 999,
-            background: 'rgba(20,20,20,0.86)',
+            background: 'rgba(20, 20, 20, 0.602)',
             color: '#fff',
             fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
             fontSize: 13,
@@ -3513,8 +3513,8 @@ function App() {
             letterSpacing: 0.3,
             backdropFilter: 'blur(20px) saturate(180%)',
             WebkitBackdropFilter: 'blur(20px) saturate(180%)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
+            border: '1px solid rgba(255, 255, 255, 0.084)',
+            boxShadow: '0 18px 36px rgba(0, 0, 0, 0.154), 0 4px 12px rgba(0, 0, 0, 0.084)',
             zIndex: 200,
             display: 'inline-flex',
             alignItems: 'center',
@@ -3525,7 +3525,7 @@ function App() {
           <span style={{
             width: 8, height: 8, borderRadius: '50%',
             background: '#7cffaa',
-            boxShadow: '0 0 12px rgba(124,255,170,0.65)',
+            boxShadow: '0 0 12px rgba(124, 255, 170, 0.455)',
             animation: 'manifesto-dot-pulse 1.2s ease-in-out infinite',
           }} />
           Manifesto unlocking…
@@ -3611,12 +3611,12 @@ function DraggableSettingsPill({ onClick }: { onClick: () => void }) {
         bottom: 16,
         width: 44,
         height: 44,
-        border: '1px solid rgba(255,255,255,0.55)',
+        border: '1px solid rgba(255, 255, 255, 0.385)',
         borderRadius: 14,
-        background: 'rgba(255,255,255,0.42)',
+        background: 'rgba(255, 255, 255, 0.294)',
         backdropFilter: 'blur(28px) saturate(180%)',
         WebkitBackdropFilter: 'blur(28px) saturate(180%)',
-        boxShadow: '0 10px 24px rgba(0,0,0,0.10), 0 4px 8px rgba(0,0,0,0.06)',
+        boxShadow: '0 10px 24px rgba(0, 0, 0, 0.07), 0 4px 8px rgba(0, 0, 0, 0.042)',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',

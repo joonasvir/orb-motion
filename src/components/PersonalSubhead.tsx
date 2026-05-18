@@ -112,8 +112,8 @@ export default function PersonalSubhead({ onHoverChange, showIcon = false }: Pro
           pointer-events: auto;
           /* Soft drop shadow under the cluster (matches the headline pile). */
           filter:
-            drop-shadow(0 6px 14px rgba(0,0,0,0.12))
-            drop-shadow(0 24px 50px rgba(0,0,0,0.22));
+            drop-shadow(0 6px 14px rgba(0, 0, 0, 0.084))
+            drop-shadow(0 24px 50px rgba(0, 0, 0, 0.154));
         }
         .ps-avatar {
           width: 1.235em;
@@ -178,7 +178,7 @@ export default function PersonalSubhead({ onHoverChange, showIcon = false }: Pro
                   // tight near-shadow anchors the icon to the baseline, wide
                   // soft fall-off matches the pile's atmosphere.
                   filter:
-                    'drop-shadow(0 6px 14px rgba(0,0,0,0.12)) drop-shadow(0 24px 50px rgba(0,0,0,0.22))',
+                    'drop-shadow(0 6px 14px rgba(0, 0, 0, 0.084)) drop-shadow(0 24px 50px rgba(0, 0, 0, 0.154))',
                   pointerEvents: 'none',
                   userSelect: 'none',
                 }}

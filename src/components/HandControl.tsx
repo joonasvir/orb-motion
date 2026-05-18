@@ -593,7 +593,7 @@ function PreviewShell({
     borderRadius: 16,
     overflow: 'hidden',
     background: 'rgba(20,20,20,0.6)',
-    boxShadow: '0 18px 36px rgba(0,0,0,0.22), 0 4px 12px rgba(0,0,0,0.12)',
+    boxShadow: '0 18px 36px rgba(0, 0, 0, 0.154), 0 4px 12px rgba(0, 0, 0, 0.084)',
     backdropFilter: 'blur(18px) saturate(150%)',
     WebkitBackdropFilter: 'blur(18px) saturate(150%)',
     border: '1px solid rgba(255,255,255,0.55)',
@@ -619,8 +619,8 @@ function PreviewShell({
       borderRadius: 0,
       border: 0,
       boxShadow: splitSide === 'right'
-        ? '-22px 0 60px rgba(0,0,0,0.18)'
-        : '22px 0 60px rgba(0,0,0,0.18)',
+        ? '-22px 0 60px rgba(0, 0, 0, 0.126)'
+        : '22px 0 60px rgba(0, 0, 0, 0.126)',
     };
   } else if (layoutMode === 'mini') {
     // Tiny PiP. Drag offset shifts it from the bottom-right anchor.

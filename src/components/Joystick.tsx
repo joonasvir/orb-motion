@@ -207,16 +207,16 @@ export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' 
         userSelect: 'none',
         transformOrigin: 'left bottom',
         transition: 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease',
-        filter: 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))',
+        filter: 'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.126))',
       }}
       onMouseEnter={(e) => {
         // Grow and tuck a touch closer to the corner via the transform-origin
         e.currentTarget.style.transform = 'translate(-4px, 4px) scale(1.55)';
-        e.currentTarget.style.filter = 'drop-shadow(0 14px 22px rgba(0,0,0,0.26))';
+        e.currentTarget.style.filter = 'drop-shadow(0 14px 22px rgba(0, 0, 0, 0.182))';
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.transform = 'translate(0, 0) scale(1)';
-        e.currentTarget.style.filter = 'drop-shadow(0 8px 14px rgba(0,0,0,0.18))';
+        e.currentTarget.style.filter = 'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.126))';
       }}
     >
       <img
