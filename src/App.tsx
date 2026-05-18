@@ -183,8 +183,9 @@ function App() {
     base: { x: number; y: number };
   } | null>(null);
   const [panelDragging, setPanelDragging] = useState(false);
-  // Which synthesized joystick sound to use ("lever" was the original).
-  const [joystickSound, setJoystickSound] = useState<JoystickSound>('lever');
+  // Which synthesized joystick sound to use. Sound-picker UI was removed
+  // from the panel, so this stays at its 'lever' default for now.
+  const [joystickSound] = useState<JoystickSound>('lever');
   // Ref-sync so resetOrbs (defined below) always plays the latest synth.
   const joystickSoundLatestRef = useRef<JoystickSound>('lever');
   useEffect(() => { joystickSoundLatestRef.current = joystickSound; }, [joystickSound]);
@@ -2782,9 +2783,23 @@ function App() {
             <Switch on={on} onChange={onChange} ariaLabel={label} />
           </div>
         );
-        // Drag handlers for the panel — only the grip strip at the top
-        // initiates a drag, so the controls underneath stay clickable.
+        // Drag handlers for the panel — attached to the ROOT, so dragging
+        // works from anywhere on the panel chrome. We bail out of the drag
+        // when the pointerdown target is (or sits inside) an interactive
+        // control so clicks still work — this is the JSX equivalent of an
+        // "X-window" title bar that's everywhere except the controls.
+        const isInteractiveTarget = (el: EventTarget | null) => {
+          const node = el instanceof Element ? el : null;
+          if (!node) return false;
+          return !!node.closest(
+            'button, input, select, textarea, a, label, [role="switch"], [role="slider"], [role="button"]'
+          );
+        };
         const onPanelDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
+          if (isInteractiveTarget(e.target)) return;
+          // Prevent default so the browser doesn't start text selection
+          // or focus shifting during a drag from a non-control area.
+          e.preventDefault();
           e.currentTarget.setPointerCapture(e.pointerId);
           panelDragRef.current = {
             startX: e.clientX,
@@ -2803,73 +2818,71 @@ function App() {
         };
         const onPanelDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
           if (!panelDragRef.current) return;
-          e.currentTarget.releasePointerCapture(e.pointerId);
+          try {
+            e.currentTarget.releasePointerCapture(e.pointerId);
+          } catch {
+            // Pointer may already have been released — ignore.
+          }
           panelDragRef.current = null;
           setPanelDragging(false);
         };
 
         return (
-          <div className="blur-in" style={{
-            position: 'absolute',
-            top: 84,
-            left: 16,
-            width: 224,
-            // Reserve a touch more top padding for the grip strip; the strip
-            // sits inside it so the inner controls don't shift.
-            padding: '20px 14px 14px',
-            borderRadius: 18,
-            background: 'rgba(255, 255, 255, 0.252)',
-            backdropFilter: 'blur(36px) saturate(190%)',
-            WebkitBackdropFilter: 'blur(36px) saturate(190%)',
-            border: '1px solid rgba(255, 255, 255, 0.385)',
-            boxShadow:
-              '0 1px 0 rgba(255, 255, 255, 0.385) inset, 0 -1px 0 rgba(0, 0, 0, 0.021) inset, 0 20px 44px rgba(0, 0, 0, 0.07), 0 4px 12px rgba(0, 0, 0, 0.035)',
-            color: '#1e1e1e',
-            fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
-            fontSize: 12,
-            zIndex: 90,
-            animationDelay: '500ms',
-            // Drag offset applied via transform so layout stays stable.
-            transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
-            transition: panelDragging
-              ? 'none'
-              : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
-          }}>
-            {/* Drag handle — slim grip strip across the top of the panel.
-                Pointer-capture starts a drag; the controls below are
-                unaffected because the handle only covers the very top. */}
+          <div
+            className="blur-in"
+            onPointerDown={onPanelDragStart}
+            onPointerMove={onPanelDragMove}
+            onPointerUp={onPanelDragEnd}
+            onPointerCancel={onPanelDragEnd}
+            style={{
+              position: 'absolute',
+              top: 84,
+              left: 16,
+              width: 224,
+              padding: '20px 14px 14px',
+              borderRadius: 18,
+              background: 'rgba(255, 255, 255, 0.252)',
+              backdropFilter: 'blur(36px) saturate(190%)',
+              WebkitBackdropFilter: 'blur(36px) saturate(190%)',
+              border: '1px solid rgba(255, 255, 255, 0.385)',
+              boxShadow:
+                '0 1px 0 rgba(255, 255, 255, 0.385) inset, 0 -1px 0 rgba(0, 0, 0, 0.021) inset, 0 20px 44px rgba(0, 0, 0, 0.07), 0 4px 12px rgba(0, 0, 0, 0.035)',
+              color: '#1e1e1e',
+              fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
+              fontSize: 12,
+              zIndex: 90,
+              animationDelay: '500ms',
+              transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
+              transition: panelDragging
+                ? 'none'
+                : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
+              // Drag cursor for any non-control area inside the panel.
+              cursor: panelDragging ? 'grabbing' : 'grab',
+              // Stop the browser from interpreting drag gestures as text selection.
+              touchAction: 'none',
+              userSelect: 'none',
+            }}
+          >
+            {/* Visible grip indicator — just a visual cue that the panel can
+                be dragged. The drag handlers live on the panel ROOT now, so
+                clicking anywhere outside an interactive control starts a drag. */}
             <div
-              onPointerDown={onPanelDragStart}
-              onPointerMove={onPanelDragMove}
-              onPointerUp={onPanelDragEnd}
-              onPointerCancel={onPanelDragEnd}
-              role="separator"
-              aria-label="Drag controls panel"
-              title="Drag to move"
+              aria-hidden="true"
               style={{
                 position: 'absolute',
-                top: 0,
+                top: 6,
                 left: 0,
                 right: 0,
-                height: 18,
                 display: 'flex',
-                alignItems: 'center',
                 justifyContent: 'center',
-                cursor: panelDragging ? 'grabbing' : 'grab',
-                touchAction: 'none',
-                userSelect: 'none',
-                borderTopLeftRadius: 18,
-                borderTopRightRadius: 18,
+                pointerEvents: 'none',
               }}
             >
-              {/* Visible grip — small rounded bar centered in the strip,
-                  same charcoal as the panel text but very dim. */}
               <span style={{
-                width: 32,
+                width: 36,
                 height: 4,
                 borderRadius: 999,
-                background: 'rgba(30, 30, 30, 0.154)',
-                pointerEvents: 'none',
+                background: 'rgba(30, 30, 30, 0.25)',
               }} />
             </div>
             {/* Collapse button — top-right of the panel. Mirrors the pill
@@ -2948,24 +2961,9 @@ function App() {
             {/* (Playground launcher removed from the panel — showcaseMode
                 is still wired up internally, just no UI to enter it.) */}
 
-            {/* Joystick sound — pick one of three synths; tap to preview */}
-            <div style={sectionLabel}>Joystick sound</div>
-            <div style={{ ...segGroup, marginBottom: SECTION_GAP }}>
-              {([
-                ['lever',  'Lever',  playLeverSound],
-                ['bubble', 'Bubble', playBubbleSound],
-                ['whoosh', 'Whoosh', playWhooshSound],
-              ] as const).map(([key, label, preview]) => (
-                <button
-                  key={key}
-                  onClick={() => {
-                    setJoystickSound(key);
-                    preview(false); // play the "engage" variant as a preview
-                  }}
-                  style={segBtn(joystickSound === key)}
-                >{label}</button>
-              ))}
-            </div>
+            {/* (Joystick sound options removed from the panel — the
+                joystickSound state stays at its 'lever' default, which is
+                still piped into the <Joystick> component.) */}
 
             {/* (Generate-orb UI removed from the panel — the /api/generate-orb
                 endpoint + generateOrb handler are still wired up, just no
