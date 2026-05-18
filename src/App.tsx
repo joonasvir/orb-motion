@@ -1095,11 +1095,12 @@ function App() {
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         // Mobile: phone bottom inset 56px from viewport bottom so its
         // drop-shadow has room. Center = (innerHeight - 56) - 0.5 * H.
-        // Personal uses the larger phone clamp (364-494); non-personal
-        // mobile uses 320-440 (matches the wrapper rules in JSX).
+        // Personal clamp 260-360 (44vh); long clamp 240-320 (40vh).
+        // Must match the wrapper-style clamps in the JSX exactly,
+        // otherwise the orbital cloud drifts off the device.
         const _mobilePhoneH = _pm
-          ? Math.max(364, Math.min(494, window.innerHeight * 0.598))
-          : Math.max(320, Math.min(440, window.innerHeight * 0.52));
+          ? Math.max(260, Math.min(360, window.innerHeight * 0.44))
+          : Math.max(240, Math.min(320, window.innerHeight * 0.40));
         const _mobilePhoneBottom = 56;
         const centerY = _mobileAny
           ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH * 0.5
@@ -1839,7 +1840,10 @@ function App() {
       <section style={{
         position: 'relative',
         width: '100%',
-        height: '100vh',
+        // Mobile: subtract the inline header height (~80px) so the hero
+        // still fits in one viewport even with the header in normal flow.
+        // Desktop: full viewport since the header is fixed there.
+        height: isMobile ? 'calc(100vh - 80px)' : '100vh',
         overflow: 'hidden',
       }}>
 
@@ -2156,7 +2160,7 @@ function App() {
 
           {/* QR inside the text column on side layouts. Hidden on mobile
               personal mode (no room next to the phone). */}
-          {layout !== 'center' && !(isMobile && personalMode) && (
+          {layout !== 'center' && !isMobile && (
             <div
               className="orb-qr-card blur-in"
               style={{
@@ -2213,15 +2217,15 @@ function App() {
       {!minimalUI && personalMode && (() => {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
-              // Mobile personal: phone is anchored near the viewport
-              // bottom with a 56px inset so its drop-shadow has room to
-              // render (was bottom: 0 which clipped the shadow against
-              // the hero's overflow:hidden).
+              // Mobile personal: phone anchored near the viewport bottom
+              // with a 56px inset for the drop-shadow. Height shrunk
+              // (was 364-59.8vh-494) so the phone leaves room for the
+              // copy above without overlapping the subhead.
               position: 'absolute',
               left: '50%',
               bottom: 56,
               transform: 'translate(-50%, 0%)',
-              height: 'clamp(364px, 59.8vh, 494px)',
+              height: 'clamp(260px, 44vh, 360px)',
               aspectRatio: '402 / 834',
             }
           : {
@@ -2281,15 +2285,17 @@ function App() {
               // ANY mobile case (short OR long, any layout) uses the
               // same centered-bottom-stack: copy stacks at the top of
               // the viewport, phone sits below it, centered, with 56px
-              // bottom inset so the phone drop-shadow has room.
+              // bottom inset so the phone drop-shadow has room. Phone
+              // height shrunk on both variants so there's adequate
+              // padding between the headlines and the phone top.
               ...(isMobile
                 ? {
                     left: '50%',
                     bottom: 56,
                     transform: 'translate(-50%, 0%)',
                     height: personalMode
-                      ? 'clamp(364px, 59.8vh, 494px)'
-                      : 'clamp(320px, 52vh, 440px)',
+                      ? 'clamp(260px, 44vh, 360px)'
+                      : 'clamp(240px, 40vh, 320px)',
                   }
                 : {
                     // Phone position matches personal-mode geometry now

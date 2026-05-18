@@ -18,18 +18,24 @@ export default function Header() {
         }
 
         .orb-nav {
+          /* Mobile default: sits at the TOP of the document flow (scrolls
+             away with the page). Desktop bumps it to fixed-top via the
+             media query below. */
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 24px 24px;
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
+          position: static;
           z-index: 200;
         }
         @media (min-width: 768px) {
-          .orb-nav { padding: 32px 32px; }
+          .orb-nav {
+            padding: 32px 32px;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+          }
         }
         .orb-nav-logo {
           display: flex;
