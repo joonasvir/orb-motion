@@ -283,15 +283,21 @@ export default function DraggableProps({ wrapperStyle, hidden = false }: Props) 
   );
 }
 
+// Drag-and-drop interaction temporarily disabled — props are visual-only
+// for now. Flip to `true` to bring back the click-to-drag + paper-rustle
+// sound on prop pickup.
+const DRAG_ENABLED = false;
+
 function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef<{ x: number; y: number; base: { x: number; y: number } } | null>(null);
   const [dragging, setDragging] = useState(false);
-  // Hover state — only used to apply a 10% scale + small extra tilt when the
-  // cursor is on the prop and the user isn't currently dragging it.
+  // Hover state — drives the lift-on-hover effect (10% scale + counter-tilt).
+  // Kept enabled even with drag disabled so the props still feel interactive.
   const [hover, setHover] = useState(false);
 
   const onPointerDown = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!DRAG_ENABLED) return;
     e.currentTarget.setPointerCapture(e.pointerId);
     dragRef.current = { x: e.clientX, y: e.clientY, base: offset };
     setDragging(true);
@@ -299,12 +305,14 @@ function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
     playPaperShuffle();
   };
   const onPointerMove = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!DRAG_ENABLED) return;
     if (!dragRef.current) return;
     const dx = e.clientX - dragRef.current.x;
     const dy = e.clientY - dragRef.current.y;
     setOffset({ x: dragRef.current.base.x + dx, y: dragRef.current.base.y + dy });
   };
   const onPointerUp = (e: React.PointerEvent<HTMLImageElement>) => {
+    if (!DRAG_ENABLED) return;
     if (!dragRef.current) return;
     e.currentTarget.releasePointerCapture(e.pointerId);
     dragRef.current = null;
@@ -354,9 +362,12 @@ function DraggableProp({ def, hidden }: { def: PropDef; hidden: boolean }) {
           transition: dragging
             ? 'none'
             : 'transform 0.45s cubic-bezier(0.22, 1, 0.36, 1)',
-          cursor: dragging ? 'grabbing' : 'grab',
+          cursor: DRAG_ENABLED ? (dragging ? 'grabbing' : 'grab') : 'default',
+          // Pointer events still on so the hover lift (scale + tilt) fires.
+          // Drag handlers are guarded by the DRAG_ENABLED flag above and
+          // no-op when it's off.
           pointerEvents: 'auto',
-          touchAction: 'none',
+          touchAction: DRAG_ENABLED ? 'none' : 'auto',
           userSelect: 'none',
           // 30% lighter than before (0.18 → 0.126, 0.12 → 0.084) so the
           // shadows still anchor the props but don't feel heavy.
