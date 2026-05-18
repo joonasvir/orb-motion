@@ -1109,12 +1109,12 @@ function App() {
         const _phoneHcalc = _layout === 'center'
           ? Math.max(390, Math.min(700, window.innerHeight * 0.63))
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
-        // Mobile personalMode: phone is height clamp(280, 46vh, 380)
-        // anchored bottom: clamp(40, 6vh, 90). Center = innerHeight - bottom - height/2.
-        const _mobilePhoneH = Math.max(280, Math.min(380, window.innerHeight * 0.46));
-        const _mobilePhoneBottom = Math.max(40, Math.min(90, window.innerHeight * 0.06));
+        // Mobile personalMode: phone is now 30% larger AND pushed half below
+        // the viewport (50% above the fold). With CSS `bottom: 0;
+        // transform: translateY(50%)`, the phone CENTER lands exactly at the
+        // viewport bottom — so the cyclone center matches at window.innerHeight.
         const centerY = _mobilePersonal
-          ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH / 2
+          ? window.innerHeight
           : _orbsOnly
             ? window.innerHeight / 2
             : _layout === 'center'
@@ -1245,7 +1245,10 @@ function App() {
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 90;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
-            const baseR = Math.min(minR, maxR);
+            // Mobile personalMode scales the phone 30% larger — bump cyclone
+            // radius the same so the orbital cloud still hugs the device.
+            const mobilePersonalBump = _mobilePersonal ? 1.3 : 1;
+            const baseR = Math.min(minR, maxR) * mobilePersonalBump;
             // Smooth radius multiplier (driven by hand height / hand distance).
             // 0.045 settles in ~1s — silky but still responsive.
             cycloneRadiusMulRef.current +=
@@ -1890,10 +1893,10 @@ function App() {
               : {
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  // More breathing room on the left edge — pulls the copy a
-                  // bit toward center so the whole composition feels less
-                  // pinned to the page edges.
-                  left: 'clamp(88px, 10vw, 220px)',
+                  // +100px more breathing room on the left edge — pulls the
+                  // copy toward center so the composition isn't pinned to the
+                  // page edge.
+                  left: 'clamp(188px, 17vw, 320px)',
                   width: 'min(560px, 40vw)',
                   textAlign: 'left' as const,
                 })
@@ -1923,11 +1926,13 @@ function App() {
             // personalMode: much bigger Kalice display. Otherwise: match the
             // Figma 53:5760 ratio (center max 50 → 60, side max 40 → 48).
             // personalMode size shrinks on mobile to fit narrow screens.
+            // Another -20% pass on top of the previous reduction so the
+            // headline reads as confident display type, not a banner.
             fontSize: personalMode
-              ? (isMobile ? 'clamp(40px, 13vw, 64px)' : 'clamp(38px, 6.0vw, 93px)')
+              ? (isMobile ? 'clamp(26px, 8.32vw, 41px)' : 'clamp(24px, 3.84vw, 59px)')
               : layout === 'center'
-              ? 'clamp(28px, 4.0vw, 60px)'
-              : 'clamp(24px, 3.2vw, 48px)',
+              ? 'clamp(18px, 2.56vw, 38px)'
+              : 'clamp(15px, 2.05vw, 30px)',
             lineHeight: personalMode ? 0.98 : 1.11,
             letterSpacing: '-0.01em',
             fontWeight: 400,
@@ -2078,10 +2083,12 @@ function App() {
           </h1>
           <p className="blur-in" style={{
             fontFamily: 'inherit',
-            // personalMode size bumped 20% (was 18-1.9vw-30 → now 22-2.28vw-36)
+            // Both variants reduced 20% so the subhead sits below the headline
+            // without competing — personalMode was 22-2.28vw-36, default was
+            // 13-1.3vw-22.
             fontSize: personalMode
-              ? 'clamp(22px, 2.28vw, 36px)'
-              : 'clamp(13px, 1.3vw, 22px)',
+              ? 'clamp(18px, 1.82vw, 29px)'
+              : 'clamp(10px, 1.04vw, 18px)',
             // Line height bumped 25% in personalMode (1.18 → 1.475) so the
             // three lines breathe alongside the larger type.
             lineHeight: personalMode ? 1.475 : 1.25,
@@ -2160,12 +2167,14 @@ function App() {
       {!minimalUI && personalMode && (() => {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
-              // Mobile: phone sits BELOW the copy, centered, smaller.
+              // Mobile personal: phone is 30% bigger than before and half of
+              // it sits BELOW the fold (bottom: 0 + translateY(50%) drops the
+              // center to the viewport bottom edge, so exactly 50% is visible).
               position: 'absolute',
               left: '50%',
-              bottom: 'clamp(40px, 6vh, 90px)',
-              transform: 'translateX(-50%)',
-              height: 'clamp(280px, 46vh, 380px)',
+              bottom: 0,
+              transform: 'translate(-50%, 50%)',
+              height: 'clamp(364px, 59.8vh, 494px)',
               aspectRatio: '402 / 834',
             }
           : {
@@ -2222,13 +2231,15 @@ function App() {
             style={{
               animationDelay: '400ms',
               position: 'absolute',
-              // Mobile + personalMode: phone sits below copy, centered, smaller.
+              // Mobile + personalMode: phone is 30% bigger and only 50% shows
+              // above the fold (center pinned to the viewport bottom edge via
+              // bottom: 0 + translateY(50%)).
               ...(isMobile && personalMode
                 ? {
                     left: '50%',
-                    bottom: 'clamp(40px, 6vh, 90px)',
-                    transform: 'translateX(-50%)',
-                    height: 'clamp(280px, 46vh, 380px)',
+                    bottom: 0,
+                    transform: 'translate(-50%, 50%)',
+                    height: 'clamp(364px, 59.8vh, 494px)',
                   }
                 : {
                     left: layout === 'left'

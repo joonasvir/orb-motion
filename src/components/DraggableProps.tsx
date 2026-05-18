@@ -66,13 +66,14 @@ const PROPS: PropDef[] = [
     enterDelay: ENTER_BASE_DELAY,
   },
   // Tickets + folded map — bottom-left, peeks out the lower-left of the phone.
-  // 40% larger than the other props by request — reads as the hero prop.
+  // Hero prop — sized large so it's clearly the focal piece (106% → 138%,
+  // another +30% bump on top of the original 40% upsize).
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
     bottom: '-2%',
     left: '-46%',
-    width: '106%',
+    width: '138%',
     rotate: -7,
     z: 3,
     enterX: '26%',   // start displaced toward wrapper center (up-right from bottom-left rest)
@@ -122,10 +123,14 @@ export default function DraggableProps({ wrapperStyle, hidden = false }: Props) 
             opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
             transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
         }
+        /* IMPORTANT: !important + animation:none is required because the
+           dp-enter keyframes use fill-mode: both, which otherwise pins the
+           opacity/transform to their end-state and blocks .is-hidden. */
         .dp-wrap.is-hidden {
-          opacity: 0;
-          transform: translate(var(--enter-x, 0), var(--enter-y, 0)) scale(0.86);
-          pointer-events: none;
+          animation: none !important;
+          opacity: 0 !important;
+          transform: translate(var(--enter-x, 0), var(--enter-y, 0)) scale(0.86) !important;
+          pointer-events: none !important;
         }
         @media (prefers-reduced-motion: reduce) {
           .dp-enter { animation: none !important; }
