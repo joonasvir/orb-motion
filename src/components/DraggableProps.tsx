@@ -151,7 +151,9 @@ const PROPS: PropDef[] = [
   {
     id: 'tickets',
     src: '/props/travel-ticket-map.png',
-    bottom: '-32%',
+    // Lifted ~200px from `bottom: -32%` so the bundle sits closer to
+    // the phone instead of sinking past the footer.
+    bottom: 'calc(-32% + 200px)',
     left: '-58%',
     width: '95%',
     rotate: -22,
@@ -166,7 +168,9 @@ const PROPS: PropDef[] = [
   {
     id: 'globe',
     src: '/props/travel-globe.png',
-    bottom: '-10%',
+    // Lifted ~200px from `bottom: -10%` so the globe hugs the lower-right
+    // corner of the phone instead of floating near the footer.
+    bottom: 'calc(-10% + 200px)',
     right: '-30%',
     width: '36%',
     rotate: -4,
