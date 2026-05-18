@@ -143,9 +143,12 @@ export default function CyclingWord({
           white-space: nowrap;
           will-change: transform, opacity, filter;
         }
-        /* The outgoing word — absolutely positioned over the same spot so
-           the new word can start cascading in while it fades. Pointer events
-           off so it can't intercept hover after the swap. */
+        /* The outgoing word — absolutely positioned wrapper over the same
+           spot so the new word can start cascading in while the old one
+           fades. Pointer events off so it can't intercept hover after the
+           swap. The wrapper itself does NOT animate — instead its children
+           (icon + text) animate independently so the icon can just fade
+           while the text lifts + blurs. */
         .cw-prev {
           position: absolute;
           left: 0;
@@ -154,8 +157,23 @@ export default function CyclingWord({
           align-items: baseline;
           white-space: nowrap;
           pointer-events: none;
+        }
+        /* Outgoing text — lifts + blurs + fades as one unit. */
+        .cw-prev-text {
+          display: inline-block;
           animation: cw-out 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
           will-change: transform, opacity, filter;
+        }
+        /* Outgoing icon — JUST fades, no translate/blur. Mirrors the
+           prefix-fade-in so the icon swap reads as a clean crossfade. */
+        @keyframes cw-prefix-fade-out {
+          0%   { opacity: 1; }
+          100% { opacity: 0; }
+        }
+        .cw-prev-prefix {
+          display: inline-block;
+          animation: cw-prefix-fade-out 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+          will-change: opacity;
         }
         /* Each letter inherits the cascade animation; per-letter delay is set
            inline on the element. inline-block is required for the transform/
@@ -167,13 +185,18 @@ export default function CyclingWord({
           animation: cw-letter-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
           will-change: transform, opacity, filter;
         }
-        /* Prefix element (the inline icon) — cascades in at slot 0 so it
-           leads the letters. */
+        /* Prefix element (the inline icon) — simple opacity fade only.
+           No translate/blur cascade because the icon is bigger than the
+           letters and the lift reads as awkward at that scale. inline-block
+           so the img's vertical-align value positions it on the baseline. */
+        @keyframes cw-prefix-fade {
+          0%   { opacity: 0; }
+          100% { opacity: 1; }
+        }
         .cw-prefix {
-          display: inline-flex;
-          align-items: baseline;
-          animation: cw-letter-in 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
-          will-change: transform, opacity, filter;
+          display: inline-block;
+          animation: cw-prefix-fade 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+          will-change: opacity;
         }
         .cw-measure {
           position: absolute;
@@ -183,29 +206,13 @@ export default function CyclingWord({
           left: 0;
           top: 0;
         }
-        /* Soft underline that fades up on hover so the word reads as
-           interactive without a heavy treatment. */
-        .cw-wrap::after {
-          content: '';
-          position: absolute;
-          left: 0;
-          right: 0;
-          bottom: -0.04em;
-          height: 1.5px;
-          background: currentColor;
-          opacity: 0;
-          transform: scaleX(0.7);
-          transform-origin: center;
-          transition: opacity 0.25s ease, transform 0.35s cubic-bezier(0.22, 1, 0.36, 1);
-        }
-        .cw-wrap:hover::after {
-          opacity: 0.35;
-          transform: scaleX(1);
-        }
+        /* (Underline removed — the cycling word stands on its own without
+            a hover treatment now.) */
         @media (prefers-reduced-motion: reduce) {
-          .cw-prev   { animation: none; opacity: 0; }
-          .cw-letter { animation: none; }
-          .cw-prefix { animation: none; }
+          .cw-prev-text   { animation: none; opacity: 0; }
+          .cw-prev-prefix { animation: none; opacity: 0; }
+          .cw-letter      { animation: none; }
+          .cw-prefix      { animation: none; }
         }
       `}</style>
       <span
@@ -226,8 +233,10 @@ export default function CyclingWord({
             old one is fully gone). */}
         {prevIdx !== null && prevIdx !== idx && (
           <span key={`prev-${prevIdx}`} className="cw-prev" aria-hidden="true">
-            {renderPrefix?.(words[prevIdx])}
-            {words[prevIdx]}
+            {renderPrefix && (
+              <span className="cw-prev-prefix">{renderPrefix(words[prevIdx])}</span>
+            )}
+            <span className="cw-prev-text">{words[prevIdx]}</span>
           </span>
         )}
         {/* Incoming word — split into per-letter spans so each can cascade
