@@ -1726,6 +1726,13 @@ function App() {
           to { opacity: 1; transform: translateY(0); }
         }
         /* (scroll-hint-bounce keyframe removed along with the bento section.) */
+        /* Control-panel ↔ pill morph. Composes with the inline translate()
+           for panelOffset, hence the use of CSS variable --po-x/--po-y so the
+           keyframe stays neutral on translate. Falls back to (0,0). */
+        @keyframes panel-pop-in {
+          0%   { opacity: 0; transform: translate(var(--po-x, 0px), var(--po-y, 0px)) scale(0.85); }
+          100% { opacity: 1; transform: translate(var(--po-x, 0px), var(--po-y, 0px)) scale(1); }
+        }
         /* Gentle floating motion for persona props. Each prop inlines its
            rotation as --rot, so the animation can compose translate + rotate
            without clobbering the rest of the transform. Three variants stagger
@@ -2787,23 +2794,14 @@ function App() {
             <Switch on={on} onChange={onChange} ariaLabel={label} />
           </div>
         );
-        // Drag handlers for the panel — attached to the ROOT, so dragging
-        // works from anywhere on the panel chrome. We bail out of the drag
-        // when the pointerdown target is (or sits inside) an interactive
-        // control so clicks still work — this is the JSX equivalent of an
-        // "X-window" title bar that's everywhere except the controls.
-        const isInteractiveTarget = (el: EventTarget | null) => {
-          const node = el instanceof Element ? el : null;
-          if (!node) return false;
-          return !!node.closest(
-            'button, input, select, textarea, a, label, [role="switch"], [role="slider"], [role="button"]'
-          );
-        };
-        const onPanelDragStart = (e: React.PointerEvent<HTMLDivElement>) => {
-          if (isInteractiveTarget(e.target)) return;
-          // Prevent default so the browser doesn't start text selection
-          // or focus shifting during a drag from a non-control area.
-          e.preventDefault();
+        // Drag handlers — attached DIRECTLY to the dedicated grip handle at
+        // the top of the panel. Putting them on a real button-like element
+        // (instead of the whole panel chrome) sidesteps a class of bugs
+        // where preventDefault on the root swallowed clicks meant for inner
+        // controls and React's event delegation got confused.
+        const onHandleDown = (e: React.PointerEvent<HTMLDivElement>) => {
+          // Only handle primary button (or touch/pen). Ignore right-click etc.
+          if (e.button !== 0 && e.pointerType === 'mouse') return;
           e.currentTarget.setPointerCapture(e.pointerId);
           panelDragRef.current = {
             startX: e.clientX,
@@ -2812,7 +2810,7 @@ function App() {
           };
           setPanelDragging(true);
         };
-        const onPanelDragMove = (e: React.PointerEvent<HTMLDivElement>) => {
+        const onHandleMove = (e: React.PointerEvent<HTMLDivElement>) => {
           const d = panelDragRef.current;
           if (!d) return;
           setPanelOffset({
@@ -2820,7 +2818,7 @@ function App() {
             y: d.base.y + (e.clientY - d.startY),
           });
         };
-        const onPanelDragEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+        const onHandleUp = (e: React.PointerEvent<HTMLDivElement>) => {
           if (!panelDragRef.current) return;
           try {
             e.currentTarget.releasePointerCapture(e.pointerId);
@@ -2833,17 +2831,12 @@ function App() {
 
         return (
           <div
-            className="blur-in"
-            onPointerDown={onPanelDragStart}
-            onPointerMove={onPanelDragMove}
-            onPointerUp={onPanelDragEnd}
-            onPointerCancel={onPanelDragEnd}
             style={{
               position: 'absolute',
               top: 84,
-              left: 16,
+              right: 16,
               width: 224,
-              padding: '20px 14px 14px',
+              padding: '24px 14px 14px',
               borderRadius: 18,
               background: 'rgba(255, 255, 255, 0.252)',
               backdropFilter: 'blur(36px) saturate(190%)',
@@ -2855,38 +2848,56 @@ function App() {
               fontFamily: '"Selecta", system-ui, -apple-system, sans-serif',
               fontSize: 12,
               zIndex: 90,
-              animationDelay: '500ms',
+              // Drag offset is passed through CSS vars so the panel-pop-in
+              // keyframe can compose with it (the keyframe also writes
+              // translate()).
+              ['--po-x' as any]: `${panelOffset.x}px`,
+              ['--po-y' as any]: `${panelOffset.y}px`,
               transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
               transition: panelDragging
                 ? 'none'
                 : 'transform 0.32s cubic-bezier(0.22, 1, 0.36, 1)',
-              // Drag cursor for any non-control area inside the panel.
-              cursor: panelDragging ? 'grabbing' : 'grab',
-              // Stop the browser from interpreting drag gestures as text selection.
-              touchAction: 'none',
+              // Smooth scale-in entrance, replacing the old blur-in fade.
+              animation: 'panel-pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both',
               userSelect: 'none',
             }}
           >
             {/* Visible grip indicator — just a visual cue that the panel can
-                be dragged. The drag handlers live on the panel ROOT now, so
-                clicking anywhere outside an interactive control starts a drag. */}
+                be dragged. This element IS the drag target — pointer
+                handlers live here directly, so click + drag are predictable. */}
             <div
-              aria-hidden="true"
+              onPointerDown={onHandleDown}
+              onPointerMove={onHandleMove}
+              onPointerUp={onHandleUp}
+              onPointerCancel={onHandleUp}
+              role="separator"
+              aria-label="Drag controls panel"
+              title="Drag to move"
               style={{
                 position: 'absolute',
-                top: 6,
+                top: 0,
                 left: 0,
-                right: 0,
+                // Leave a 36px slot on the right for the collapse button so
+                // the handle never overlaps it. Without this gap the grip's
+                // pointer-capture would steal mousedown from the X button.
+                right: 36,
+                height: 24,
                 display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'center',
-                pointerEvents: 'none',
+                cursor: panelDragging ? 'grabbing' : 'grab',
+                touchAction: 'none',
+                userSelect: 'none',
+                borderTopLeftRadius: 18,
+                zIndex: 1,
               }}
             >
               <span style={{
                 width: 36,
                 height: 4,
                 borderRadius: 999,
-                background: 'rgba(30, 30, 30, 0.25)',
+                background: 'rgba(30, 30, 30, 0.32)',
+                pointerEvents: 'none',
               }} />
             </div>
             {/* Collapse button — top-right of the panel. Mirrors the pill
@@ -3630,9 +3641,10 @@ function CollapsedPanelPill({
       onPointerCancel={onPointerUp}
       style={{
         // Same anchor as the expanded panel so the two share a position.
+        // Panel default anchors to top-right; the pill matches.
         position: 'absolute',
         top: 84,
-        left: 16,
+        right: 16,
         width: 44,
         height: 44,
         border: '1px solid rgba(255, 255, 255, 0.385)',
@@ -3647,8 +3659,13 @@ function CollapsedPanelPill({
         cursor: dragging ? 'grabbing' : 'grab',
         zIndex: 95,
         padding: 0,
+        // Drag offset passed through CSS vars so the same panel-pop-in
+        // keyframe can scale + fade in over a translated start position.
+        ['--po-x' as any]: `${panelOffset.x}px`,
+        ['--po-y' as any]: `${panelOffset.y}px`,
         transform: `translate(${panelOffset.x}px, ${panelOffset.y}px)`,
         transition: dragging ? 'none' : 'transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)',
+        animation: 'panel-pop-in 0.26s cubic-bezier(0.22, 1, 0.36, 1) both',
         touchAction: 'none',
         userSelect: 'none',
       }}
