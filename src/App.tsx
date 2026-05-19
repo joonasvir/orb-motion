@@ -777,11 +777,16 @@ function App() {
       engine.velocityIterations = 4;
       engineRef.current = engine;
 
-      // Play area: full viewport width, with footer clearance
+      // Play area: full viewport width, with footer clearance.
+      // Desktop: footer is fixed-bottom — 72px clearance so orbs don't
+      // overlap the glass footer pill.
+      // Mobile: footer is in-flow BELOW the hero — orbs can fall all the
+      // way to hero bottom (= top of footer). Clearance = the 80px the
+      // static header consumes off the top of the viewport since the
+      // canvas is sized to full innerHeight but clipped by the hero.
       const wallThickness = 50;
-      const FOOTER_CLEARANCE = 72;
       const playRight = window.innerWidth;
-      const floorY = window.innerHeight - FOOTER_CLEARANCE;
+      const floorY = window.innerHeight - (isMobileRef.current ? 80 : 72);
       walls = [
         Matter.Bodies.rectangle(playRight / 2, floorY + wallThickness / 2, playRight * 2, wallThickness, { isStatic: true, label: 'wall' }),
         Matter.Bodies.rectangle(-wallThickness / 2, window.innerHeight / 2, wallThickness, window.innerHeight * 2, { isStatic: true, label: 'wall' }),
@@ -1257,11 +1262,10 @@ function App() {
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 50;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
-            // Mobile cyclone bumps radius +65% (was +30%) so the orbital
-            // cloud visibly extends down to the top of the footer instead
-            // of clustering tight to the phone. Final -10% pass keeps
-            // the cloud snug around the phone on desktop.
-            const mobileBump = _mobileAny ? 1.65 : 1;
+            // Mobile cyclone bump trimmed back (1.65 → 1.2) — the cloud
+            // was too broad on mobile. Snug-around-the-phone reads better
+            // than reaching all the way to the footer.
+            const mobileBump = _mobileAny ? 1.2 : 1;
             const baseR = Math.min(minR, maxR) * mobileBump * 0.9;
             // Smooth radius multiplier (driven by hand height / hand distance).
             // 0.045 settles in ~1s — silky but still responsive.
@@ -1568,10 +1572,11 @@ function App() {
           ctxFront.scale(dpr, dpr);
         }
 
-        // Update wall positions immediately (play area = full width, with footer clearance)
-        const FOOTER_CLEARANCE_R = 72;
+        // Update wall positions immediately. Mobile floor = top of footer
+        // (= hero bottom, 80px above viewport bottom in canvas coords);
+        // desktop = 72px clearance for the fixed footer.
         const playRightR = window.innerWidth;
-        const floorYR = window.innerHeight - FOOTER_CLEARANCE_R;
+        const floorYR = window.innerHeight - (isMobileRef.current ? 80 : 72);
         Matter.Body.setPosition(walls[0], { x: playRightR / 2, y: floorYR + wallThickness / 2 });
         Matter.Body.setPosition(walls[1], { x: -wallThickness / 2, y: window.innerHeight / 2 });
         Matter.Body.setPosition(walls[2], { x: playRightR + wallThickness / 2, y: window.innerHeight / 2 });
@@ -1581,7 +1586,7 @@ function App() {
         resizeTimeout = window.setTimeout(() => {
           if (displayModeRef.current === 'physics') {
             const orbs = Matter.Composite.allBodies(engine.world).filter(b => b.label === 'orb');
-            const floorY = window.innerHeight - 72;
+            const floorY = window.innerHeight - (isMobileRef.current ? 80 : 72);
 
             orbs.forEach(orb => {
               const radius = (orb as any).circleRadius || BASE_RADIUS;
@@ -2410,6 +2415,18 @@ function App() {
               cursor: showProfiles ? 'pointer' : 'default',
               userSelect: 'none',
               transition: 'left 0.4s cubic-bezier(0.22, 1, 0.36, 1), top 0.4s cubic-bezier(0.22, 1, 0.36, 1), bottom 0.4s cubic-bezier(0.22, 1, 0.36, 1), height 0.4s cubic-bezier(0.22, 1, 0.36, 1)',
+              // On mobile, use a box-shadow on the wrapper (which has the
+              // same rounded outline as the phone via borderRadius) instead
+              // of relying on filter:drop-shadow on the inner img. iOS
+              // Safari clips the filter strangely against the hero's
+              // overflow:hidden boundary; box-shadow renders reliably.
+              ...(isMobile
+                ? {
+                    borderRadius: 25,
+                    boxShadow:
+                      '0 18px 28px rgba(0, 0, 0, 0.10), 0 6px 10px rgba(0, 0, 0, 0.06)',
+                  }
+                : {}),
             }}
             title={showProfiles ? 'Click to switch dashboard' : undefined}
           >
@@ -2434,9 +2451,14 @@ function App() {
                     borderRadius: isMobile ? 25 : 50,
                     pointerEvents: 'none',
                     transformOrigin: '50% 88%',
-                    filter: slot === 0
-                      ? 'drop-shadow(0 24px 32px rgba(0, 0, 0, 0.098)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.042))'
-                      : 'drop-shadow(0 18px 26px rgba(0, 0, 0, 0.07))',
+                    // Mobile uses the wrapper's box-shadow instead (set
+                    // above) so the filter:drop-shadow is suppressed here
+                    // to avoid double-shadowing.
+                    filter: isMobile
+                      ? 'none'
+                      : (slot === 0
+                          ? 'drop-shadow(0 24px 32px rgba(0, 0, 0, 0.098)) drop-shadow(0 0 1px rgba(0, 0, 0, 0.042))'
+                          : 'drop-shadow(0 18px 26px rgba(0, 0, 0, 0.07))'),
                     transition:
                       'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.5s ease, z-index 0s linear 0.35s',
                     ...st,
