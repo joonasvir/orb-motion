@@ -1095,12 +1095,12 @@ function App() {
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         // Mobile: phone bottom inset 56px from viewport bottom so its
         // drop-shadow has room. Center = (innerHeight - 56) - 0.5 * H.
-        // Personal clamp 338-468 (57.2vh); long clamp 312-416 (52vh).
+        // Personal clamp 280-388 (47vh); long clamp 260-344 (42vh).
         // Must match the wrapper-style clamps in the JSX exactly,
         // otherwise the orbital cloud drifts off the device.
         const _mobilePhoneH = _pm
-          ? Math.max(338, Math.min(468, window.innerHeight * 0.572))
-          : Math.max(312, Math.min(416, window.innerHeight * 0.52));
+          ? Math.max(280, Math.min(388, window.innerHeight * 0.47))
+          : Math.max(260, Math.min(344, window.innerHeight * 0.42));
         const _mobilePhoneBottom = 56;
         const centerY = _mobileAny
           ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH * 0.5
@@ -1236,10 +1236,11 @@ function App() {
             const phoneW = phoneH * (402 / 834);
             const minR = Math.max(phoneW / 2, phoneH / 2.6) + 50;
             const maxR = Math.min(window.innerWidth, window.innerHeight) * 0.5;
-            // Any mobile case scales the phone larger than the cyclone math
-            // assumes, so bump the radius +30% to match. Final -10% pass
-            // keeps the cloud snug around the phone.
-            const mobileBump = _mobileAny ? 1.3 : 1;
+            // Mobile cyclone bumps radius +65% (was +30%) so the orbital
+            // cloud visibly extends down to the top of the footer instead
+            // of clustering tight to the phone. Final -10% pass keeps
+            // the cloud snug around the phone on desktop.
+            const mobileBump = _mobileAny ? 1.65 : 1;
             const baseR = Math.min(minR, maxR) * mobileBump * 0.9;
             // Smooth radius multiplier (driven by hand height / hand distance).
             // 0.045 settles in ~1s — silky but still responsive.
@@ -2262,13 +2263,16 @@ function App() {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
               // Mobile personal: phone anchored near the viewport bottom
-              // with a 56px inset for the drop-shadow. Height bumped +30%
-              // from clamp(260,44vh,360) → clamp(338,57.2vh,468).
+              // with a 56px inset for the drop-shadow. Height shrunk ~17%
+              // (was clamp(338,57.2vh,468)) so the phone TOP sits lower —
+              // giving the headline+subhead clear breathing room above
+              // and dropping the cyclone center so the orb cloud reaches
+              // further toward the footer.
               position: 'absolute',
               left: '50%',
               bottom: 56,
               transform: 'translate(-50%, 0%)',
-              height: 'clamp(338px, 57.2vh, 468px)',
+              height: 'clamp(280px, 47vh, 388px)',
               aspectRatio: '402 / 834',
             }
           : {
@@ -2337,18 +2341,20 @@ function App() {
               position: 'absolute',
               // ANY mobile case (short OR long, any layout) uses the
               // same centered-bottom-stack with a 56px bottom inset for
-              // the phone drop-shadow. Height bumped +30% on both
-              // variants from the previous shrink:
-              //   personal: clamp(260,44vh,360) → clamp(338,57.2vh,468)
-              //   long:     clamp(240,40vh,320) → clamp(312,52vh,416)
+              // the phone drop-shadow. Heights shrunk ~17% from the
+              // previous pass so the phone TOP sits lower (more room
+              // above for the headline+subhead) and the cyclone center
+              // drops, letting the orb cloud reach the footer top:
+              //   personal: clamp(338,57.2vh,468) → clamp(280,47vh,388)
+              //   long:     clamp(312,52vh,416)   → clamp(260,42vh,344)
               ...(isMobile
                 ? {
                     left: '50%',
                     bottom: 56,
                     transform: 'translate(-50%, 0%)',
                     height: personalMode
-                      ? 'clamp(338px, 57.2vh, 468px)'
-                      : 'clamp(312px, 52vh, 416px)',
+                      ? 'clamp(280px, 47vh, 388px)'
+                      : 'clamp(260px, 42vh, 344px)',
                   }
                 : {
                     // Phone position matches personal-mode geometry now
