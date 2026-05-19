@@ -1859,7 +1859,19 @@ function App() {
         ref={canvasRef}
         onClick={handleCanvasClick}
         onTouchStart={handleCanvasTouch}
-        style={{ display: 'block', cursor: 'pointer', touchAction: 'none', position: 'absolute', inset: 0, zIndex: 1 }}
+        style={{
+          display: 'block',
+          cursor: 'pointer',
+          // On mobile we MUST allow vertical pan or the user can't scroll
+          // the page (the canvas covers the whole hero). 'pan-y' lets the
+          // OS handle vertical scroll while still letting us listen for
+          // clicks on the canvas. On desktop keep 'none' so orb-drag
+          // gestures work without the page scrolling underneath.
+          touchAction: isMobile ? 'pan-y' : 'none',
+          position: 'absolute',
+          inset: 0,
+          zIndex: 1,
+        }}
       />
 
       {/* Front canvas: orbs in front of the phone (passthrough pointer events) */}

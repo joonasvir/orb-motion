@@ -20,12 +20,16 @@ export default function Header() {
         .orb-nav {
           /* Mobile default: sits at the TOP of the document flow (scrolls
              away with the page). Desktop bumps it to fixed-top via the
-             media query below. */
+             media query below.
+             IMPORTANT: position MUST be `relative` (not `static`) so
+             z-index actually takes effect — without it, the canvas in
+             the hero section below paints over the CTA's drop-shadow
+             when it bleeds past the header. */
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 24px 24px;
-          position: static;
+          position: relative;
           z-index: 200;
           /* Let the CTA's soft drop-shadow bleed past the header box
              instead of getting clipped against the hero below. */
@@ -112,15 +116,16 @@ export default function Header() {
         }
         .glass-btn-shadow {
           position: absolute;
-          width: calc(100% + 2em);
-          height: calc(100% + 2em);
-          top: calc(0% - 1em);
-          left: calc(0% - 1em);
-          filter: blur(clamp(2px, 0.125em, 12px));
+          /* Halved extension (2em → 1em) so the shadow footprint is
+             smaller — was bleeding too far below the CTA. */
+          width: calc(100% + 1em);
+          height: calc(100% + 1em);
+          top: calc(0% - 0.5em);
+          left: calc(0% - 0.5em);
+          /* Halved blur radius (max 12 → 6px) for the same reason. */
+          filter: blur(clamp(1px, 0.0625em, 6px));
           overflow: visible;
           pointer-events: none;
-          /* Sit above the hero so the shadow isn't visually covered by
-             the white #f0f0f0 stage when it bleeds below the header. */
           z-index: 1;
         }
         .glass-btn-shadow::after {
@@ -129,14 +134,16 @@ export default function Header() {
           z-index: 0;
           inset: 0;
           border-radius: 999vw;
-          /* Long soft drop-shadow under the CTA — ~40% lighter than
-             before (0.2 → 0.12, 0.1 → 0.06) so it doesn't read as heavy
-             on the off-white page. */
-          background: linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06));
-          width: calc(100% - 2em - 0.25em);
-          height: calc(100% - 2em - 0.25em);
-          top: calc(2em - 0.5em);
-          left: calc(2em - 0.875em);
+          /* Drop-shadow opacities halved AGAIN from the previous pass
+             (0.12 → 0.06, 0.06 → 0.03). */
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.03));
+          /* Inner box halved to match the halved shadow extent
+             (2em → 1em on the wrap). Keeps the gradient roughly
+             centered inside the new smaller shadow footprint. */
+          width: calc(100% - 1em - 0.125em);
+          height: calc(100% - 1em - 0.125em);
+          top: calc(1em - 0.25em);
+          left: calc(1em - 0.4375em);
           padding: 0.125em;
           box-sizing: border-box;
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
