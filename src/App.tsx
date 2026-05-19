@@ -169,6 +169,22 @@ function App() {
     mq.addEventListener('change', onChange);
     return () => mq.removeEventListener('change', onChange);
   }, []);
+
+  // Scroll-driven cyclone tilt (mobile-only behavior; the render loop
+  // ignores this target ref on desktop). We map scrollY → 0..1 progress
+  // against (scrollHeight - innerHeight) and store the normalized value.
+  // The render loop pulls it via scrollTiltTargetRef and eases the
+  // cyclone tilt toward it each frame.
+  useEffect(() => {
+    const onScroll = () => {
+      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const progress = Math.min(1, Math.max(0, window.scrollY / max));
+      scrollTiltTargetRef.current = progress;
+    };
+    onScroll(); // initialize
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
   // Control panel collapsed to a small pill — true by default on mobile.
   const [panelCollapsed, setPanelCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -222,6 +238,11 @@ function App() {
   // Smoothed via target so it eases instead of snapping.
   const handsTiltRef = useRef(0);
   const handsTiltTargetRef = useRef(0);
+  // MOBILE scroll-tilt — scroll progress (0 at top, 1 at bottom) drives an
+  // extra cyclone tilt offset so the orbital plane visibly leans as the
+  // user scrolls down. Smoothed via target ref so the cyclone eases.
+  const scrollTiltRef = useRef(0);
+  const scrollTiltTargetRef = useRef(0);
   // `currentShape` kept around because the runtime shapes-mode code path
   // still reads it; we just no longer expose a setter via the UI/keyboard.
   const [currentShape] = useState(0);
@@ -1267,11 +1288,20 @@ function App() {
             // the cyclone eases between angles instead of snapping.
             handsTiltRef.current +=
               (handsTiltTargetRef.current - handsTiltRef.current) * 0.07;
+            // Scroll-driven tilt (mobile only) — same easing pattern as
+            // handsTilt. Target = 0..1 scroll progress, mapped to a
+            // ±0.8 rad (~±46°) tilt offset so the orbital plane visibly
+            // leans as the user scrolls down the page.
+            scrollTiltRef.current +=
+              (scrollTiltTargetRef.current - scrollTiltRef.current) * 0.07;
             // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
             // (now ±0.45 rad ≈ ±26°, was ±10°) + two-hand angle (±0.7 rad ≈
-            // ±40°). Single hand still gets a felt nudge; two hands let you
-            // tilt the orbital plane far.
-            const TILT = 1.25 + mtY * 0.45 + handsTiltRef.current * 0.7;
+            // ±40°) + scroll-progress tilt (mobile only, 0 → 0.8 rad as
+            // the user scrolls from top to bottom).
+            const scrollTiltContribution = _mobile
+              ? (scrollTiltRef.current * 0.8 - 0.4)  // -0.4..+0.4 so the cyclone leans both ways
+              : 0;
+            const TILT = 1.25 + mtY * 0.45 + handsTiltRef.current * 0.7 + scrollTiltContribution;
             const YAW = mtX * 0.35;             // mouse-X rotates orbit around Y axis
             const cosT = Math.cos(TILT);
             const sinT = Math.sin(TILT);

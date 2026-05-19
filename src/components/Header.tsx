@@ -116,14 +116,14 @@ export default function Header() {
         }
         .glass-btn-shadow {
           position: absolute;
-          /* Halved extension (2em → 1em) so the shadow footprint is
-             smaller — was bleeding too far below the CTA. */
-          width: calc(100% + 1em);
-          height: calc(100% + 1em);
-          top: calc(0% - 0.5em);
-          left: calc(0% - 0.5em);
-          /* Halved blur radius (max 12 → 6px) for the same reason. */
-          filter: blur(clamp(1px, 0.0625em, 6px));
+          /* MOBILE shadow halved AGAIN — extension 1em → 0.5em, blur
+             max 6 → 3px. Desktop overrides further down restore the
+             larger footprint. */
+          width: calc(100% + 0.5em);
+          height: calc(100% + 0.5em);
+          top: calc(0% - 0.25em);
+          left: calc(0% - 0.25em);
+          filter: blur(clamp(0.5px, 0.0313em, 3px));
           overflow: visible;
           pointer-events: none;
           z-index: 1;
@@ -134,16 +134,14 @@ export default function Header() {
           z-index: 0;
           inset: 0;
           border-radius: 999vw;
-          /* Drop-shadow opacities halved AGAIN from the previous pass
-             (0.12 → 0.06, 0.06 → 0.03). */
-          background: linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.03));
+          /* MOBILE opacities halved AGAIN (0.06 → 0.03, 0.03 → 0.015). */
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0.03), rgba(0, 0, 0, 0.015));
           /* Inner box halved to match the halved shadow extent
-             (2em → 1em on the wrap). Keeps the gradient roughly
-             centered inside the new smaller shadow footprint. */
-          width: calc(100% - 1em - 0.125em);
-          height: calc(100% - 1em - 0.125em);
-          top: calc(1em - 0.25em);
-          left: calc(1em - 0.4375em);
+             (1em → 0.5em on the wrap). */
+          width: calc(100% - 0.5em - 0.0625em);
+          height: calc(100% - 0.5em - 0.0625em);
+          top: calc(0.5em - 0.125em);
+          left: calc(0.5em - 0.21875em);
           padding: 0.125em;
           box-sizing: border-box;
           -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -341,6 +339,24 @@ export default function Header() {
             gap: 7px;
           }
           /* (Apple icon still hidden on desktop too — by request.) */
+
+          /* Desktop restores the bigger drop-shadow (1em extension, 6px
+             blur, 0.06/0.03 gradient). Mobile keeps the halved values
+             defined further up. */
+          .glass-btn-shadow {
+            width: calc(100% + 1em);
+            height: calc(100% + 1em);
+            top: calc(0% - 0.5em);
+            left: calc(0% - 0.5em);
+            filter: blur(clamp(1px, 0.0625em, 6px));
+          }
+          .glass-btn-shadow::after {
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.06), rgba(0, 0, 0, 0.03));
+            width: calc(100% - 1em - 0.125em);
+            height: calc(100% - 1em - 0.125em);
+            top: calc(1em - 0.25em);
+            left: calc(1em - 0.4375em);
+          }
         }
       `}</style>
       <nav className="orb-nav">
