@@ -236,6 +236,9 @@ function App() {
   // Mobile swipe-on-phone gesture state — tracked across pointer events on
   // the phone wrapper so swipe-left/right cycles activePhone (= persona).
   const phoneSwipeRef = useRef<{ x: number; y: number; moved: number } | null>(null);
+  // The "committed" persona — what scene we revert to after a hover-preview
+  // ends. Click (avatar OR phone) updates this; hover only previews.
+  const defaultPersonaRef = useRef(0);
   // `currentShape` kept around because the runtime shapes-mode code path
   // still reads it; we just no longer expose a setter via the UI/keyboard.
   const [currentShape] = useState(0);
@@ -2110,17 +2113,24 @@ function App() {
                           const root = e.currentTarget.parentElement as HTMLElement | null;
                           updateSpring(root, i);
                           setHoveredFaceId(i);
-                          // Hovering an avatar PREVIEWS that persona's
-                          // scene. Phone crossfades via its slot-opacity
-                          // transitions, props via DraggableProps' layer
-                          // crossfade. onMouseLeave reverts to default.
+                          // Hover = PREVIEW. Phone crossfades via its
+                          // slot-opacity transitions, props via the
+                          // DraggableProps layer crossfade. onMouseLeave
+                          // reverts to the COMMITTED default below.
                           setActivePhone((i - 1) % 3);
                         }}
                         onMouseLeave={() => {
-                          // Revert to the default persona (persona 1 =
-                          // travel, activePhone slot 0) when the hover
-                          // ends. The hover is a preview, not a commit.
-                          setActivePhone(0);
+                          // Revert to whichever persona was last committed
+                          // (set by clicking the avatar OR the phone).
+                          setActivePhone(defaultPersonaRef.current);
+                        }}
+                        onClick={() => {
+                          // Click COMMITS the persona — the scene now
+                          // persists after the pointer leaves the avatar.
+                          // Works regardless of Fan-out being on.
+                          const next = (i - 1) % 3;
+                          defaultPersonaRef.current = next;
+                          setActivePhone(next);
                         }}
                         style={{
                           position: 'absolute',
@@ -2405,6 +2415,8 @@ function App() {
           if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.4) {
             setActivePhone(p => {
               const next = dx < 0 ? (p + 1) % 3 : (p - 1 + 3) % 3;
+              // Swipe is a committal gesture — update the default too.
+              defaultPersonaRef.current = next;
               return next;
             });
           }
@@ -2414,10 +2426,14 @@ function App() {
           <div
             className="blur-in-fixed"
             onClick={() => {
-              // On desktop, clicking still cycles when Fan-out is on.
-              // On mobile we route through swipe instead (handled by the
-              // pointer handlers below).
-              if (!isMobile && showProfiles) setActivePhone((p) => (p + 1) % 3);
+              // Click cycles the COMMITTED persona — Fan-out no longer
+              // gates this so users can preview the other profiles even
+              // before fanning the dashboards out. Mobile routes through
+              // swipe instead (handlers below).
+              if (isMobile) return;
+              const next = (activePhone + 1) % 3;
+              defaultPersonaRef.current = next;
+              setActivePhone(next);
             }}
             onPointerDown={onSwipeDown}
             onPointerMove={onSwipeMove}
