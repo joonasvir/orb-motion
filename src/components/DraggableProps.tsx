@@ -154,8 +154,9 @@ interface Props {
 }
 
 // Phone has a 400ms blur-in delay + 1.05s duration. Props start staggered
-// after the phone has mostly settled.
-const ENTER_BASE_DELAY = 950;
+// after the phone has mostly settled. Trimmed ~37% (was 950) so the props
+// land faster — the previous wait felt sluggish.
+const ENTER_BASE_DELAY = 600;
 
 // Travel persona — atlas (top-right), tickets+map (bottom-left hero), globe
 // (front, bottom-right). The default scene.
@@ -182,7 +183,7 @@ const TRAVEL_PROPS: PropDef[] = [
     z: 3,
     enterX: '24%',
     enterY: '-16%',
-    enterDelay: ENTER_BASE_DELAY + 180,
+    enterDelay: ENTER_BASE_DELAY + 120,
   },
   {
     id: 'travel-globe',
@@ -195,7 +196,7 @@ const TRAVEL_PROPS: PropDef[] = [
     front: true,
     enterX: '-20%',
     enterY: '-12%',
-    enterDelay: ENTER_BASE_DELAY + 360,
+    enterDelay: ENTER_BASE_DELAY + 240,
   },
 ];
 
@@ -225,7 +226,7 @@ const GAMES_PROPS: PropDef[] = [
     z: 3,
     enterX: '24%',
     enterY: '-16%',
-    enterDelay: ENTER_BASE_DELAY + 180,
+    enterDelay: ENTER_BASE_DELAY + 120,
   },
   {
     id: 'games-cursor',
@@ -238,7 +239,7 @@ const GAMES_PROPS: PropDef[] = [
     front: true,
     enterX: '-20%',
     enterY: '-12%',
-    enterDelay: ENTER_BASE_DELAY + 360,
+    enterDelay: ENTER_BASE_DELAY + 240,
   },
 ];
 
