@@ -170,21 +170,11 @@ function App() {
     return () => mq.removeEventListener('change', onChange);
   }, []);
 
-  // Scroll-driven cyclone tilt (mobile-only behavior; the render loop
-  // ignores this target ref on desktop). We map scrollY → 0..1 progress
-  // against (scrollHeight - innerHeight) and store the normalized value.
-  // The render loop pulls it via scrollTiltTargetRef and eases the
-  // cyclone tilt toward it each frame.
-  useEffect(() => {
-    const onScroll = () => {
-      const max = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
-      const progress = Math.min(1, Math.max(0, window.scrollY / max));
-      scrollTiltTargetRef.current = progress;
-    };
-    onScroll(); // initialize
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
+  // (Scroll-driven cyclone tilt — implemented INSIDE the render loop so
+  // the target updates every frame even during iOS Safari's momentum
+  // scroll, which heavily throttles scroll events. The scrollTiltRef
+  // pair is eased toward the live scroll position there. No standalone
+  // listener needed.)
   // Control panel collapsed to a small pill — true by default on mobile.
   const [panelCollapsed, setPanelCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -243,6 +233,9 @@ function App() {
   // user scrolls down. Smoothed via target ref so the cyclone eases.
   const scrollTiltRef = useRef(0);
   const scrollTiltTargetRef = useRef(0);
+  // Mobile swipe-on-phone gesture state — tracked across pointer events on
+  // the phone wrapper so swipe-left/right cycles activePhone (= persona).
+  const phoneSwipeRef = useRef<{ x: number; y: number; moved: number } | null>(null);
   // `currentShape` kept around because the runtime shapes-mode code path
   // still reads it; we just no longer expose a setter via the UI/keyboard.
   const [currentShape] = useState(0);
@@ -1292,18 +1285,28 @@ function App() {
             // the cyclone eases between angles instead of snapping.
             handsTiltRef.current +=
               (handsTiltTargetRef.current - handsTiltRef.current) * 0.07;
-            // Scroll-driven tilt (mobile only) — same easing pattern as
-            // handsTilt. Target = 0..1 scroll progress, mapped to a
-            // ±0.8 rad (~±46°) tilt offset so the orbital plane visibly
-            // leans as the user scrolls down the page.
+            // Scroll-driven tilt (mobile only).
+            // CRITICAL: read scrollY INSIDE the render loop every frame
+            // rather than via a scroll event listener — iOS Safari heavily
+            // throttles scroll events during momentum scroll (sometimes
+            // only firing at the END), which was causing the cyclone to
+            // jump between stale targets. Reading directly here keeps the
+            // target perfectly fresh, and the standard 0.07 easing
+            // smooths out the per-frame deltas.
+            if (_mobile) {
+              const scrollMax = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+              const scrollProgress = Math.min(1, Math.max(0, window.scrollY / scrollMax));
+              scrollTiltTargetRef.current = scrollProgress;
+            } else {
+              scrollTiltTargetRef.current = 0;
+            }
             scrollTiltRef.current +=
               (scrollTiltTargetRef.current - scrollTiltRef.current) * 0.07;
             // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
-            // (now ±0.45 rad ≈ ±26°, was ±10°) + two-hand angle (±0.7 rad ≈
-            // ±40°) + scroll-progress tilt (mobile only, 0 → 0.8 rad as
-            // the user scrolls from top to bottom).
+            // (±0.45 rad) + two-hand angle (±0.7 rad) + scroll-progress
+            // tilt (mobile only, ±0.4 rad over the scroll range).
             const scrollTiltContribution = _mobile
-              ? (scrollTiltRef.current * 0.8 - 0.4)  // -0.4..+0.4 so the cyclone leans both ways
+              ? (scrollTiltRef.current * 0.8 - 0.4)
               : 0;
             const TILT = 1.25 + mtY * 0.45 + handsTiltRef.current * 0.7 + scrollTiltContribution;
             const YAW = mtX * 0.35;             // mouse-X rotates orbit around Y axis
@@ -2100,17 +2103,17 @@ function App() {
                           const root = e.currentTarget.parentElement as HTMLElement | null;
                           updateSpring(root, i);
                           setHoveredFaceId(i);
-                          // Hovering an avatar swaps the phone screen +
-                          // surrounding props to that persona's scene. The
-                          // phone carousel crossfades via its slot-opacity
-                          // transitions; DraggableProps crossfades via the
-                          // dp-layer rule.
+                          // Hovering an avatar PREVIEWS that persona's
+                          // scene. Phone crossfades via its slot-opacity
+                          // transitions, props via DraggableProps' layer
+                          // crossfade. onMouseLeave reverts to default.
                           setActivePhone((i - 1) % 3);
                         }}
-                        onClick={() => {
-                          // Persist the persona on click — clicking is the
-                          // committal version of hover.
-                          setActivePhone((i - 1) % 3);
+                        onMouseLeave={() => {
+                          // Revert to the default persona (persona 1 =
+                          // travel, activePhone slot 0) when the hover
+                          // ends. The hover is a preview, not a commit.
+                          setActivePhone(0);
                         }}
                         style={{
                           position: 'absolute',
@@ -2365,12 +2368,54 @@ function App() {
           return { transform: 'translateX(-11%) rotate(-4deg) scale(0.95)', zIndex: 1, opacity: 1 };
         };
 
+        // Mobile swipe-to-cycle: horizontal pointer gesture on the phone
+        // advances/retreats the active persona. Swipe right = previous
+        // persona, swipe left = next persona — matches the "carousel"
+        // mental model. The facepile ordering already keys off
+        // activePhone, so changing the persona here auto-reorders the
+        // facepile too.
+        const swipeRef: React.MutableRefObject<{
+          x: number;
+          y: number;
+          moved: number;
+        } | null> = phoneSwipeRef;
+        const onSwipeDown = (e: React.PointerEvent<HTMLDivElement>) => {
+          if (!isMobile) return;
+          swipeRef.current = { x: e.clientX, y: e.clientY, moved: 0 };
+        };
+        const onSwipeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+          const s = swipeRef.current;
+          if (!s) return;
+          s.moved = Math.max(s.moved, Math.hypot(e.clientX - s.x, e.clientY - s.y));
+        };
+        const onSwipeUp = (e: React.PointerEvent<HTMLDivElement>) => {
+          const s = swipeRef.current;
+          swipeRef.current = null;
+          if (!s) return;
+          const dx = e.clientX - s.x;
+          const dy = e.clientY - s.y;
+          // Treat as horizontal swipe if dx is decent and dx >> dy.
+          if (Math.abs(dx) > 36 && Math.abs(dx) > Math.abs(dy) * 1.4) {
+            setActivePhone(p => {
+              const next = dx < 0 ? (p + 1) % 3 : (p - 1 + 3) % 3;
+              return next;
+            });
+          }
+        };
+
         return (
           <div
             className="blur-in-fixed"
             onClick={() => {
-              if (showProfiles) setActivePhone((p) => (p + 1) % 3);
+              // On desktop, clicking still cycles when Fan-out is on.
+              // On mobile we route through swipe instead (handled by the
+              // pointer handlers below).
+              if (!isMobile && showProfiles) setActivePhone((p) => (p + 1) % 3);
             }}
+            onPointerDown={onSwipeDown}
+            onPointerMove={onSwipeMove}
+            onPointerUp={onSwipeUp}
+            onPointerCancel={() => { swipeRef.current = null; }}
             style={{
               animationDelay: '400ms',
               position: 'absolute',
@@ -3162,7 +3207,7 @@ function App() {
 
             {/* Inline Apple-style switch rows for everything binary. */}
             <SwitchRow label="Orbs"      on={showOrbs}          onChange={setShowOrbs} />
-            <SwitchRow label="Profiles"  on={showProfiles}      onChange={setShowProfiles} />
+            <SwitchRow label="Fan out"   on={showProfiles}      onChange={setShowProfiles} />
             <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
             <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
             {/* ("Make it personal" toggle removed — replaced by the
