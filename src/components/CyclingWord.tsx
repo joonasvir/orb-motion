@@ -64,12 +64,13 @@ export default function CyclingWord({
     return () => window.clearInterval(t);
   }, [paused, intervalMs, words.length]);
 
-  // Drop the previous word from the DOM after its fade-out finishes
-  // (~220ms cw-out + a small safety margin). Without this it would linger
-  // forever after the swap completes.
+  // Drop the previous word from the DOM after its per-letter cascade
+  // finishes. Longest word in WORD_ITEMS is "health-conscious" (16 chars)
+  // → 15 staggers × 35ms + 360ms animation ≈ 885ms. 950ms covers it with
+  // a small safety margin; well under the 2000ms cycle interval.
   useEffect(() => {
     if (prevIdx === null) return;
-    const t = window.setTimeout(() => setPrevIdx(null), 320);
+    const t = window.setTimeout(() => setPrevIdx(null), 950);
     return () => window.clearTimeout(t);
   }, [prevIdx, idx]);
 
@@ -97,12 +98,21 @@ export default function CyclingWord({
   return (
     <>
       <style>{`
-        /* OUT: whole previous word fades + blurs + lifts together (no
-           per-letter stagger — matches the reference where the old word
-           dissolves as one unit). */
-        @keyframes cw-out {
-          0%   { opacity: 1; transform: translateY(0);       filter: blur(0); }
-          100% { opacity: 0; transform: translateY(-0.18em); filter: blur(3px); }
+        /* OUT: each letter rises UPWARD and fades/blurs out — same per-
+           letter cascade pattern as IN but going up instead of down, so
+           the swap reads as old letters flying off the top while new
+           letters fly in from below. Stagger matches IN exactly. */
+        @keyframes cw-letter-out {
+          0% {
+            opacity: 1;
+            transform: translateY(0);
+            filter: blur(0);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-0.35em);
+            filter: blur(4px);
+          }
         }
         /* IN: each letter rises from below, blurred + transparent, resolving
            to crisp. The animation-delay (set inline per letter) creates the
@@ -158,10 +168,18 @@ export default function CyclingWord({
           white-space: nowrap;
           pointer-events: none;
         }
-        /* Outgoing text — lifts + blurs + fades as one unit. */
+        /* Outgoing text container — no animation on the container itself
+           now; per-letter spans handle the upward cascade. */
         .cw-prev-text {
+          display: inline-flex;
+          align-items: baseline;
+          white-space: nowrap;
+        }
+        /* Each outgoing letter — same stagger pattern as .cw-letter but
+           flying UPWARD. Per-letter animation-delay set inline. */
+        .cw-letter-out {
           display: inline-block;
-          animation: cw-out 0.22s cubic-bezier(0.4, 0, 0.2, 1) both;
+          animation: cw-letter-out 0.36s cubic-bezier(0.22, 1, 0.36, 1) both;
           will-change: transform, opacity, filter;
         }
         /* Outgoing icon — JUST fades, no translate/blur. Mirrors the
@@ -209,9 +227,9 @@ export default function CyclingWord({
         /* (Underline removed — the cycling word stands on its own without
             a hover treatment now.) */
         @media (prefers-reduced-motion: reduce) {
-          .cw-prev-text   { animation: none; opacity: 0; }
           .cw-prev-prefix { animation: none; opacity: 0; }
-          .cw-letter      { animation: none; }
+          .cw-letter,
+          .cw-letter-out,
           .cw-prefix      { animation: none; }
         }
       `}</style>
@@ -227,16 +245,28 @@ export default function CyclingWord({
           {renderPrefix?.(current)}
           {current}
         </span>
-        {/* Outgoing word — fades + blurs + lifts as one unit. Sits absolutely
-            on top of the incoming word so the two overlap briefly (matches
-            the reference where the new word starts cascading in before the
-            old one is fully gone). */}
+        {/* Outgoing word — per-letter UPWARD cascade. Mirrors the incoming
+            DOWN cascade so the swap reads as a clean letter-by-letter
+            handoff with no whole-word "drop" glitch. Stagger matches the
+            incoming animation exactly. */}
         {prevIdx !== null && prevIdx !== idx && (
           <span key={`prev-${prevIdx}`} className="cw-prev" aria-hidden="true">
             {renderPrefix && (
               <span className="cw-prev-prefix">{renderPrefix(words[prevIdx])}</span>
             )}
-            <span className="cw-prev-text">{words[prevIdx]}</span>
+            <span className="cw-prev-text">
+              {words[prevIdx].split('').map((ch, i) => (
+                <span
+                  key={i}
+                  className="cw-letter-out"
+                  style={{
+                    animationDelay: `${(i + (renderPrefix ? 1 : 0)) * LETTER_STAGGER_MS}ms`,
+                  }}
+                >
+                  {ch === ' ' ? ' ' : ch}
+                </span>
+              ))}
+            </span>
           </span>
         )}
         {/* Incoming word — split into per-letter spans so each can cascade

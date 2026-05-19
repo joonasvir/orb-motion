@@ -2036,7 +2036,14 @@ function App() {
             {(() => {
               const ids = [1, 2, 3, 4];
               const selectedId = (activePhone % 4) + 1;
-              const ordered = [selectedId, ...ids.filter((id) => id !== selectedId)];
+              // Facepile order: on DESKTOP we keep the natural [1,2,3,4]
+              // order so hover doesn't reshuffle the row (the wobble while
+              // avatars moved under the cursor was distracting). On MOBILE
+              // we still lift the selected id to the front so the swipe
+              // gesture has a visible "active" position.
+              const ordered = isMobile
+                ? [selectedId, ...ids.filter((id) => id !== selectedId)]
+                : ids;
               const LIFT = -4;
               const FALLOFF = 0.45;
               const SCALE = 1.05;
