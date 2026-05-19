@@ -21,7 +21,7 @@ export default function Header() {
           /* Mobile default: sits at the TOP of the document flow (scrolls
              away with the page). Desktop bumps it to fixed-top via the
              media query below.
-             IMPORTANT: position MUST be `relative` (not `static`) so
+             IMPORTANT: position must be "relative" (not "static") so
              z-index actually takes effect — without it, the canvas in
              the hero section below paints over the CTA's drop-shadow
              when it bleeds past the header. */
