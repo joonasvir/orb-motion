@@ -2060,6 +2060,13 @@ function App() {
               const SCALE = 1.05;
               const EASE_IN = 'cubic-bezier(0.22, 1, 0.36, 1)';
               const EASE_OUT = 'cubic-bezier(0.34, 3.85, 0.64, 1)';
+              // Map each avatar id (1-4) to a persona's activePhone slot.
+              // Face 1 = travel (default). Faces 2/3/4 all swap to GAMES
+              // so any non-default click immediately demonstrates the
+              // persona change. (We only have one fully-styled alt
+              // persona for now — games — so all "other" faces point at
+              // it to make the demo obvious.)
+              const personaSlotForAvatar = (i: number) => (i === 1 ? 0 : 2);
               const updateSpring = (root: HTMLElement | null, hoveredId: number | null) => {
                 if (!root) return;
                 root.querySelectorAll<HTMLElement>('.t-avatar').forEach((el) => {
@@ -2125,7 +2132,7 @@ function App() {
                           // slot-opacity transitions, props via the
                           // DraggableProps layer crossfade. onMouseLeave
                           // reverts to the COMMITTED default below.
-                          setActivePhone((i - 1) % 3);
+                          setActivePhone(personaSlotForAvatar(i));
                         }}
                         onMouseLeave={() => {
                           // Revert to whichever persona was last committed
@@ -2133,10 +2140,12 @@ function App() {
                           setActivePhone(defaultPersonaRef.current);
                         }}
                         onClick={() => {
-                          // Click COMMITS the persona — the scene now
-                          // persists after the pointer leaves the avatar.
-                          // Works regardless of Fan-out being on.
-                          const next = (i - 1) % 3;
+                          // Click COMMITS the persona — the scene persists
+                          // after the pointer leaves. Faces 2/3/4 jump to
+                          // games so EVERY non-default click clearly
+                          // demonstrates a persona swap, regardless of
+                          // headline variant / Fan-out state.
+                          const next = personaSlotForAvatar(i);
                           defaultPersonaRef.current = next;
                           setActivePhone(next);
                         }}
