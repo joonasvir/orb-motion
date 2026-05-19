@@ -2271,7 +2271,25 @@ function App() {
             animationDelay: '300ms',
           }}>
             {personalMode ? (
-              <PersonalSubhead showIcon={showCyclingIcon} />
+              <PersonalSubhead
+                showIcon={showCyclingIcon}
+                // Same mapping as the headline (long-mode) facepile so
+                // hovering / clicking avatars in EITHER variant produces
+                // the same persona-swap behavior. Face 1 = travel default;
+                // faces 2/3/4 = games (the showcase alt).
+                onAvatarHover={(id) => {
+                  if (id == null) {
+                    setActivePhone(defaultPersonaRef.current);
+                  } else {
+                    setActivePhone(id === 1 ? 0 : 2);
+                  }
+                }}
+                onAvatarClick={(id) => {
+                  const next = id === 1 ? 0 : 2;
+                  defaultPersonaRef.current = next;
+                  setActivePhone(next);
+                }}
+              />
             ) : (
               'Describe what you want. Customize the vibe. Share instantly.'
             )}

@@ -17,6 +17,13 @@ interface Props {
   /** When true, render the inline 3D icon in front of each cycling word.
    *  Default false so the subhead reads as clean inline type. */
   showIcon?: boolean;
+  /** Hover preview — fires with the avatar id (1-4) on enter, null on leave.
+   *  Used to switch persona scene to a preview when the user hovers an
+   *  avatar in the facepile. */
+  onAvatarHover?: (id: number | null) => void;
+  /** Click commit — fires with the avatar id (1-4) when an avatar is
+   *  clicked. The committed persona persists after pointer leaves. */
+  onAvatarClick?: (id: number) => void;
 }
 
 // Every word here must read as a clean adjective in:
@@ -90,15 +97,27 @@ function updateSpring(root: HTMLElement | null, hoveredId: number | null) {
   });
 }
 
-export default function PersonalSubhead({ onHoverChange, showIcon = false }: Props) {
+export default function PersonalSubhead({
+  onHoverChange,
+  showIcon = false,
+  onAvatarHover,
+  onAvatarClick,
+}: Props) {
   const handleLeave = useCallback((e: React.PointerEvent<HTMLElement>) => {
     updateSpring(e.currentTarget, null);
-  }, []);
+    // Hover-leave on the facepile container reverts the persona preview.
+    onAvatarHover?.(null);
+  }, [onAvatarHover]);
   const handleAvatarEnter = useCallback((e: React.PointerEvent<HTMLElement>) => {
     const root = e.currentTarget.parentElement as HTMLElement | null;
     const id = Number(e.currentTarget.dataset.avatarId);
     updateSpring(root, Number.isFinite(id) ? id : null);
-  }, []);
+    if (Number.isFinite(id)) onAvatarHover?.(id);
+  }, [onAvatarHover]);
+  const handleAvatarClick = useCallback((e: React.MouseEvent<HTMLElement>) => {
+    const id = Number(e.currentTarget.dataset.avatarId);
+    if (Number.isFinite(id)) onAvatarClick?.(id);
+  }, [onAvatarClick]);
 
   return (
     <>
@@ -200,8 +219,9 @@ export default function PersonalSubhead({ onHoverChange, showIcon = false }: Pro
               key={i}
               data-avatar-id={i}
               className="ps-avatar"
-              style={{ zIndex: 10 - i }}
+              style={{ zIndex: 10 - i, cursor: 'pointer' }}
               onPointerEnter={handleAvatarEnter}
+              onClick={handleAvatarClick}
             >
               <img src={`/facepile/avatar-${i}.png`} alt="" />
             </span>
