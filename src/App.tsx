@@ -1095,12 +1095,12 @@ function App() {
           : Math.max(420, Math.min(720, window.innerHeight * 0.72));
         // Mobile: phone bottom inset 56px from viewport bottom so its
         // drop-shadow has room. Center = (innerHeight - 56) - 0.5 * H.
-        // Personal clamp 260-360 (44vh); long clamp 240-320 (40vh).
+        // Personal clamp 338-468 (57.2vh); long clamp 312-416 (52vh).
         // Must match the wrapper-style clamps in the JSX exactly,
         // otherwise the orbital cloud drifts off the device.
         const _mobilePhoneH = _pm
-          ? Math.max(260, Math.min(360, window.innerHeight * 0.44))
-          : Math.max(240, Math.min(320, window.innerHeight * 0.40));
+          ? Math.max(338, Math.min(468, window.innerHeight * 0.572))
+          : Math.max(312, Math.min(416, window.innerHeight * 0.52));
         const _mobilePhoneBottom = 56;
         const centerY = _mobileAny
           ? window.innerHeight - _mobilePhoneBottom - _mobilePhoneH * 0.5
@@ -1836,6 +1836,13 @@ function App() {
         }
       `}</style>
 
+      {/* Header — rendered as a normal block at the top of the document so
+          it sits ABOVE the hero on mobile (and gets pinned via position:
+          fixed on desktop via the CSS in the component). Pulling it OUT of
+          the hero section makes mobile scrolling behave like a normal page
+          instead of a weird overflow-clipped subsection. */}
+      {!minimalUI && <Header />}
+
       {/* Hero section (100vh) — contains the canvases, phone, headline, panels */}
       <section style={{
         position: 'relative',
@@ -1860,9 +1867,6 @@ function App() {
         ref={canvasFrontRef}
         style={{ display: 'block', position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}
       />
-
-      {/* Header (fixed top) */}
-      {!minimalUI && <Header />}
 
       {/* Headline + subhead (positioned per layout). In personalMode the
           text block stays in the left layout position but is LEFT-aligned
@@ -2218,14 +2222,13 @@ function App() {
         const wrapperStyle: React.CSSProperties = isMobile
           ? {
               // Mobile personal: phone anchored near the viewport bottom
-              // with a 56px inset for the drop-shadow. Height shrunk
-              // (was 364-59.8vh-494) so the phone leaves room for the
-              // copy above without overlapping the subhead.
+              // with a 56px inset for the drop-shadow. Height bumped +30%
+              // from clamp(260,44vh,360) → clamp(338,57.2vh,468).
               position: 'absolute',
               left: '50%',
               bottom: 56,
               transform: 'translate(-50%, 0%)',
-              height: 'clamp(260px, 44vh, 360px)',
+              height: 'clamp(338px, 57.2vh, 468px)',
               aspectRatio: '402 / 834',
             }
           : {
@@ -2283,19 +2286,19 @@ function App() {
               animationDelay: '400ms',
               position: 'absolute',
               // ANY mobile case (short OR long, any layout) uses the
-              // same centered-bottom-stack: copy stacks at the top of
-              // the viewport, phone sits below it, centered, with 56px
-              // bottom inset so the phone drop-shadow has room. Phone
-              // height shrunk on both variants so there's adequate
-              // padding between the headlines and the phone top.
+              // same centered-bottom-stack with a 56px bottom inset for
+              // the phone drop-shadow. Height bumped +30% on both
+              // variants from the previous shrink:
+              //   personal: clamp(260,44vh,360) → clamp(338,57.2vh,468)
+              //   long:     clamp(240,40vh,320) → clamp(312,52vh,416)
               ...(isMobile
                 ? {
                     left: '50%',
                     bottom: 56,
                     transform: 'translate(-50%, 0%)',
                     height: personalMode
-                      ? 'clamp(260px, 44vh, 360px)'
-                      : 'clamp(240px, 40vh, 320px)',
+                      ? 'clamp(338px, 57.2vh, 468px)'
+                      : 'clamp(312px, 52vh, 416px)',
                   }
                 : {
                     // Phone position matches personal-mode geometry now
@@ -2339,7 +2342,10 @@ function App() {
                     width: '100%',
                     height: '100%',
                     objectFit: 'contain',
-                    borderRadius: 50,
+                    // Mobile gets HALF the corner radius (50 → 25) so the
+                    // rounded clip doesn't eat into the dashboard PNG
+                    // content at the smaller scale.
+                    borderRadius: isMobile ? 25 : 50,
                     pointerEvents: 'none',
                     transformOrigin: '50% 88%',
                     filter: slot === 0
