@@ -23,7 +23,7 @@ const socialIcon = (href: string, label: string, d: string) => (
   </a>
 );
 
-export default function Footer() {
+export default function Footer({ leftSlot }: { leftSlot?: React.ReactNode }) {
   const year = new Date().getFullYear();
   return (
     <>
@@ -100,10 +100,11 @@ export default function Footer() {
         }
       `}</style>
       <footer className="orb-footer blur-in" style={{ animationDelay: '700ms' }}>
-        {/* Left slot is reserved for the joystick (rendered outside the Footer
-            so it can overflow the top edge). Keep an empty spacer here for
-            flex balance. */}
-        <div style={{ width: 64, flexShrink: 0 }} aria-hidden="true" />
+        {/* Left slot. On desktop the joystick is rendered fixed-position
+            outside the Footer (so it can overflow the top edge), so this
+            is just an empty spacer for flex balance. On mobile the
+            joystick is passed in as `leftSlot` and rendered inline here. */}
+        {leftSlot ?? <div style={{ width: 64, flexShrink: 0 }} aria-hidden="true" />}
 
         <div className="orb-footer-links">
           <a href="https://wabi.ai/news" target="_blank" rel="noopener noreferrer">News</a>

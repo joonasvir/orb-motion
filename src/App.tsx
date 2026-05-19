@@ -1878,8 +1878,10 @@ function App() {
           ...(personalMode
             ? (isMobile
               ? {
-                  // Mobile: stack copy at the top, centered.
-                  top: 'clamp(96px, 14vh, 140px)',
+                  // Mobile: stack copy at the top, centered. Pulled
+                  // substantially higher (was clamp 96,14vh,140) so the
+                  // copy isn't crowding the phone below it.
+                  top: 'clamp(20px, 3.5vh, 48px)',
                   left: '50%',
                   transform: 'translateX(-50%)',
                   width: 'min(420px, 88vw)',
@@ -1920,9 +1922,8 @@ function App() {
             : isMobile
             ? {
                 // Mobile non-personal: same centered-top-stack as mobile
-                // personal so the two variants render identically on
-                // narrow screens.
-                top: 'clamp(96px, 14vh, 140px)',
+                // personal so the two variants render identically.
+                top: 'clamp(20px, 3.5vh, 48px)',
                 left: '50%',
                 transform: 'translateX(-50%)',
                 width: 'min(420px, 88vw)',
@@ -1975,7 +1976,9 @@ function App() {
             letterSpacing: '-0.01em',
             fontWeight: 400,
             margin: 0,
-            marginBottom: 'clamp(20px, 1.4vh, 30px)',
+            // Headline → subhead gap trimmed ~25% (was clamp 20,1.4vh,30)
+            // so the two read as a closer pair.
+            marginBottom: 'clamp(15px, 1.05vh, 22px)',
             fontFeatureSettings: '"dlig" 1',
             animationDelay: '120ms',
           }}>
@@ -2168,7 +2171,9 @@ function App() {
             marginRight: personalMode
               ? 0
               : (isMobile || layout === 'center' || layout === 'right' ? 'auto' : 0),
-            marginTop: personalMode ? 'clamp(36px, 4vh, 60px)' : 0,
+            // Subhead distance from the headline. Personal mode used a
+            // larger gap (36-60); trimmed ~30% to clamp(25,2.8vh,42).
+            marginTop: personalMode ? 'clamp(25px, 2.8vh, 42px)' : 0,
             // One step lighter in personalMode so the bigger size doesn't
             // read as overweight (400 → 300).
             fontWeight: personalMode ? 300 : 400,
@@ -3564,11 +3569,13 @@ function App() {
         </div>
       )}
 
-      {/* Joystick — toggles between physics (drop) and cyclone (formation) */}
-      {!showcaseMode && (
+      {/* Joystick — toggles between physics (drop) and cyclone (formation).
+          Desktop: rendered HERE as a fixed-position element bottom-left.
+          Mobile: passed as Footer's leftSlot below so it flows inline with
+          the (non-sticky) footer instead of floating at the page edge. */}
+      {!showcaseMode && !isMobile && (
         <Joystick
           sound={joystickSound}
-          // Lever visual progression: state 0 neutral, 1 mid-pull, 2 fully pulled.
           pulled={leverState > 0}
           extraPull={leverState === 2}
           onToggle={toggleLever}
@@ -3692,7 +3699,21 @@ function App() {
       `}</style>
 
       {/* Footer (fixed bottom) */}
-      {!minimalUI && <Footer />}
+      {!minimalUI && (
+        <Footer
+          leftSlot={
+            isMobile && !showcaseMode ? (
+              <Joystick
+                sound={joystickSound}
+                pulled={leverState > 0}
+                extraPull={leverState === 2}
+                onToggle={toggleLever}
+                inline
+              />
+            ) : undefined
+          }
+        />
+      )}
     </div>
   );
 }

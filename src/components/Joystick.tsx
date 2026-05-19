@@ -8,6 +8,10 @@ interface JoystickProps {
   extraPull?: boolean;
   onToggle: () => void;
   sound?: JoystickSound;
+  /** When true, the joystick is rendered INLINE (position: static, no
+   *  scale-up-on-hover trickery) instead of fixed to the bottom-left
+   *  corner. Used inside the mobile Footer's left slot. */
+  inline?: boolean;
 }
 
 /* ---------------------------------------------------------------------------
@@ -174,7 +178,7 @@ const SOUND_MAP: Record<JoystickSound, (reverse: boolean) => void> = {
   whoosh: playWhooshSound,
 };
 
-export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' }: JoystickProps) {
+export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever', inline = false }: JoystickProps) {
   const lastRef = useRef(pulled);
   const soundRef = useRef(sound);
   soundRef.current = sound;
@@ -186,6 +190,20 @@ export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' 
     onToggle();
   }, [onToggle]);
 
+  const inlineStyle: React.CSSProperties = inline
+    ? {
+        position: 'static',
+        width: 44,
+        height: 44,
+      }
+    : {
+        position: 'fixed',
+        bottom: 6,
+        left: 14,
+        width: 56,
+        height: 56,
+      };
+
   return (
     <button
       type="button"
@@ -193,11 +211,7 @@ export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' 
       title={pulled ? 'Restore orbital formation' : 'Drop orbs'}
       onClick={handle}
       style={{
-        position: 'fixed',
-        bottom: 6,
-        left: 14,
-        width: 56,
-        height: 56,
+        ...inlineStyle,
         padding: 0,
         border: 0,
         background: 'transparent',
@@ -208,13 +222,18 @@ export default function Joystick({ pulled, extraPull, onToggle, sound = 'lever' 
         transformOrigin: 'left bottom',
         transition: 'transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), filter 0.3s ease',
         filter: 'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.126))',
+        // Inline mode: small left margin so the joystick sits cleanly
+        // beside the footer divider dot or first link.
+        marginLeft: inline ? 0 : undefined,
       }}
       onMouseEnter={(e) => {
+        if (inline) return;
         // Grow and tuck a touch closer to the corner via the transform-origin
         e.currentTarget.style.transform = 'translate(-4px, 4px) scale(1.55)';
         e.currentTarget.style.filter = 'drop-shadow(0 14px 22px rgba(0, 0, 0, 0.182))';
       }}
       onMouseLeave={(e) => {
+        if (inline) return;
         e.currentTarget.style.transform = 'translate(0, 0) scale(1)';
         e.currentTarget.style.filter = 'drop-shadow(0 8px 14px rgba(0, 0, 0, 0.126))';
       }}

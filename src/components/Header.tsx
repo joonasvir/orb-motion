@@ -27,6 +27,9 @@ export default function Header() {
           padding: 24px 24px;
           position: static;
           z-index: 200;
+          /* Let the CTA's soft drop-shadow bleed past the header box
+             instead of getting clipped against the hero below. */
+          overflow: visible;
         }
         @media (min-width: 768px) {
           .orb-nav {
@@ -116,6 +119,9 @@ export default function Header() {
           filter: blur(clamp(2px, 0.125em, 12px));
           overflow: visible;
           pointer-events: none;
+          /* Sit above the hero so the shadow isn't visually covered by
+             the white #f0f0f0 stage when it bleeds below the header. */
+          z-index: 1;
         }
         .glass-btn-shadow::after {
           content: '';
@@ -123,7 +129,10 @@ export default function Header() {
           z-index: 0;
           inset: 0;
           border-radius: 999vw;
-          background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.1));
+          /* Long soft drop-shadow under the CTA — ~40% lighter than
+             before (0.2 → 0.12, 0.1 → 0.06) so it doesn't read as heavy
+             on the off-white page. */
+          background: linear-gradient(180deg, rgba(0, 0, 0, 0.12), rgba(0, 0, 0, 0.06));
           width: calc(100% - 2em - 0.25em);
           height: calc(100% - 2em - 0.25em);
           top: calc(2em - 0.5em);
