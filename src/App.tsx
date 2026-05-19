@@ -223,7 +223,13 @@ function App() {
   // User-controlled cyclone tightness slider (panel UI). 0.5 = tight,
   // 1.8 = broad. Composes with the gesture-driven cycloneRadiusMul in
   // the render loop. Ref-synced so the rAF loop reads cheaply.
-  const [cycloneScale, setCycloneScale] = useState(1.0);
+  // Mobile defaults to a tighter cyclone (0.85) so the cloud doesn't
+  // sprawl on narrow screens. Desktop keeps 1.0.
+  const [cycloneScale, setCycloneScale] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+      ? 0.85
+      : 1.0
+  );
   const cycloneScaleRef = useRef(1.0);
   useEffect(() => { cycloneScaleRef.current = cycloneScale; }, [cycloneScale]);
   // Tractor-beam point in viewport-pixel coords (decays automatically).
@@ -254,7 +260,13 @@ function App() {
   // hand-control webcam stay visible. Cyclone re-centers to viewport middle.
   const [focusMode, setFocusMode] = useState(false);
   const [showcaseOrbCount] = useState(60);
-  const [orbSize, setOrbSize] = useState(0.8);
+  // Mobile defaults to slightly smaller orbs (0.7) so they read better
+  // around the smaller-scale phone. Desktop stays at 0.8.
+  const [orbSize, setOrbSize] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
+      ? 0.7
+      : 0.8
+  );
 
   const SHAPES = ['triangle', 'circle', 'square', 'hexagon', 'heart', 'diamond', 'star', 'spiral', 'grid', 'wave'];
 
