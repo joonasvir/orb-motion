@@ -2288,7 +2288,9 @@ function App() {
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}
       {!minimalUI && (() => {
-        const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-3.png'];
+        // Index → dashboard. Index 2 is the GAMES persona (matches avatar 3
+        // in the facepile and the GAMES_PROPS set in DraggableProps).
+        const PHONE_SOURCES = ['/dash-1.png', '/dash-2.png', '/dash-games.png'];
         // Slot 0 = front, 1 = back-right, 2 = back-left
         const slotForIdentity = (id: number) => (id - activePhone + 3) % 3;
         const slotTransform = (slot: number): React.CSSProperties => {
