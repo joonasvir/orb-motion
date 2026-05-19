@@ -3079,18 +3079,23 @@ function App() {
                 still wired up internally so orbs feel correct, just no UI
                 to adjust it.) */}
 
-            {/* Orb size */}
-            <div style={sectionLabel}>
-              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                <span>Orb size</span>
-                <span style={{ opacity: 0.7 }}>{orbSize.toFixed(1)}x</span>
-              </span>
-            </div>
-            <input
-              type="range" min="0.3" max="2.0" step="0.1"
-              value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
-              style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
-            />
+            {/* Orb size — only meaningful when orbs are visible, so the
+                whole row hides itself when Orbs is toggled off. */}
+            {showOrbs && (
+              <>
+                <div style={sectionLabel}>
+                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Orb size</span>
+                    <span style={{ opacity: 0.7 }}>{orbSize.toFixed(1)}x</span>
+                  </span>
+                </div>
+                <input
+                  type="range" min="0.3" max="2.0" step="0.1"
+                  value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
+                  style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
+                />
+              </>
+            )}
 
             {/* Reset — same action as the clap gesture, just a button. Press
                 R for the keyboard shortcut. */}
