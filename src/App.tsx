@@ -245,6 +245,11 @@ function App() {
   // user scrolls down. Smoothed via target ref so the cyclone eases.
   const scrollTiltRef = useRef(0);
   const scrollTiltTargetRef = useRef(0);
+  // Velocity term for the scroll-tilt spring (see render loop). Storing
+  // velocity in a ref lets us run a critical-damped spring update each
+  // frame, which absorbs the irregular per-frame scrollY jumps that
+  // iOS Safari produces during momentum scroll.
+  const scrollTiltVelRef = useRef(0);
   // Mobile swipe-on-phone gesture state — tracked across pointer events on
   // the phone wrapper so swipe-left/right cycles activePhone (= persona).
   const phoneSwipeRef = useRef<{ x: number; y: number; moved: number } | null>(null);
@@ -1311,11 +1316,11 @@ function App() {
             // Scroll-driven tilt (mobile only).
             // CRITICAL: read scrollY INSIDE the render loop every frame
             // rather than via a scroll event listener — iOS Safari heavily
-            // throttles scroll events during momentum scroll (sometimes
-            // only firing at the END), which was causing the cyclone to
-            // jump between stale targets. Reading directly here keeps the
-            // target perfectly fresh, and the standard 0.07 easing
-            // smooths out the per-frame deltas.
+            // throttles scroll events during momentum scroll. We use a
+            // CRITICAL-DAMPED SPRING (velocity-based) instead of a simple
+            // lerp because iOS's momentum-scroll callbacks deliver scrollY
+            // in irregular chunks; the spring's inertia absorbs those
+            // chunks naturally instead of jumping toward each new target.
             if (_mobile) {
               const scrollMax = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
               const scrollProgress = Math.min(1, Math.max(0, window.scrollY / scrollMax));
@@ -1323,8 +1328,16 @@ function App() {
             } else {
               scrollTiltTargetRef.current = 0;
             }
-            scrollTiltRef.current +=
-              (scrollTiltTargetRef.current - scrollTiltRef.current) * 0.07;
+            // Spring physics: velocity accumulates toward target, damping
+            // bleeds energy off. Tuned for ~600ms settle on a step input
+            // with no perceptible oscillation — the cyclone glides into
+            // place even when scrollY jumps non-linearly.
+            const STIFFNESS = 0.012;
+            const DAMPING = 0.18;
+            scrollTiltVelRef.current +=
+              (scrollTiltTargetRef.current - scrollTiltRef.current) * STIFFNESS;
+            scrollTiltVelRef.current *= (1 - DAMPING);
+            scrollTiltRef.current += scrollTiltVelRef.current;
             // TILT = base 1.25 rad (~72°) + cursor/single-hand Y nudge
             // (±0.45 rad) + two-hand angle (±0.7 rad) + scroll-progress
             // tilt (mobile only, ±0.4 rad over the scroll range).
