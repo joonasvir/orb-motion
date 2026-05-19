@@ -2228,12 +2228,12 @@ function App() {
           </h1>
           <p className="blur-in" style={{
             fontFamily: 'inherit',
-            // Both variants reduced 20% so the subhead sits below the headline
-            // without competing — personalMode was 22-2.28vw-36, default was
-            // 13-1.3vw-22.
+            // Personal subhead unchanged; long subhead +30% from the
+            // previous shrink (clamp 10,1.04vw,18 → 13,1.35vw,23) so
+            // the long-copy variant reads cleanly at desktop AND mobile.
             fontSize: personalMode
               ? 'clamp(18px, 1.82vw, 29px)'
-              : 'clamp(10px, 1.04vw, 18px)',
+              : 'clamp(13px, 1.35vw, 23px)',
             // Line height bumped 25% in personalMode (1.18 → 1.475) so the
             // three lines breathe alongside the larger type.
             lineHeight: personalMode ? 1.475 : 1.25,
@@ -2256,9 +2256,14 @@ function App() {
             marginRight: personalMode
               ? 0
               : (isMobile || layout === 'center' || layout === 'right' ? 'auto' : 0),
-            // Subhead distance from the headline. Personal mode used a
-            // larger gap (36-60); trimmed ~30% to clamp(25,2.8vh,42).
-            marginTop: personalMode ? 'clamp(25px, 2.8vh, 42px)' : 0,
+            // Subhead distance from the headline:
+            // - personal: clamp(25,2.8vh,42) (kept).
+            // - long: was relying on h1's marginBottom (15-22px). Bumped
+            //   +40% by setting an explicit marginTop here (21-31 px),
+            //   which collapses with h1 marginBottom to the larger value.
+            marginTop: personalMode
+              ? 'clamp(25px, 2.8vh, 42px)'
+              : 'clamp(21px, 1.47vh, 31px)',
             // One step lighter in personalMode so the bigger size doesn't
             // read as overweight (400 → 300).
             fontWeight: personalMode ? 300 : 400,
