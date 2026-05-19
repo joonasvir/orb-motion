@@ -2049,6 +2049,17 @@ function App() {
                           const root = e.currentTarget.parentElement as HTMLElement | null;
                           updateSpring(root, i);
                           setHoveredFaceId(i);
+                          // Hovering an avatar swaps the phone screen +
+                          // surrounding props to that persona's scene. The
+                          // phone carousel crossfades via its slot-opacity
+                          // transitions; DraggableProps crossfades via the
+                          // dp-layer rule.
+                          setActivePhone((i - 1) % 3);
+                        }}
+                        onClick={() => {
+                          // Persist the persona on click — clicking is the
+                          // committal version of hover.
+                          setActivePhone((i - 1) % 3);
                         }}
                         style={{
                           position: 'absolute',
@@ -2264,7 +2275,15 @@ function App() {
         // When the lever is pulled (showOrbs = true), the travel props fade
         // out and slide back toward the phone — mirroring their entrance —
         // so the orbs have the stage to themselves.
-        return <DraggableProps wrapperStyle={wrapperStyle} hidden={showOrbs} />;
+        // Persona maps to the currently-active phone dashboard.
+        // activePhone is 0/1/2; personaId we use externally is 1/2/3.
+        return (
+          <DraggableProps
+            wrapperStyle={wrapperStyle}
+            hidden={showOrbs}
+            personaId={(activePhone % 3) + 1}
+          />
+        );
       })()}
 
       {/* Phone carousel — three dashboards, click to cycle which is in front */}

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 /* ---------------------------------------------------------------------------
  * Paper-rustle sound — pure Web Audio synthesis of crinkling paper / tickets
@@ -147,68 +147,137 @@ interface Props {
    *  toward the wrapper (phone) center. Used while orbs are on screen so the
    *  composition stays clean. */
   hidden?: boolean;
+  /** Which persona's prop set to render. 1=travel, 2=travel (fallback),
+   *  3=games, 4=travel (fallback). When this changes, the current set
+   *  cross-fades out and the new set cross-fades in. */
+  personaId?: number;
 }
 
 // Phone has a 400ms blur-in delay + 1.05s duration. Props start staggered
 // after the phone has mostly settled.
 const ENTER_BASE_DELAY = 950;
 
-const PROPS: PropDef[] = [
-  // Atlas — top-right corner, just peeks past the upper-right of the phone.
-  // Tuned to the reference: smaller width, less off-edge than before so it
-  // reads as a vintage book lying just behind the phone, not a giant prop.
+// Travel persona — atlas (top-right), tickets+map (bottom-left hero), globe
+// (front, bottom-right). The default scene.
+const TRAVEL_PROPS: PropDef[] = [
   {
-    id: 'atlas',
+    id: 'travel-atlas',
     src: '/props/travel-atlas.png',
     top: '-8%',
     right: '-22%',
     width: '50%',
     rotate: 14,
     z: 2,
-    enterX: '-18%',  // start displaced toward wrapper center (down-left from top-right rest)
+    enterX: '-18%',
     enterY: '14%',
     enterDelay: ENTER_BASE_DELAY,
   },
-  // Tickets + folded map — bottom-left, dominant prop that extends FAR
-  // below the phone bottom and FAR past the left edge (matches reference).
-  // Top edge of the bundle starts around the midpoint of the phone and the
-  // bottom of the bundle hangs ~30% below the phone bottom; a heavier CCW
-  // rotation reads as "stack of paper tumbled out."
   {
-    id: 'tickets',
+    id: 'travel-tickets',
     src: '/props/travel-ticket-map.png',
-    // Lifted ~200px from `bottom: -32%` so the bundle sits closer to
-    // the phone instead of sinking past the footer.
     bottom: 'calc(-32% + 200px)',
     left: '-58%',
     width: '95%',
     rotate: -22,
     z: 3,
-    enterX: '24%',   // start displaced toward wrapper center (up-right from bottom-left rest)
+    enterX: '24%',
     enterY: '-16%',
     enterDelay: ENTER_BASE_DELAY + 180,
   },
-  // Globe — bottom-right corner, sits IN FRONT of the phone and hugs the
-  // lower-right edge. Smaller than before so it reads as a 3D accent on
-  // the corner, not a competing visual with the tickets.
   {
-    id: 'globe',
+    id: 'travel-globe',
     src: '/props/travel-globe.png',
-    // Lifted ~200px from `bottom: -10%` so the globe hugs the lower-right
-    // corner of the phone instead of floating near the footer.
     bottom: 'calc(-10% + 200px)',
     right: '-30%',
     width: '36%',
     rotate: -4,
     z: 1,
     front: true,
-    enterX: '-20%',  // start displaced toward wrapper center (up-left from bottom-right rest)
+    enterX: '-20%',
     enterY: '-12%',
     enterDelay: ENTER_BASE_DELAY + 360,
   },
 ];
 
-export default function DraggableProps({ wrapperStyle, hidden = false }: Props) {
+// Games persona — play-button arrow (top-right), controller (bottom-left
+// hero), pixel cursor (front, bottom-right). Mirrors the travel layout so
+// the crossfade reads as a 1:1 scene swap.
+const GAMES_PROPS: PropDef[] = [
+  {
+    id: 'games-play',
+    src: '/props/games-play.png',
+    top: '-8%',
+    right: '-22%',
+    width: '46%',
+    rotate: 14,
+    z: 2,
+    enterX: '-18%',
+    enterY: '14%',
+    enterDelay: ENTER_BASE_DELAY,
+  },
+  {
+    id: 'games-controller',
+    src: '/props/games-controller.png',
+    bottom: 'calc(-32% + 200px)',
+    left: '-58%',
+    width: '95%',
+    rotate: -22,
+    z: 3,
+    enterX: '24%',
+    enterY: '-16%',
+    enterDelay: ENTER_BASE_DELAY + 180,
+  },
+  {
+    id: 'games-cursor',
+    src: '/props/games-cursor.png',
+    bottom: 'calc(-10% + 200px)',
+    right: '-30%',
+    width: '34%',
+    rotate: -4,
+    z: 1,
+    front: true,
+    enterX: '-20%',
+    enterY: '-12%',
+    enterDelay: ENTER_BASE_DELAY + 360,
+  },
+];
+
+// Persona-id → prop-set lookup. Avatars 2 and 4 fall back to travel until
+// dedicated sets exist for those personas.
+const PROPS_BY_PERSONA: Record<number, PropDef[]> = {
+  1: TRAVEL_PROPS,
+  2: TRAVEL_PROPS,
+  3: GAMES_PROPS,
+  4: TRAVEL_PROPS,
+};
+
+export default function DraggableProps({ wrapperStyle, hidden = false, personaId = 1 }: Props) {
+  // Track current persona + the previous one during a transition. When
+  // personaId changes we briefly render BOTH layers — the leaving one
+  // fades to opacity 0 while the entering one plays its dp-enter sequence.
+  // 360ms after the swap we drop the leaving layer.
+  const [layers, setLayers] = useState<Array<{ id: number; personaId: number; state: 'enter' | 'leave' }>>(() => [
+    { id: 0, personaId, state: 'enter' },
+  ]);
+  const nextLayerId = useRef(1);
+  const prevPersonaIdRef = useRef(personaId);
+
+  useEffect(() => {
+    if (prevPersonaIdRef.current === personaId) return;
+    prevPersonaIdRef.current = personaId;
+    // Mark all existing layers as leaving and push a new entering layer.
+    const id = nextLayerId.current++;
+    setLayers(prev => [
+      ...prev.map(l => ({ ...l, state: 'leave' as const })),
+      { id, personaId, state: 'enter' as const },
+    ]);
+    // Drop leaving layers after their fade-out completes.
+    const t = window.setTimeout(() => {
+      setLayers(prev => prev.filter(l => l.state === 'enter'));
+    }, 480);
+    return () => window.clearTimeout(t);
+  }, [personaId]);
+
   return (
     <>
       <style>{`
@@ -245,40 +314,56 @@ export default function DraggableProps({ wrapperStyle, hidden = false }: Props) 
           transform: translate(var(--enter-x, 0), var(--enter-y, 0)) scale(0.86) !important;
           pointer-events: none !important;
         }
+        /* Persona-swap crossfade: leaving layer fades opacity 1 → 0 over
+           ~360ms while the entering layer plays the standard dp-enter
+           animation on each of its props (slide-in from behind the phone).
+           Both layers are stacked at the same zIndex so they overlap
+           cleanly during the transition. */
+        .dp-layer {
+          transition: opacity 0.36s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .dp-layer--leaving {
+          opacity: 0;
+          pointer-events: none;
+        }
         @media (prefers-reduced-motion: reduce) {
           .dp-enter { animation: none !important; }
           .dp-wrap  { transition: none !important; }
+          .dp-layer { transition: none !important; }
         }
       `}</style>
-      {/* BACK layer — props that sit BEHIND the phone (zIndex 3, below the
-          phone at 5). Atlas + tickets+map live here. */}
-      <div
-        style={{
-          ...wrapperStyle,
-          zIndex: 3,
-          pointerEvents: 'none',
-        }}
-        aria-hidden="true"
-      >
-        {PROPS.filter(p => !p.front).map(p => (
-          <DraggableProp key={p.id} def={p} hidden={hidden} />
-        ))}
-      </div>
-      {/* FRONT layer — props that overlap the phone screen (zIndex 6, above
-          the phone at 5). Globe lives here so it reads as a 3D object
-          drifting over the device. */}
-      <div
-        style={{
-          ...wrapperStyle,
-          zIndex: 6,
-          pointerEvents: 'none',
-        }}
-        aria-hidden="true"
-      >
-        {PROPS.filter(p => p.front).map(p => (
-          <DraggableProp key={p.id} def={p} hidden={hidden} />
-        ))}
-      </div>
+      {/* One <Layer> per active persona, stacked. Most of the time there's
+          just the current persona; during a swap we briefly render two. */}
+      {layers.map(layer => {
+        const persona = PROPS_BY_PERSONA[layer.personaId] ?? PROPS_BY_PERSONA[1];
+        const backProps  = persona.filter(p => !p.front);
+        const frontProps = persona.filter(p => p.front);
+        const layerCls = `dp-layer${layer.state === 'leave' ? ' dp-layer--leaving' : ''}`;
+        return (
+          <Fragment key={layer.id}>
+            {/* BACK layer — props that sit BEHIND the phone (zIndex 3). */}
+            <div
+              className={layerCls}
+              style={{ ...wrapperStyle, zIndex: 3, pointerEvents: 'none' }}
+              aria-hidden="true"
+            >
+              {backProps.map(p => (
+                <DraggableProp key={p.id} def={p} hidden={hidden} />
+              ))}
+            </div>
+            {/* FRONT layer — overlaps the phone screen (zIndex 6). */}
+            <div
+              className={layerCls}
+              style={{ ...wrapperStyle, zIndex: 6, pointerEvents: 'none' }}
+              aria-hidden="true"
+            >
+              {frontProps.map(p => (
+                <DraggableProp key={p.id} def={p} hidden={hidden} />
+              ))}
+            </div>
+          </Fragment>
+        );
+      })}
     </>
   );
 }
