@@ -220,6 +220,12 @@ function App() {
   // palm is held, in which case palm height drives it (high → tight, low → wide).
   const cycloneRadiusMulRef = useRef(1.0);
   const cycloneRadiusMulTargetRef = useRef(1.0);
+  // User-controlled cyclone tightness slider (panel UI). 0.5 = tight,
+  // 1.8 = broad. Composes with the gesture-driven cycloneRadiusMul in
+  // the render loop. Ref-synced so the rAF loop reads cheaply.
+  const [cycloneScale, setCycloneScale] = useState(1.0);
+  const cycloneScaleRef = useRef(1.0);
+  useEffect(() => { cycloneScaleRef.current = cycloneScale; }, [cycloneScale]);
   // Tractor-beam point in viewport-pixel coords (decays automatically).
   // (x, y, expiresAt) — orbs pull toward this point while it's active.
   const tractorBeamRef = useRef<{ x: number; y: number; expiresAt: number } | null>(null);
@@ -1270,7 +1276,9 @@ function App() {
             // Split-mode squeeze — webcam owns half the viewport, so shrink the
             // cyclone so orbs don't disappear behind the video tile.
             const splitMul = handLayoutModeRef.current === 'split' ? 0.7 : 1;
-            const radMul = cycloneRadiusMulRef.current * splitMul;
+            // Combined radius multiplier: gesture-driven smoothing ×
+            // split-mode squeeze × user-set tightness from the panel.
+            const radMul = cycloneRadiusMulRef.current * splitMul * cycloneScaleRef.current;
             const radiusX = baseR * radMul * (1.0 + zLayer * 0.35);
             const radiusY = radiusX * animData.ellipseRatioY!;
 
@@ -3244,6 +3252,21 @@ function App() {
                 <input
                   type="range" min="0.3" max="2.0" step="0.1"
                   value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
+                  style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
+                />
+
+                {/* Cyclone width — how tight (low) or broad (high) the
+                    orbital ring is around the phone. Multiplies into the
+                    cyclone radius alongside the gesture-driven smoothing. */}
+                <div style={{ ...sectionLabel, marginTop: 8 }}>
+                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Cyclone width</span>
+                    <span style={{ opacity: 0.7 }}>{cycloneScale.toFixed(2)}x</span>
+                  </span>
+                </div>
+                <input
+                  type="range" min="0.5" max="1.8" step="0.05"
+                  value={cycloneScale} onChange={(e) => setCycloneScale(parseFloat(e.target.value))}
                   style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
                 />
 
