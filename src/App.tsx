@@ -2144,10 +2144,19 @@ function App() {
             color: renderStyle === 'shaders' ? 'rgba(255, 255, 255, 0.525)' : 'rgba(99, 99, 99, 0.49)',
             margin: 0,
             maxWidth: personalMode ? 'none' : 400,
-            // In personalMode the wrapper is already left-aligned and width-
-            // constrained; no auto-centering on this <p>.
-            marginLeft: personalMode ? 0 : 'auto',
-            marginRight: personalMode ? 0 : 'auto',
+            // Subhead alignment for the LONG-copy variant:
+            //   layout=right (phone right, copy left)  → hug LEFT:  ml 0,    mr auto
+            //   layout=left  (phone left,  copy right) → hug RIGHT: ml auto, mr 0
+            //   layout=center                          → centered:  ml auto, mr auto
+            //   mobile                                 → centered:  ml auto, mr auto
+            // PersonalMode keeps the original (no auto-centering — the
+            // wrapper width already constrains the block).
+            marginLeft: personalMode
+              ? 0
+              : (isMobile || layout === 'center' || layout === 'left' ? 'auto' : 0),
+            marginRight: personalMode
+              ? 0
+              : (isMobile || layout === 'center' || layout === 'right' ? 'auto' : 0),
             marginTop: personalMode ? 'clamp(36px, 4vh, 60px)' : 0,
             // One step lighter in personalMode so the bigger size doesn't
             // read as overweight (400 → 300).
@@ -2177,18 +2186,21 @@ function App() {
                 borderRadius: 'clamp(14px, 1.6vw, 22px)',
                 // QR follows the headline/subhead alignment. This branch only
                 // runs in side layouts (the gating on `layout !== 'center'`
-                // above), so we have just left vs right vs mobile here. The
-                // center-layout QR lives in its own floating block below.
-                margin: personalMode
-                  ? (isMobile
-                      ? 'clamp(28px, 3.5vh, 48px) auto 0'
-                      : layout === 'left'
-                      // Phone-on-left → copy on the right → QR right-aligned.
+                // above), so we have just left vs right here on desktop.
+                // Mobile is hidden upstream so we don't need to handle it.
+                // Layout=left  → copy on the right → QR right-aligned (auto left, 0 right)
+                // Layout=right → copy on the left  → QR left-aligned  (0 left, auto right)
+                // Same rule for short + long now.
+                margin: layout === 'left'
+                  ? (personalMode
                       ? 'clamp(44px, 5.5vh, 80px) 0 0 auto'
-                      // Phone-on-right (default) → copy on the left → QR left-aligned.
-                      : 'clamp(44px, 5.5vh, 80px) 0 0')
-                  : 'clamp(20px, 2.5vh, 36px) auto 0',
-                transformOrigin: personalMode && !isMobile
+                      : 'clamp(20px, 2.5vh, 36px) 0 0 auto')
+                  : (personalMode
+                      ? 'clamp(44px, 5.5vh, 80px) 0 0 0'
+                      : 'clamp(20px, 2.5vh, 36px) 0 0 0'),
+                // Hover-scale grows from the anchor edge that matches the
+                // QR's flush side, so the QR doesn't drift on hover.
+                transformOrigin: !isMobile
                   ? (layout === 'left' ? 'top right' : 'top left')
                   : 'top center',
                 background: renderStyle === 'shaders' ? 'rgba(255, 255, 255, 0.385)' : 'rgba(255, 255, 255, 0.56)',
