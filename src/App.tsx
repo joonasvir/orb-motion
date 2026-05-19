@@ -3219,52 +3219,22 @@ function App() {
               ))}
             </div>
 
-            {/* Motion — Orbit + Shapes options removed by request. Only
-                physics (drop) and cyclone (orbit-around-phone) remain. */}
-            <div style={sectionLabel}>Motion</div>
-            <div style={{ ...segGroup, marginBottom: SECTION_GAP, flexWrap: 'wrap' }}>
-              {(['physics', 'cyclone'] as const).map(m => (
-                <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>{m}</button>
-              ))}
-            </div>
+            {/* ─── ORBS — gatekeeper for everything orb-related ───
+                The switch reveals Motion, Orb size, Reset, and Hand mode
+                when on. When off the section collapses entirely. */}
+            <SwitchRow label="Orbs" on={showOrbs} onChange={setShowOrbs} />
 
-            {/* Inline Apple-style switch rows for everything binary. */}
-            <SwitchRow label="Orbs"      on={showOrbs}          onChange={setShowOrbs} />
-            <SwitchRow label="Fan out"   on={showProfiles}      onChange={setShowProfiles} />
-            <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
-            <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
-            {/* ("Make it personal" toggle removed — replaced by the
-                Headline short/long segmented control at the top of the panel.) */}
-            {/* Cycling-word icon — only meaningful in personalMode (it's the
-                little inline 3D icon before the rotating adjective). */}
-            <SwitchRow
-              label="Cycling icon"
-              on={showCyclingIcon}
-              onChange={setShowCyclingIcon}
-            />
-            {/* (Bento + Focus rows removed from the panel — bento section
-                deleted entirely; focus is still flipped internally by the
-                hand-mode cascade but no longer surfaced as a user switch.) */}
-
-            {/* (Playground launcher removed from the panel — showcaseMode
-                is still wired up internally, just no UI to enter it.) */}
-
-            {/* (Joystick sound options removed from the panel — the
-                joystickSound state stays at its 'lever' default, which is
-                still piped into the <Joystick> component.) */}
-
-            {/* (Generate-orb UI removed from the panel — the /api/generate-orb
-                endpoint + generateOrb handler are still wired up, just no
-                input/button surfaced anymore.) */}
-
-            {/* (Damping slider removed from the panel — `damping` state is
-                still wired up internally so orbs feel correct, just no UI
-                to adjust it.) */}
-
-            {/* Orb size — only meaningful when orbs are visible, so the
-                whole row hides itself when Orbs is toggled off. */}
             {showOrbs && (
               <>
+                {/* Motion — only physics + cyclone (orbit/shapes removed). */}
+                <div style={{ ...sectionLabel, marginTop: 4 }}>Motion</div>
+                <div style={{ ...segGroup, marginBottom: SECTION_GAP, flexWrap: 'wrap' }}>
+                  {(['physics', 'cyclone'] as const).map(m => (
+                    <button key={m} onClick={() => setMode(m)} style={segBtn(displayMode === m)}>{m}</button>
+                  ))}
+                </div>
+
+                {/* Orb size */}
                 <div style={sectionLabel}>
                   <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
                     <span>Orb size</span>
@@ -3276,87 +3246,86 @@ function App() {
                   value={orbSize} onChange={(e) => setOrbSize(parseFloat(e.target.value))}
                   style={{ width: '100%', cursor: 'pointer', accentColor: '#1e1e1e' }}
                 />
+
+                {/* Reset — same action as the clap gesture. Press R. */}
+                <div style={{ ...sectionLabel, marginTop: SECTION_GAP + 4 }}>
+                  <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
+                    <span>Reset</span>
+                    <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>R</span>
+                  </span>
+                </div>
+                <button
+                  onClick={resetOrbs}
+                  style={{ ...pillBtn(true), width: '100%' }}
+                >Drop fresh orbs</button>
+
+                {/* Hand mode (camera + core gestures + focus, all in one) */}
+                <SwitchRow
+                  label="Hand mode"
+                  on={handMode}
+                  hint={
+                    handStatus === 'loading' ? 'Loading…'
+                    : handStatus === 'denied'  ? 'Denied'
+                    : handStatus === 'error'   ? 'Error'
+                    : null
+                  }
+                  hintColor={handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : undefined}
+                  onChange={(v) => {
+                    if (v) {
+                      // Enter Hand mode: camera + gestures + Focus + cyclone.
+                      setHandMode(true);
+                      setHandControl(true);
+                      setFocusMode(true);
+                      if (leverStateRef.current === 0) {
+                        leverStateRef.current = 1;
+                        setLeverState(1);
+                        setMode('cyclone');
+                      }
+                    } else {
+                      setHandMode(false);
+                      setHandControl(false);
+                      setFocusMode(false);
+                    }
+                  }}
+                />
+
+                {/* Sub-controls — only shown once Hand mode is on */}
+                {handMode && (
+                  <>
+                    {/* Camera size — S / M / L / XL segmented control */}
+                    <div style={{ ...sectionLabel, marginTop: 4 }}>Camera size</div>
+                    <div style={{ ...segGroup, marginBottom: 8 }}>
+                      {(['s', 'm', 'l', 'xl'] as const).map(s => (
+                        <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
+                          {s.toUpperCase()}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Tracking — show live hand skeleton on the feed */}
+                    <SwitchRow label="Tracking" on={handShowSkeleton} onChange={setHandShowSkeleton} />
+                  </>
+                )}
               </>
             )}
 
-            {/* Reset — same action as the clap gesture, just a button. Press
-                R for the keyboard shortcut. */}
-            <div style={{ ...sectionLabel, marginTop: SECTION_GAP + 4 }}>
-              <span style={{ display: 'inline-flex', justifyContent: 'space-between', width: '100%' }}>
-                <span>Reset</span>
-                <span style={{ opacity: 0.55, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>R</span>
-              </span>
-            </div>
-            <button
-              onClick={resetOrbs}
-              style={{ ...pillBtn(true), width: '100%' }}
-            >Drop fresh orbs</button>
-
-            {/* ─── Hand mode (camera + core gestures + focus, all in one toggle) ───
-                Sits at the very bottom of the panel. Flipping On gives you the
-                full experience: webcam preview with skeleton overlay, open palm
-                / fist / clap / palm-height gestures, and Focus mode so the rest
-                of the page gets out of the way. Off restores the landing. */}
+            {/* Divider between the orb section and the unrelated visual toggles below. */}
             <div style={{
               marginTop: SECTION_GAP + 4,
               marginBottom: SECTION_GAP,
               height: 1,
               background: 'linear-gradient(to right, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.056) 20%, rgba(0, 0, 0, 0.056) 80%, rgba(0, 0, 0, 0) 100%)',
             }} />
+
+            {/* Visual toggles unrelated to orbs. */}
+            <SwitchRow label="Fan out"   on={showProfiles}      onChange={setShowProfiles} />
+            <SwitchRow label="Floats"    on={showNotifications} onChange={setShowNotifications} />
+            <SwitchRow label="3D icons"  on={showPersonaProps}  onChange={setShowPersonaProps} />
             <SwitchRow
-              label="Hand mode"
-              on={handMode}
-              hint={
-                handStatus === 'loading' ? 'Loading…'
-                : handStatus === 'denied'  ? 'Denied'
-                : handStatus === 'error'   ? 'Error'
-                : null
-              }
-              hintColor={handStatus === 'denied' || handStatus === 'error' ? '#b91c1c' : undefined}
-              onChange={(v) => {
-                if (v) {
-                  // Enter Hand mode: turn EVERYTHING on in one click —
-                  // camera + core gestures + Focus + orbs (otherwise
-                  // the user enters a mode that controls orbs but
-                  // can't see any). Lever also bumped to state 1
-                  // (cyclone) so there's a visible cyclone for the
-                  // gestures to act on.
-                  setHandMode(true);
-                  setHandControl(true);
-                  setFocusMode(true);
-                  setShowOrbs(true);
-                  if (leverStateRef.current === 0) {
-                    leverStateRef.current = 1;
-                    setLeverState(1);
-                    setMode('cyclone');
-                  }
-                } else {
-                  // Exit: kill camera + restore the landing. Skeleton +
-                  // camera-size preferences are kept across cycles.
-                  setHandMode(false);
-                  setHandControl(false);
-                  setFocusMode(false);
-                }
-              }}
+              label="Cycling icon"
+              on={showCyclingIcon}
+              onChange={setShowCyclingIcon}
             />
-
-            {/* Sub-controls — only shown once Hand mode is on */}
-            {handMode && (
-              <>
-                {/* Camera size — S / M / L / XL segmented control */}
-                <div style={{ ...sectionLabel, marginTop: 4 }}>Camera size</div>
-                <div style={{ ...segGroup, marginBottom: 8 }}>
-                  {(['s', 'm', 'l', 'xl'] as const).map(s => (
-                    <button key={s} onClick={() => setHandCameraSize(s)} style={segBtn(handCameraSize === s)}>
-                      {s.toUpperCase()}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Tracking — show live hand skeleton on the feed */}
-                <SwitchRow label="Tracking" on={handShowSkeleton} onChange={setHandShowSkeleton} />
-              </>
-            )}
           </div>
         );
       })()}
